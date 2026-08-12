@@ -382,6 +382,91 @@ async function main() {
   eq('the hand-authored demo show imports with zero blocking problems', auditDemo.blocking, 0);
   ok('  …and does raise advisory warnings about its tight spacing', auditDemo.warnings > 5, auditDemo.warnings);
 
+  /* ====================================================================== */
+  section('BEAT RING — the analysis tempo travels with the show');
+  const AA = C.chAnalysis(sum, opt);
+  eq('the generated show carries the analysed tempo',
+     r.show.audio.bpm, Math.round(AA.bpm * 100) / 100);
+  eq('  …and where beat one falls', r.show.audio.beatOffsetMs, Math.round(AA.beatOffsetMs));
+  ok('the bpm it exports is inside the schema range',
+     r.show.audio.bpm >= C.BPM_MIN && r.show.audio.bpm <= C.BPM_MAX, r.show.audio.bpm);
+  ok('the beat offset it exports is a non-negative integer',
+     Number.isInteger(r.show.audio.beatOffsetMs) && r.show.audio.beatOffsetMs >= 0, r.show.audio.beatOffsetMs);
+  const rTl = C.compileShow(C.validateShow(r.show).show);
+  ok('the compiled show therefore has a beat grid', !!rTl.beat && rTl.beat.bpm === r.show.audio.bpm, rTl.beat);
+  /* The whole point of shipping the grid: the cues were PLACED on it, so the
+     ring agrees with them. Both cue times and the exported offset are whole
+     ms while the true grid spacing is fractional, so the residual is pure
+     rounding — assert it in MILLISECONDS, where it has to be under one. */
+  const beatErrMs = function (t) { const b = C.beatAt(rTl, t); return Math.min(b.phase, 1 - b.phase) * b.beatMs; };
+  let worstCue = 0, worstLabel = null;
+  r.show.cues.forEach(function (c) {
+    const e = beatErrMs(c.t);
+    if (e > worstCue) { worstCue = e; worstLabel = [c.label, c.t]; }
+  });
+  ok('every generated cue starts on a ring beat [worst ' + worstCue.toFixed(4) + ' ms]', worstCue <= 1, worstLabel);
+  const pulses = r.show.cues.filter(function (c) { return c.type === 'pulse'; });
+  ok('generated pulse cues carry exactly the show tempo (same grid, no slide)',
+     pulses.length > 0 && pulses.every(function (c) { return c.bpm === r.show.audio.bpm; }),
+     pulses.map(function (c) { return c.bpm; }).concat([r.show.audio.bpm]));
+  let pulseDriftMs = 0, pulseSamples = 0;
+  pulses.forEach(function (c) {
+    const gid = c.groups[0] === 'all' ? rTl.groupIds[0] : c.groups[0];
+    for (let t = c.t; t < c.t + c.dur; t += 11) {
+      const st = C.stateAt(rTl, [gid], t);
+      if (st.phase !== 'PULSE' || !st.pulse) continue;
+      pulseSamples++;
+      const b = C.beatAt(rTl, t);
+      let d = Math.abs(st.pulse.beatPhase - b.phase);
+      if (d > 0.5) d = 1 - d;                       // wrap: 0.999 vs 0.001 is 2 thou apart
+      pulseDriftMs = Math.max(pulseDriftMs, d * b.beatMs);
+    }
+  });
+  ok('sampled the generated pulses (' + pulseSamples + ' points)', pulseSamples > 100, pulseSamples);
+  ok('a generated pulse flashes on the ring beats, end to end [worst ' + pulseDriftMs.toFixed(4) + ' ms]',
+     pulseDriftMs <= 1, pulseDriftMs);
+  // out of range => left out rather than octave-shifted onto a different grid
+  const slowA = JSON.parse(JSON.stringify(sum));
+  slowA.bpm = 30;
+  const rSlow = C.choreograph(slowA, {});
+  ok('a tempo below the schema range is omitted, not shifted onto another grid',
+     !('bpm' in rSlow.show.audio) && rSlow.ok, rSlow.show.audio);
+  ok('  …and such a show still validates and simply has no ring',
+     C.beatAt(C.compileShow(C.validateShow(rSlow.show).show), 5000) === null);
+  const noTempoShow = C.chBuildShow([{ t: 0, dur: 2000, type: 'burn', groups: ['all'], label: 'x' }],
+                                    C.chOptions({}), { durationMs: 10000 });
+  ok('chBuildShow with no analysed tempo emits no beat keys at all',
+     !('bpm' in noTempoShow.audio) && !('beatOffsetMs' in noTempoShow.audio), noTempoShow.audio);
+
+  /* ====================================================================== */
+  section('BALLOONS — identity rides out with the choreography');
+  const bGroups = [{ id: 'north', label: 'NORTH ROW', color: '#00c8ff' },
+                   { id: 'south', label: 'SOUTH ROW', color: '#ff3ea5' }];
+  const bal = C.makeBalloons(['north', 'south'], 9);
+  const optB = C.chOptions({ audioTitle: 'fixture', groups: bGroups, balloons: bal });
+  const rB = C.choreograph(sum, { audioTitle: 'fixture', groups: bGroups, balloons: bal });
+  ok('a show generated with balloons is valid', rB.ok, rB.errors);
+  eq('all 9 balloons are exported with it', rB.show.balloons.length, 9);
+  eq('numbers survive the round trip', rB.show.balloons.map(function (b) { return b.n; }), [1,2,3,4,5,6,7,8,9]);
+  ok('every exported balloon references a group the show defines',
+     rB.show.balloons.every(function (b) { return rB.show.groups.some(function (g) { return g.id === b.group; }); }));
+  verifyConstraints(rB.show, optB, 'with balloons');
+  const rbTl = C.compileShow(C.validateShow(rB.show).show);
+  eq('a pilot picking #5 is put in the right group', C.groupOfBalloon(rbTl, 5), bal.filter(function (b) { return b.n === 5; })[0].group);
+  ok('every balloon number resolves to a group that actually gets cues',
+     rbTl.balloons.every(function (b) { return rbTl.perGroup[b.group] && rbTl.perGroup[b.group].windows.length > 0; }));
+  eq('choreography is unaffected by balloons — same cues either way',
+     JSON.stringify(rB.show.cues),
+     JSON.stringify(C.choreograph(sum, { audioTitle: 'fixture', groups: bGroups }).show.cues));
+  const rNoBal = C.choreograph(sum, { audioTitle: 'fixture', groups: bGroups });
+  ok('no balloons in -> no balloons key out', !('balloons' in rNoBal.show), rNoBal.show.balloons);
+  const rJunk = C.choreograph(sum, { audioTitle: 'fixture', groups: bGroups,
+    balloons: [{ n: 1, group: 'north', x: 0.2, y: 0.2 }, { n: 1, group: 'south', x: 0.5, y: 0.5 },
+               { n: 2, group: 'ghost', x: 0.5, y: 0.5 }, { n: 3, group: 'south', x: 9, y: -9 }, 'nope'] });
+  ok('junk balloons are dropped or clamped rather than poisoning the show', rJunk.ok, rJunk.errors);
+  eq('  …leaving only the legal ones', rJunk.show.balloons.map(function (b) { return [b.n, b.group, b.x, b.y]; }),
+     [[1, 'north', 0.2, 0.2], [3, 'south', 1, 0]]);
+
   section('END TO END — generated show runs through the pilot engine');
   const parsed = C.parseShowText(JSON.stringify(r.show));
   ok('the exported JSON re-parses and re-validates', parsed.ok, parsed.errors);

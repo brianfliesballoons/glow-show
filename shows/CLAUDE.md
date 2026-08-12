@@ -24,7 +24,14 @@ A generated show is the choreographer's *musical* wishes filtered through the *s
 
 | File | Status | What it is |
 |---|---|---|
-| `demo-show.json` | primary copy | Hand-authored ~90s / 3-group demo. Also the worked example of the `glow-show/1` schema. Mirrored inline in `index.html` as `DEMO_SHOW` so "LOAD DEMO SHOW" works from `file://` and offline — **keep the two in sync** (the app prefers this file when it can fetch it). Deliberately tighter than the choreographer's own spacing rules, which makes it the fixture for "tight is advice, dangerous is a veto" (see below). |
+| `demo-show.json` | primary copy | Hand-authored ~90s / 3-group / 12-balloon demo at 120 BPM. Also the worked example of the `glow-show/1` schema — it exercises every cue type, the beat grid and the field map. Mirrored inline in `index.html` as `DEMO_SHOW` so "LOAD DEMO SHOW" works from `file://` and offline — **keep the two in sync** (the app prefers this file when it can fetch it; `harness.js` now pulls the inline literal out of the page and asserts the two validate to the same object, so drift fails the suite). Deliberately tighter than the choreographer's own spacing rules, which makes it the fixture for "tight is advice, dangerous is a veto" (see below). |
+
+The demo's 120 BPM / 0 ms grid is not decoration: every one of its ten cue
+starts lands exactly on a beat (they are all multiples of 500 ms), which is what
+lets the suite assert the ring and the cues agree with zero tolerance. Its
+NORTH and SOUTH rows sit on the auto-arrange grid; the SPECIAL SHAPES row is
+deliberately hand-staggered, so importing the demo and pressing AUTO-ARRANGE
+visibly does something.
 
 ## The `glow-show/1` schema, in brief
 
@@ -32,9 +39,16 @@ A generated show is the choreographer's *musical* wishes filtered through the *s
 {
   "format": "glow-show/1",              // version gate — anything else is rejected
   "title": "...",                       // also the showId (slugified) the Worker keys T0 on
-  "audio": { "title": "...", "durationMs": 90000 },
+  "audio": {
+    "title": "...", "durationMs": 90000,
+    "bpm": 120,                         // OPTIONAL 40–250 — the show-wide beat grid
+    "beatOffsetMs": 0                   // OPTIONAL ms of beat one from T0, >= 0, default 0
+  },
   "groups": [                           // ids: letters/digits/-/_ ; "all" is RESERVED
     { "id": "north", "label": "NORTH ROW", "color": "#00c8ff" }
+  ],
+  "balloons": [                         // OPTIONAL — numbers + where each one parks
+    { "n": 1, "group": "north", "x": 0.08, "y": 0.18, "label": "Wishingstar" }
   ],
   "defaults": { "getReadyMs": 5000, "ventWarnMs": 20000, "longBurnMs": 6000, "stopMs": 2000 },
   "cues": [                             // MUST be sorted by t
@@ -50,6 +64,58 @@ A generated show is the choreographer's *musical* wishes filtered through the *s
 - **`all`** is the implicit group meaning *every pilot*. Never define a group with that id; never mix `"all"` with named groups in one cue.
 - Cue types: **`burn`** solid · **`pulse`** flashes on a `bpm` grid (pilot blips the burner per flash) · **`alternate`** groups take turns every `periodMs` (expanded internally into per-group burn windows, in list order).
 
+### `audio.bpm` + `audio.beatOffsetMs` — the beat ring (optional, added 2026-08-12)
+
+The song's tempo, carried into the show so every pilot's phone can draw a
+**tempo ring**: a loading-circle that fills over each beat, snaps empty on the
+next, and flashes thicker on each bar's downbeat (bars are always 4 beats).
+`beatAt(tl, tMs)` in PURE CORE is the whole grid — it returns `null` when there
+is no `bpm`, and **a show with no `bpm` renders exactly as it always did, with
+no ring anywhere and no layout shift.**
+
+- `bpm` 40–250 (fractional is fine and preferred — the choreographer exports two
+  decimal places). Outside that range the field is **left out** rather than
+  octave-shifted: doubling or halving would slide the grid off the pulse cues
+  the same run placed on it. The editor's HALVE / DOUBLE buttons are the fix.
+- `beatOffsetMs` ≥ 0, defaults to 0. Set without a `bpm` it is a **warning**,
+  not an error, and is dropped — half a grid is no grid.
+- The grid runs **backwards through T0** as well, which is what makes the armed
+  pre-show countdown tick on the song's beat before bar one.
+- A **generated** show is honest by construction: the choreographer places every
+  cue on this grid and exports the same tempo it placed them with, so a pulse
+  cue at the show tempo flashes on exactly the ring's beats (residual under 1 ms,
+  from rounding cue times and the offset to whole milliseconds).
+- Where the ring appears on the pilot's phone: around the GET READY digits,
+  around the armed T-minus digits, around the PULSE wordmark (locked to that
+  cue's own flash grid), and small + dim in the footer between cues (IDLE / STOP
+  / VENT) so the rhythm is never lost. Not during a burn — the pilot is busy.
+
+### `balloons[]` — numbers and placement (optional, added 2026-08-12)
+
+Identity and placement, **not choreography**: cues stay group-based, and a
+balloon number's only job is to tell a pilot which group they are in and where
+to park. A show with no `balloons` behaves exactly as it did before they
+existed (the pilot picks a group from the old list).
+
+| field | rule |
+|---|---|
+| `n` | whole number ≥ 1, **unique** — the assignment number off the briefing sheet |
+| `group` | must be a defined group id; `"all"` is rejected (a balloon sits in exactly one real group) |
+| `x` | 0–1 across the field: **0 = left, 1 = right, as the CROWD sees it** |
+| `y` | 0–1 up the field: **0 = the crowd/stage edge (front row), 1 = the back** |
+| `label` | optional non-empty string — the pilot's or balloon's name |
+
+The field map is drawn from the crowd's point of view (audience along the bottom
+edge), so "left on the map" is left as the audience sees it, and a pilot who
+turns to face the crowd is looking at the map. An empty `balloons: []` validates
+and is treated as no balloons at all.
+
+Pilots pick their **number** from a tappable grid (the group is derived), the
+number shows in the always-on footer as `#12 · NORTH ROW`, and a MAP button on
+the setup and idle screens shows them their own balloon pulsing on the field.
+The conductor gets the same map without a highlight; the editor's **MAP tab**
+creates, numbers, auto-arranges and drags them.
+
 **Derived by the app at load — never author these:**
 
 - **GET READY** — `getReadyMs` before each cue that concerns the pilot's group. Suppressed when that group's previous cue ended less than `getReadyMs` earlier (a ping-pong must not spam "get ready" between its own legs).
@@ -58,7 +124,8 @@ A generated show is the choreographer's *musical* wishes filtered through the *s
 
 ## Conventions specific to this project
 
-- **A show that fails validation is never rendered** — the app throws a full-screen red error listing every problem. Validation covers: format gate, group definitions/ids/colors, cue sort order, `t`+`dur` inside `audio.durationMs`, per-type requirements (`bpm`, `periodMs`), and **no overlapping cues within any one group** after `alternate` expansion and `all` resolution. A pilot can never be handed two cues at once.
+- **A show that fails validation is never rendered** — the app throws a full-screen red error listing every problem. Validation covers: format gate, group definitions/ids/colors, cue sort order, `t`+`dur` inside `audio.durationMs`, per-type requirements (`bpm`, `periodMs`), the optional beat grid (`audio.bpm` range, `audio.beatOffsetMs` sign), the optional `balloons[]` (duplicate numbers, unknown group, coordinates off the field), and **no overlapping cues within any one group** after `alternate` expansion and `all` resolution. A pilot can never be handed two cues at once.
+- **Optional fields are optional all the way down.** `audio.bpm`, `audio.beatOffsetMs` and `balloons` only appear on the validated show object when the file actually carried them, so an older show compiles to a byte-identical timeline and every `stateAt()` the phones render is unchanged. The suite asserts exactly that (`harness.js`, "BACKWARD COMPATIBILITY").
 - **The four safety rules the generator obeys are NOT part of the file format** (they live in the editor's sliders): no burn over `maxBurnMs`; `minRestMs` of clear air between any two of a group's cues; before any burn long enough to need venting, `stopMs + ventLeadMs + getReadyMs` of clear air so the VENT warning is actually on screen; and a per-group `burnBudgetMs` for the whole show. A hand-authored file may break them and still be perfectly valid — `demo-show.json` does.
 - **Tight is advice, dangerous is a veto.** The editor paints a spacing that is merely tighter than the current sliders in amber and still exports it; it blocks export only on what the app itself would reject (overlaps, out of bounds, bad shape) or on the one genuinely unsafe case — a long burn a pilot gets less than a couple of seconds of warning about.
 - **Filenames**: `<song-or-event-slug>.json`, lowercase-hyphenated. No date stamps — a show is versioned by editing it, not by accumulating copies.

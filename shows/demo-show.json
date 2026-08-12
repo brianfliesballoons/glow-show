@@ -3,12 +3,28 @@
   "title": "Glow Show Demo - 90 Seconds",
   "audio": {
     "title": "(demo timing only - no audio file required)",
-    "durationMs": 90000
+    "durationMs": 90000,
+    "bpm": 120,
+    "beatOffsetMs": 0
   },
   "groups": [
     { "id": "north",  "label": "NORTH ROW",      "color": "#00c8ff" },
     { "id": "south",  "label": "SOUTH ROW",      "color": "#ff3ea5" },
     { "id": "shapes", "label": "SPECIAL SHAPES", "color": "#ffd400" }
+  ],
+  "balloons": [
+    { "n": 1,  "group": "north",  "x": 0.08, "y": 0.18 },
+    { "n": 2,  "group": "north",  "x": 0.36, "y": 0.18, "label": "Wishingstar" },
+    { "n": 3,  "group": "north",  "x": 0.64, "y": 0.18 },
+    { "n": 4,  "group": "north",  "x": 0.92, "y": 0.18 },
+    { "n": 5,  "group": "south",  "x": 0.08, "y": 0.50 },
+    { "n": 6,  "group": "south",  "x": 0.36, "y": 0.50 },
+    { "n": 7,  "group": "south",  "x": 0.64, "y": 0.50, "label": "Pala Spirit" },
+    { "n": 8,  "group": "south",  "x": 0.92, "y": 0.50 },
+    { "n": 9,  "group": "shapes", "x": 0.14, "y": 0.80 },
+    { "n": 10, "group": "shapes", "x": 0.40, "y": 0.84 },
+    { "n": 11, "group": "shapes", "x": 0.62, "y": 0.82 },
+    { "n": 12, "group": "shapes", "x": 0.88, "y": 0.86 }
   ],
   "defaults": {
     "getReadyMs": 5000,

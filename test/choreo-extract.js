@@ -28,6 +28,7 @@ fs.writeFileSync(OUT + '/choreo.js',
   core + dsp + cho +
   '\nmodule.exports={' +
   'parseShowText,validateShow,compileShow,stateAt,expandSegments,fmtMMSS,fmtSecs,slugify,SHOW_DEFAULTS,' +
+  'beatAt,beatGridOf,groupOfBalloon,normalizeBalloons,arrangeBalloons,makeBalloons,BEATS_PER_BAR,BPM_MIN,BPM_MAX,' +
   '_fftFor,_hannWindow,computeFrames,onsetEnvelope,estimateTempo,buildBeats,estimateBarPhase,detectSections,' +
   'sectionFeatures,labelSections,waveSilhouette,analyzePCM,analysisSummary,AN_DEFAULTS,' +
   'CH_DEFAULTS,chOptions,chGrid,chAnalysis,chScheduler,chPlan,chAudit,chBuildShow,choreograph' +

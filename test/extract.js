@@ -18,5 +18,6 @@ const from = html.indexOf('*/', a) + 2;
 const to   = html.lastIndexOf('/*', b);
 const core = html.slice(from, to);
 fs.writeFileSync(OUT + '/pure-core.js',
-  core + '\nmodule.exports={parseShowText,validateShow,compileShow,stateAt,expandSegments,fmtMMSS,fmtSecs,slugify,SHOW_DEFAULTS};\n');
+  core + '\nmodule.exports={parseShowText,validateShow,compileShow,stateAt,expandSegments,fmtMMSS,fmtSecs,slugify,SHOW_DEFAULTS,' +
+  'beatAt,beatGridOf,groupOfBalloon,normalizeBalloons,arrangeBalloons,makeBalloons,BEATS_PER_BAR,BPM_MIN,BPM_MAX};\n');
 console.log('pure core bytes:', core.length);

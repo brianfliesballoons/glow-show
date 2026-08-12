@@ -156,8 +156,41 @@ label.fld > span{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5p
 .stage-sub{font-size:clamp(15px,5vw,28px);font-weight:800;letter-spacing:.06em;opacity:.9}
 .stage-bar{width:92%;height:2.2vh;min-height:12px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden;margin-top:1.4vh;border:1px solid rgba(255,255,255,.25)}
 .stage-bar i{display:block;height:100%;background:currentColor;width:100%;border-radius:99px}
-.stage-footer{font-size:11.5px;letter-spacing:.03em;opacity:.72;text-align:center;padding-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage-footer{font-size:11.5px;letter-spacing:.03em;opacity:.72;padding-top:4px;white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:7px}
+#st-foottext{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .ventchip{background:#4b0f8f;color:#f3e8ff;border:1px solid #a25cff;border-radius:999px;padding:5px 10px;font-weight:900;font-size:12px}
+.stagebtn{min-height:0;padding:5px 14px;font-size:12px;font-weight:900;letter-spacing:.08em;border-radius:999px;background:rgba(0,0,0,.3);border-color:rgba(255,255,255,.35);color:inherit}
+
+/* ---- the beat ring: a loading circle that fills over one beat -------------
+   Absolutely positioned inside .bigwrap, so a show with NO bpm renders the
+   stage exactly as it always did — nothing reserves space, nothing shifts. */
+.bigwrap{position:relative;display:flex;align-items:center;justify-content:center;max-width:100%}
+.beatring{
+  position:absolute;left:50%;top:50%;
+  width:min(31vh,37vw);height:min(31vh,37vw);
+  transform:translate(-50%,-50%) rotate(-90deg);   /* 12 o'clock start */
+  pointer-events:none;overflow:visible;
+}
+.footring{width:15px;height:15px;flex:0 0 auto;transform:rotate(-90deg);opacity:.6}
+.beatring circle,.footring circle{fill:none;stroke-linecap:butt}
+.br-track{stroke:currentColor;opacity:.17;stroke-width:5}
+.br-fill{stroke:var(--ringColor,currentColor);stroke-width:5}
+.br-accent{stroke:var(--ringColor,currentColor);stroke-width:5;opacity:0}
+.footring .br-track{stroke-width:13;opacity:.25}
+.footring .br-fill{stroke:var(--ringColor,currentColor);stroke-width:13}
+/* Digits shrink only while a ring is actually on screen, and the ring grows
+   for anything wider than two characters (a T-minus clock, the PULSE word)
+   so the content always sits INSIDE the circle. */
+#stage.hasring .stage-big{font-size:min(17vh,21vw)}
+/* the ring, not the digits, drives the layout box while it is on screen —
+   that is what keeps it from ever crossing the label or the sub-line */
+#stage.hasring .bigwrap{min-width:min(28vh,34vw);min-height:min(28vh,34vw)}
+#stage.hasring .beatring{width:min(28vh,34vw);height:min(28vh,34vw)}
+#stage.hasring.ringwide .beatring,
+#stage.hasring.ringwide .bigwrap{width:auto;min-width:min(30vh,58vw);min-height:min(30vh,58vw)}
+#stage.hasring.ringwide .beatring{width:min(30vh,58vw);height:min(30vh,58vw)}
+#stage.hasring.ringwide .stage-big,
+#stage.hasring.ringwide .stage-big.text{font-size:min(8.5vh,9.5vw)}
 
 .preview{display:flex;gap:6px;width:100%;min-height:9vh;max-height:11vh;margin-bottom:5px}
 .pvblk{flex:1 1 0;border-radius:10px;border:1px solid rgba(255,255,255,.14);padding:6px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;background:rgba(255,255,255,.03)}
@@ -197,6 +230,28 @@ table.dbg tr.best td{color:#3ff094;font-weight:800}
 /* ===================== GROUP / CUE CHIPS ===================== */
 .grpbtn{width:100%;min-height:84px;font-size:clamp(18px,5.4vw,24px);border-left:10px solid var(--g,#666)}
 .grpbtn.sel{background:#1d3a2c;border-color:#2fa36a}
+
+/* ---- balloon number grid (pilot setup, when the show has balloons) ---- */
+.numgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.numbtn{
+  min-height:72px;padding:6px 4px;border-radius:12px;flex-direction:column;gap:1px;
+  font-size:26px;font-weight:900;border-left:9px solid var(--g,#666);
+}
+.numbtn small{font-size:9px;font-weight:800;letter-spacing:.05em;color:#a3aec4;text-transform:uppercase;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.numbtn.sel{background:#1d3a2c;border-color:#2fa36a;border-left-color:var(--g,#666)}
+.numbtn.sel small{color:#bff5d8}
+
+/* ---- field map ---- */
+#overlay-map{background:#05060a;color:#e8ecf4;justify-content:flex-start;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 16px) var(--pad) calc(env(safe-area-inset-bottom) + 30px)}
+.mapwrap{width:100%;max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:10px;text-align:left}
+#map-canvas,#ew-mapcanvas{display:block;width:100%;border:1px solid var(--line);border-radius:12px;background:#070a12;touch-action:none}
+#ew-mapwrap{width:100%;margin:0 0 6px}
+.maplegend{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ---- editor tabs ---- */
+.edtabs{gap:6px;margin:0 0 10px}
+.edtab{flex:1 1 0;min-height:46px;border-radius:12px;font-size:14px;letter-spacing:.08em}
+.edtab.on{background:#1d4ed8;border-color:#2a5ff0}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#161b26;border:1px solid var(--line)}
 .dot{width:10px;height:10px;border-radius:99px;background:var(--g,#666);flex:0 0 auto}
 
@@ -308,7 +363,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     </div>
 
     <div class="card">
-      <h3>2 &middot; Your group</h3>
+      <h3 id="p-grouphead">2 &middot; Your group</h3>
       <div id="p-groups" class="stack"></div>
     </div>
 
@@ -347,16 +402,33 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
   <div id="stage" class="ph-IDLE">
     <div class="stage-top">
       <span id="st-left"></span>
+      <button id="st-map" class="stagebtn hidden" data-act="map">MAP</button>
       <span id="st-right"></span>
     </div>
     <div class="stage-main">
       <div id="st-label" class="stage-label"></div>
-      <div id="st-big" class="stage-big"></div>
+      <!-- the beat ring wraps the digits: an SVG loading-circle that fills over
+           each beat and snaps empty on the next, thickening on the downbeat.
+           Absolutely positioned, so a show with no bpm shifts nothing. -->
+      <div class="bigwrap">
+        <svg id="st-ring" class="beatring hidden" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <circle class="br-track"  cx="50" cy="50" r="45"></circle>
+          <circle class="br-fill"   cx="50" cy="50" r="45"></circle>
+          <circle class="br-accent" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <div id="st-big" class="stage-big"></div>
+      </div>
       <div id="st-sub" class="stage-sub"></div>
       <div id="st-barwrap" class="stage-bar hidden"><i id="st-bar"></i></div>
     </div>
     <div id="st-preview" class="preview"></div>
-    <div id="st-footer" class="stage-footer"></div>
+    <div id="st-footer" class="stage-footer">
+      <svg id="st-footring" class="footring hidden" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <circle class="br-track" cx="50" cy="50" r="42"></circle>
+        <circle class="br-fill"  cx="50" cy="50" r="42"></circle>
+      </svg>
+      <span id="st-foottext"></span>
+    </div>
   </div>
 </section>
 
@@ -403,6 +475,12 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <div id="c-armpanel"></div>
     </div>
 
+    <div class="card hidden" id="c-mapcard">
+      <h3>Field layout</h3>
+      <div id="c-mapstate" class="small" style="margin-bottom:10px"></div>
+      <button class="wide" data-act="map">OPEN THE FIELD MAP</button>
+    </div>
+
     <button class="wide huge primary" data-act="open-conductor-run">OPEN SHOW VIEW</button>
     <div class="footlinks">
       <button class="linkbtn" data-act="settings">settings</button>
@@ -437,7 +515,10 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <div id="cr-mirror" class="mirror"></div>
     </div>
     <button class="wide huge danger" data-act="hold">SHOW HOLD &mdash; STOP EVERYTHING</button>
-    <div class="footlinks"><button class="linkbtn" data-act="switch-role">switch role</button></div>
+    <div class="footlinks">
+      <button class="linkbtn" data-act="map">field map</button>
+      <button class="linkbtn" data-act="switch-role">switch role</button>
+    </div>
   </div>
 </section>
 
@@ -507,38 +588,70 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <span id="ew-state" class="badge grey"></span>
     </div>
 
-    <div class="row edtrans">
-      <button id="ew-playbtn" data-act="ed-play">&#9654; PLAY</button>
-      <button data-act="ed-rewind">&#9198;</button>
-      <span class="mono" id="ew-time">0:00</span>
-      <button data-act="ed-zoomout">&minus;</button>
-      <button data-act="ed-zoomin">+</button>
-      <button data-act="ed-fit">FIT</button>
-      <button data-act="ed-export">EXPORT</button>
-      <button data-act="ed-copy">COPY</button>
+    <div class="row edtabs">
+      <button id="ew-tabbtn-timeline" class="edtab on" data-act="ed-tab-timeline">TIMELINE</button>
+      <button id="ew-tabbtn-map" class="edtab" data-act="ed-tab-map">MAP</button>
     </div>
 
-    <div id="ew-canvaswrap">
-      <canvas id="ew-canvas"></canvas>
-      <canvas id="ew-cursor"></canvas>
+    <div id="ew-tab-timeline">
+      <div class="row edtrans">
+        <button id="ew-playbtn" data-act="ed-play">&#9654; PLAY</button>
+        <button data-act="ed-rewind">&#9198;</button>
+        <span class="mono" id="ew-time">0:00</span>
+        <button data-act="ed-zoomout">&minus;</button>
+        <button data-act="ed-zoomin">+</button>
+        <button data-act="ed-fit">FIT</button>
+        <button data-act="ed-export">EXPORT</button>
+        <button data-act="ed-copy">COPY</button>
+      </div>
+
+      <div id="ew-canvaswrap">
+        <canvas id="ew-canvas"></canvas>
+        <canvas id="ew-cursor"></canvas>
+      </div>
+      <div class="tiny edhint" id="ew-hint"></div>
+
+      <div class="card" id="ew-inspector"></div>
+
+      <div class="card">
+        <h3>Preview <span class="tiny" style="text-transform:none;letter-spacing:0">&mdash; what each group's phone shows at the playhead</span></h3>
+        <div id="ew-mirror" class="mirror"></div>
+      </div>
+
+      <div class="card">
+        <h3>Problems</h3>
+        <div id="ew-problems" class="small"></div>
+      </div>
+
+      <div class="card">
+        <h3>What it wanted to do but couldn't</h3>
+        <div id="ew-advisories" class="small"></div>
+      </div>
     </div>
-    <div class="tiny edhint" id="ew-hint"></div>
 
-    <div class="card" id="ew-inspector"></div>
+    <!-- MAP tab: balloon numbers + where each one parks on the field.
+         Cues stay group-based; this is identity and placement only. -->
+    <div id="ew-tab-map" class="hidden">
+      <div class="card">
+        <h3>How many balloons</h3>
+        <div class="row">
+          <label class="fld grow" style="margin:0"><span>Number of balloons</span>
+            <input type="number" id="ew-bcount" min="0" max="400" step="1" inputmode="numeric">
+          </label>
+          <button class="primary" data-act="ed-bset">SET COUNT</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="grow" data-act="ed-barrange">AUTO-ARRANGE</button>
+          <button class="grow" data-act="ed-badd">+ ADD ONE</button>
+          <button class="grow danger" data-act="ed-bclear">CLEAR ALL</button>
+        </div>
+        <div class="tiny" style="margin-top:8px">Setting a count creates balloons 1&hellip;N split into contiguous blocks per group (&ldquo;1&ndash;8 are NORTH ROW&rdquo;) and lays them out in rows. Then drag any balloon to where it actually parks.</div>
+      </div>
 
-    <div class="card">
-      <h3>Preview <span class="tiny" style="text-transform:none;letter-spacing:0">&mdash; what each group's phone shows at the playhead</span></h3>
-      <div id="ew-mirror" class="mirror"></div>
-    </div>
+      <div id="ew-mapwrap"><canvas id="ew-mapcanvas"></canvas></div>
+      <div class="tiny edhint" id="ew-maphint"></div>
 
-    <div class="card">
-      <h3>Problems</h3>
-      <div id="ew-problems" class="small"></div>
-    </div>
-
-    <div class="card">
-      <h3>What it wanted to do but couldn't</h3>
-      <div id="ew-advisories" class="small"></div>
+      <div class="card" id="ew-mapinspector"></div>
     </div>
 
     <div class="card">
@@ -624,6 +737,21 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
   <button class="huge wide" style="max-width:420px;background:#fff;color:#b3261e;border-color:#fff" data-act="dismiss-left">I&rsquo;M BACK &mdash; CONTINUE</button>
 </div>
 
+<!-- FIELD MAP — where every numbered balloon parks. Shared by PILOT (your own
+     balloon highlighted) and CONDUCTOR (the whole layout). -->
+<div id="overlay-map" class="overlay hidden">
+  <div class="mapwrap">
+    <div class="row" style="justify-content:space-between;width:100%">
+      <b id="map-title">FIELD MAP</b>
+      <button class="linkbtn" data-act="dismiss-map">close</button>
+    </div>
+    <canvas id="map-canvas"></canvas>
+    <div id="map-legend" class="edchips"></div>
+    <div id="map-note" class="tiny"></div>
+    <button class="huge wide" data-act="dismiss-map">BACK</button>
+  </div>
+</div>
+
 <div id="overlay-fatal" class="overlay hidden">
   <h1 id="fatal-title">SHOW FILE REJECTED</h1>
   <p id="fatal-sub" style="font-weight:700;max-width:32em"></p>
@@ -648,6 +776,7 @@ const LS = {
   show:      "glow.show",
   showSrc:   "glow.showSrc",
   group:     "glow.group",
+  balloon:   "glow.balloon",
   sync:      "glow.sync",
   pa:        "glow.paLatencyMs",
   armed:     "glow.armed",
@@ -680,13 +809,22 @@ const DRIFT_WARN_MS    = 60;
      - per-type requirements (pulse.bpm, alternate.periodMs + >=2 groups)
      - no overlapping cues within any single group, AFTER expansion of
        `alternate` cues and AFTER resolving the implicit "all" group
+     - OPTIONAL audio.bpm (40-250) + audio.beatOffsetMs (>=0) — the show-wide
+       beat grid the pilot's tempo ring runs off. Absent => no ring anywhere.
+     - OPTIONAL balloons[] — { n, group, x, y, label? }: unique positive
+       integer assignment numbers, a defined group, normalized field coords.
+       Absent => the app behaves exactly as it did before balloons existed.
    ========================================================================= */
 const SHOW_FORMAT = "glow-show/1";
 const CUE_TYPES = ["burn", "pulse", "alternate"];
 const SHOW_DEFAULTS = { getReadyMs: 5000, ventWarnMs: 20000, longBurnMs: 6000, stopMs: 2000 };
+const BPM_MIN = 40, BPM_MAX = 250;
+const BEATS_PER_BAR = 4;
 
 function _isNum(v) { return typeof v === "number" && isFinite(v); }
 function _isStr(v) { return typeof v === "string" && v.trim().length > 0; }
+function _isInt(v) { return _isNum(v) && Math.floor(v) === v; }
+function _clamp01(v) { return _isNum(v) ? Math.max(0, Math.min(1, v)) : 0.5; }
 
 function parseShowText(text) {
   let raw;
@@ -714,6 +852,18 @@ function validateShow(raw) {
   const audio = (raw.audio && typeof raw.audio === "object") ? raw.audio : {};
   if (!_isNum(audio.durationMs) || audio.durationMs <= 0) {
     errors.push("audio.durationMs must be a positive number of milliseconds.");
+  }
+  // optional beat grid — drives the pilot's tempo ring. Both fields optional.
+  const hasBpm = audio.bpm !== undefined && audio.bpm !== null;
+  if (hasBpm && (!_isNum(audio.bpm) || audio.bpm < BPM_MIN || audio.bpm > BPM_MAX)) {
+    errors.push("audio.bpm must be a number between " + BPM_MIN + " and " + BPM_MAX + " (the song's tempo). Leave it out for no beat ring.");
+  }
+  const hasOffset = audio.beatOffsetMs !== undefined && audio.beatOffsetMs !== null;
+  if (hasOffset && (!_isNum(audio.beatOffsetMs) || audio.beatOffsetMs < 0)) {
+    errors.push("audio.beatOffsetMs must be a number of ms >= 0 — the first beat, measured from T0.");
+  }
+  if (hasOffset && !hasBpm) {
+    warnings.push("audio.beatOffsetMs is set but audio.bpm is not — with no tempo there is no beat grid, so the offset is ignored.");
   }
 
   // --- groups ------------------------------------------------------------
@@ -798,10 +948,48 @@ function validateShow(raw) {
     });
   }
 
+  // --- balloons (optional) ----------------------------------------------
+  //   x = across the field, 0 = left / 1 = right AS THE CROWD SEES IT.
+  //   y = 0 at the crowd/stage edge (front row) -> 1 at the back of the field.
+  const balloons = [];
+  if (raw.balloons !== undefined && raw.balloons !== null) {
+    if (!Array.isArray(raw.balloons)) {
+      errors.push("balloons must be an array of { n, group, x, y } objects (or left out entirely).");
+    } else {
+      const seenN = {};
+      raw.balloons.forEach(function (b, i) {
+        const where = "balloons[" + i + "]";
+        if (!b || typeof b !== "object" || Array.isArray(b)) { errors.push(where + " must be an object."); return; }
+        if (!_isInt(b.n) || b.n < 1) {
+          errors.push(where + ".n must be a whole number >= 1 — it is the balloon's assignment number (got " + JSON.stringify(b.n) + ").");
+        } else if (seenN[b.n]) {
+          errors.push(where + '.n = ' + b.n + " is used twice. Every balloon needs its own number — two pilots cannot both be #" + b.n + ".");
+        } else seenN[b.n] = 1;
+        if (!_isStr(b.group)) errors.push(where + ".group must be a group id.");
+        else if (String(b.group).toLowerCase() === "all") errors.push(where + '.group cannot be "all" — a balloon sits in exactly one real group.');
+        else if (groupIds.indexOf(b.group.trim()) === -1) errors.push(where + ' references unknown group "' + b.group + '". Known: ' + groupIds.join(", ") + ".");
+        ["x", "y"].forEach(function (k) {
+          if (!_isNum(b[k]) || b[k] < 0 || b[k] > 1) {
+            errors.push(where + "." + k + " must be a number from 0 to 1 (position across the field, " +
+              (k === "x" ? "0 = left / 1 = right as the crowd sees it" : "0 = crowd side / 1 = back of the field") +
+              "; got " + JSON.stringify(b[k]) + ").");
+          }
+        });
+        if (b.label !== undefined && !_isStr(b.label)) errors.push(where + ".label must be a non-empty string if present.");
+        balloons.push(b);
+      });
+    }
+  }
+
   if (errors.length) return { ok: false, errors: errors, warnings: warnings };
 
   // --- structural check that needs expansion: per-group overlap ----------
-  const show = { format: raw.format, title: raw.title.trim(), audio: { title: audio.title || "", durationMs: audio.durationMs },
+  const audioOut = { title: audio.title || "", durationMs: audio.durationMs };
+  if (hasBpm) {
+    audioOut.bpm = audio.bpm;
+    audioOut.beatOffsetMs = hasOffset ? audio.beatOffsetMs : 0;
+  }
+  const show = { format: raw.format, title: raw.title.trim(), audio: audioOut,
                  groups: raw.groups.map(function (g) { return { id: g.id.trim(), label: g.label.trim(), color: g.color }; }),
                  defaults: defs,
                  cues: raw.cues.map(function (c) {
@@ -811,6 +999,15 @@ function validateShow(raw) {
                    if (c.vent !== undefined) o.vent = c.vent;
                    return o;
                  }) };
+  // `balloons` only exists on the show object when the file actually had some,
+  // so a show with no balloons is byte-for-byte what it always was.
+  if (balloons.length) {
+    show.balloons = balloons.map(function (b) {
+      const o = { n: b.n, group: b.group.trim(), x: b.x, y: b.y };
+      if (b.label !== undefined) o.label = b.label.trim();
+      return o;
+    });
+  }
 
   const segs = expandSegments(show);
   const perGroupSpans = {};
@@ -957,14 +1154,125 @@ function compileShow(show) {
   });
 
   const lastEnd = segments.reduce(function (m, s) { return Math.max(m, s.end); }, 0);
+  const balloons = Array.isArray(show.balloons) ? show.balloons.slice().sort(function (a, b) { return a.n - b.n; }) : [];
+  const balloonOf = {};
+  balloons.forEach(function (b) { balloonOf[b.n] = b; });
   return {
     show: show, defaults: d, groups: show.groups, groupIds: groupIds,
     colorOf: show.groups.reduce(function (m, g) { m[g.id] = g.color; return m; }, {}),
     labelOf: show.groups.reduce(function (m, g) { m[g.id] = g.label; return m; }, {}),
     segments: segments, vents: vents, perGroup: perGroup, previewCues: previewCues,
+    beat: beatGridOf(show),          // null when the show carries no tempo
+    balloons: balloons, balloonOf: balloonOf,
     audioMs: show.audio.durationMs,
     endMs: Math.max(show.audio.durationMs, lastEnd + d.stopMs)
   };
+}
+
+/* ===== BEAT GRID ============================================================
+   The show-wide metronome the pilot's tempo ring runs off. It is the SAME
+   arithmetic a pulse cue's flash grid uses (anchor + floor(elapsed/beatMs)),
+   so when a pulse cue's own bpm equals the show bpm and its start sits on the
+   grid, the flash edges and the ring's beat edges are the same instants.
+
+   beatAt(tl, tMs) -> null when the show has no bpm, else
+     { phase 0..1, beat, beatInBar, bar, downbeat, beatMs, beatsPerBar }
+   Negative time is fine and is the point: the grid runs backwards through T0
+   so the armed pre-show countdown ticks on the song's beat before bar one.
+   ========================================================================= */
+function beatGridOf(src) {
+  if (!src) return null;
+  if (src.beat !== undefined) return src.beat;                       // already a compiled timeline
+  const a = src.audio || (src.show && src.show.audio) || {};
+  if (!_isNum(a.bpm) || a.bpm <= 0) return null;
+  return {
+    bpm: a.bpm, beatMs: 60000 / a.bpm,
+    offsetMs: _isNum(a.beatOffsetMs) && a.beatOffsetMs >= 0 ? a.beatOffsetMs : 0,
+    beatsPerBar: BEATS_PER_BAR
+  };
+}
+
+function beatAt(tl, tMs) {
+  const g = beatGridOf(tl);
+  if (!g || !_isNum(tMs)) return null;
+  const rel = tMs - g.offsetMs;
+  const beat = Math.floor(rel / g.beatMs);
+  let phase = (rel - beat * g.beatMs) / g.beatMs;
+  if (!(phase >= 0)) phase = 0;
+  if (phase >= 1) phase = 0;                    // fp guard: never report a full beat
+  const bar = Math.floor(beat / g.beatsPerBar);
+  const beatInBar = beat - bar * g.beatsPerBar; // 0..beatsPerBar-1, negatives included
+  return {
+    phase: phase, beat: beat, beatInBar: beatInBar, bar: bar,
+    downbeat: beatInBar === 0, beatMs: g.beatMs, beatsPerBar: g.beatsPerBar
+  };
+}
+
+/* ===== BALLOONS =============================================================
+   Numbers + placement are identity, not choreography: cues stay group-based.
+   Field coordinates are normalized and crowd-relative —
+     x: 0 = left, 1 = right, as the CROWD sees the field
+     y: 0 = the crowd/stage edge (front row), 1 = the back of the field
+   so a map drawn with the crowd along the bottom edge is the pilot's own view
+   when they turn to face the audience.
+   ========================================================================= */
+function groupOfBalloon(tl, n) {
+  if (!tl || n == null) return null;
+  const b = tl.balloonOf ? tl.balloonOf[n] : null;
+  return b ? b.group : null;
+}
+
+function normalizeBalloons(list, groupIds) {
+  if (!Array.isArray(list)) return [];
+  const seen = {}, out = [];
+  list.forEach(function (b) {
+    if (!b || typeof b !== "object") return;
+    const n = Math.round(Number(b.n));
+    if (!isFinite(n) || n < 1 || seen[n]) return;
+    const gid = String((b.group == null ? "" : b.group)).trim();
+    if (groupIds.indexOf(gid) === -1) return;
+    seen[n] = 1;
+    const o = { n: n, group: gid, x: _clamp01(b.x), y: _clamp01(b.y) };
+    if (_isStr(b.label)) o.label = String(b.label).trim();
+    out.push(o);
+  });
+  out.sort(function (a, b) { return a.n - b.n; });
+  return out;
+}
+
+/* Rows: one band of the field per group, in group order, front (crowd) to
+   back; balloons spread evenly across the width of their row, in number
+   order. Margins keep the outermost balloons off the field edge. */
+function arrangeBalloons(balloons, groupIds) {
+  const out = normalizeBalloons(balloons, groupIds);
+  const rows = groupIds.filter(function (gid) { return out.some(function (b) { return b.group === gid; }); });
+  const R = rows.length;
+  rows.forEach(function (gid, ri) {
+    const mine = out.filter(function (b) { return b.group === gid; }).sort(function (a, b) { return a.n - b.n; });
+    const m = mine.length;
+    const y = R <= 1 ? 0.5 : 0.18 + 0.64 * (ri / (R - 1));
+    mine.forEach(function (b, k) {
+      b.x = m <= 1 ? 0.5 : 0.08 + 0.84 * (k / (m - 1));
+      b.y = y;
+    });
+  });
+  return out;
+}
+
+/* N in -> balloons 1..N out, split into CONTIGUOUS blocks per group (a
+   briefing says "1 through 8 are NORTH ROW"), then auto-arranged. */
+function makeBalloons(groupIds, count) {
+  const gids = (groupIds || []).slice();
+  const n = Math.max(0, Math.min(999, Math.round(Number(count) || 0)));
+  if (!gids.length || !n) return [];
+  const base = Math.floor(n / gids.length), extra = n % gids.length;
+  const out = [];
+  let next = 1;
+  gids.forEach(function (gid, i) {
+    const take = base + (i < extra ? 1 : 0);
+    for (let k = 0; k < take; k++) out.push({ n: next++, group: gid, x: 0.5, y: 0.5 });
+  });
+  return arrangeBalloons(out, gids);
 }
 
 const PHASE_RANK = { IDLE: 1, VENT: 2, GETREADY: 3, STOP: 4, PULSE: 5, BURN: 5 };
@@ -1824,6 +2132,9 @@ function chOptions(options) {
       color: /^#[0-9a-f]{6}$/i.test((g && g.color) || "") ? g.color : ["#00c8ff", "#ff3ea5", "#ffd400", "#3ff094", "#ff8b3d", "#b57bff"][k % 6]
     };
   });
+  // balloons ride along untouched — they are identity, not choreography.
+  // chBuildShow() normalizes them against the sanitised group ids above.
+  o.balloons = Array.isArray(i.balloons) ? i.balloons : [];
   return o;
 }
 
@@ -2095,7 +2406,10 @@ function chPlan(A, opt, grid, onlySections) {
   const t0 = [], t1 = [], t2 = [], fillers = [];
   const beatMs = grid.beatMs, barMs = grid.barMs;
   const canAlt = opt.groups.length >= 2;
-  const pulseBpm = Math.round(Math.max(20, Math.min(300, A.bpm)));
+  /* 2 dp, not whole BPM: this is the same number the show's own beat grid
+     carries, so a pulse cue's flash edges and the pilot's tempo ring stay the
+     same instants for the whole cue instead of sliding a few ms apart. */
+  const pulseBpm = Math.round(Math.max(20, Math.min(300, A.bpm)) * 100) / 100;
   const allIds = opt.groups.map(function (g) { return g.id; });
   const wanted = function (i) { return !onlySections || onlySections.indexOf(i) !== -1; };
   const onsetOf = function (s) { return (s.features && s.features.onset) || 0; };
@@ -2328,21 +2642,34 @@ function _chFairness(sched, A, opt, grid, adv) {
 /* ---- show assembly ------------------------------------------------------ */
 function chStripCue(c) {
   const o = { t: Math.round(c.t), dur: Math.round(c.dur), type: c.type, groups: c.groups.slice(), label: c.label };
-  if (c.type === "pulse") o.bpm = Math.round(c.bpm);
+  if (c.type === "pulse") o.bpm = Math.round(c.bpm * 100) / 100;
   if (c.type === "alternate") o.periodMs = Math.round(c.periodMs);
   if (c.vent === true) o.vent = true;
   return o;
 }
 
 function chBuildShow(cues, opt, A) {
-  return {
+  const audio = { title: opt.audioTitle || "", durationMs: Math.round(A.durationMs) };
+  /* The analysis already knows the tempo and where beat one falls; carrying
+     both into the show is what gives every pilot the tempo ring. Outside the
+     schema's 40–250 range it is left out rather than octave-shifted: doubling
+     or halving here would slide the grid off the pulse cues this same run just
+     placed on it. (The editor's HALVE / DOUBLE buttons are the fix.) */
+  if (_isNum(A.bpm) && A.bpm >= BPM_MIN && A.bpm <= BPM_MAX) {
+    audio.bpm = Math.round(A.bpm * 100) / 100;
+    audio.beatOffsetMs = Math.round(Math.max(0, _isNum(A.beatOffsetMs) ? A.beatOffsetMs : 0));
+  }
+  const show = {
     format: SHOW_FORMAT,
     title: opt.title || (opt.audioTitle ? opt.audioTitle + " — glow" : "Auto-choreographed glow"),
-    audio: { title: opt.audioTitle || "", durationMs: Math.round(A.durationMs) },
+    audio: audio,
     groups: opt.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; }),
     defaults: { getReadyMs: Math.round(opt.getReadyMs), ventWarnMs: Math.round(opt.ventWarnMs), longBurnMs: Math.round(opt.longBurnMs), stopMs: Math.round(opt.stopMs) },
     cues: cues.slice().sort(function (a, b) { return (a.t - b.t) || (a.dur - b.dur); }).map(chStripCue)
   };
+  const bl = normalizeBalloons(opt.balloons, show.groups.map(function (g) { return g.id; }));
+  if (bl.length) show.balloons = bl;
+  return show;
 }
 
 /* Audit an arbitrary cue list against the same constraints — this is what the
@@ -2440,11 +2767,25 @@ function choreograph(analysis, options) {
 const DEMO_SHOW = {
   format: "glow-show/1",
   title: "Glow Show Demo - 90 Seconds",
-  audio: { title: "(demo timing only - no audio file required)", durationMs: 90000 },
+  audio: { title: "(demo timing only - no audio file required)", durationMs: 90000, bpm: 120, beatOffsetMs: 0 },
   groups: [
     { id: "north",  label: "NORTH ROW",      color: "#00c8ff" },
     { id: "south",  label: "SOUTH ROW",      color: "#ff3ea5" },
     { id: "shapes", label: "SPECIAL SHAPES", color: "#ffd400" }
+  ],
+  balloons: [
+    { n: 1,  group: "north",  x: 0.08, y: 0.18 },
+    { n: 2,  group: "north",  x: 0.36, y: 0.18, label: "Wishingstar" },
+    { n: 3,  group: "north",  x: 0.64, y: 0.18 },
+    { n: 4,  group: "north",  x: 0.92, y: 0.18 },
+    { n: 5,  group: "south",  x: 0.08, y: 0.50 },
+    { n: 6,  group: "south",  x: 0.36, y: 0.50 },
+    { n: 7,  group: "south",  x: 0.64, y: 0.50, label: "Pala Spirit" },
+    { n: 8,  group: "south",  x: 0.92, y: 0.50 },
+    { n: 9,  group: "shapes", x: 0.14, y: 0.80 },
+    { n: 10, group: "shapes", x: 0.40, y: 0.84 },
+    { n: 11, group: "shapes", x: 0.62, y: 0.82 },
+    { n: 12, group: "shapes", x: 0.88, y: 0.86 }
   ],
   defaults: { getReadyMs: 5000, ventWarnMs: 20000, longBurnMs: 6000, stopMs: 2000 },
   cues: [
@@ -2470,6 +2811,8 @@ const APP = {
   tl: null,              // compiled timeline
   showSrcUrl: "",        // URL the show came from (for share links)
   myGroup: null,
+  myBalloon: null,       // assignment number, when the show defines balloons
+  mapOpen: false,
   workerUrl: WORKER_URL_DEFAULT,
   armed: null,           // { t0, source: 'auto'|'manual'|'url'|'test' }
   hold: false,
@@ -3117,6 +3460,9 @@ function applyShow(result, srcUrl) {
   store(LS.show, result.show);
   store(LS.showSrc, srcUrl || "");
   if (APP.myGroup && APP.tl.groupIds.indexOf(APP.myGroup) === -1) { APP.myGroup = null; drop(LS.group); }
+  // a balloon number only means anything inside the show that defines it
+  if (APP.myBalloon != null && !APP.tl.balloonOf[APP.myBalloon]) { APP.myBalloon = null; drop(LS.balloon); }
+  if (APP.myBalloon != null) APP.myGroup = groupOfBalloon(APP.tl, APP.myBalloon);
   if (result.warnings && result.warnings.length) {
     console.warn("Show warnings:", result.warnings);
   }
@@ -3156,7 +3502,11 @@ function restoreShow() {
   const s = load(LS.show, true);
   if (!s) return;
   const r = validateShow(s);
-  if (r.ok) { APP.show = r.show; APP.tl = compileShow(r.show); APP.showSrcUrl = load(LS.showSrc) || ""; }
+  if (r.ok) {
+    APP.show = r.show; APP.tl = compileShow(r.show); APP.showSrcUrl = load(LS.showSrc) || "";
+    if (APP.myBalloon != null && !APP.tl.balloonOf[APP.myBalloon]) { APP.myBalloon = null; drop(LS.balloon); }
+    if (APP.myBalloon != null) APP.myGroup = groupOfBalloon(APP.tl, APP.myBalloon);
+  }
   else drop(LS.show);
 }
 
@@ -3174,11 +3524,41 @@ function renderPilotSetup() {
     ss.appendChild(el("b", null, "No show loaded."));
   }
 
-  // --- groups ---
+  // --- balloon number (when the show has balloons) or plain group picker ---
   const gbox = $("p-groups");
+  const ghead = $("p-grouphead");
   clear(gbox);
+  const hasBalloons = !!(APP.tl && APP.tl.balloons.length);
+  setTxt(ghead, hasBalloons ? "2 · Your balloon number" : "2 · Your group");
   if (!APP.show) { gbox.appendChild(el("div", "small", "Load a show first.")); }
-  else {
+  else if (hasBalloons) {
+    // The number IS the assignment; the group falls out of it, so a pilot only
+    // ever has to remember one thing off the briefing sheet.
+    const grid = el("div", "numgrid");
+    APP.tl.balloons.forEach(function (b) {
+      const btn = el("button", "numbtn" + (APP.myBalloon === b.n ? " sel" : ""), "");
+      btn.style.setProperty("--g", APP.tl.colorOf[b.group] || "#666");
+      btn.appendChild(el("span", null, String(b.n)));
+      // the group is what the cue display keys off, so it is what the tile says
+      btn.appendChild(el("small", null, APP.tl.labelOf[b.group] || b.group));
+      btn.onclick = function () {
+        APP.myBalloon = b.n;
+        APP.myGroup = b.group;
+        store(LS.balloon, String(b.n));
+        store(LS.group, b.group);
+        renderPilotSetup();
+      };
+      grid.appendChild(btn);
+    });
+    gbox.appendChild(grid);
+    const mine = APP.myBalloon != null ? APP.tl.balloonOf[APP.myBalloon] : null;
+    gbox.appendChild(el("div", "small", mine
+      ? "You are #" + mine.n + " — " + (APP.tl.labelOf[mine.group] || mine.group) + (mine.label ? " (" + mine.label + ")" : "") + ". You burn on your group's cues and on every ALL cue."
+      : "Tap your balloon number — the briefing sheet has it. Your group is set automatically."));
+    const mb = el("button", "wide", "SHOW ME THE FIELD MAP");
+    mb.onclick = openFieldMap;
+    gbox.appendChild(mb);
+  } else {
     APP.tl.groups.forEach(function (g) {
       const b = el("button", "grpbtn" + (APP.myGroup === g.id ? " sel" : ""), g.label);
       b.style.setProperty("--g", g.color);
@@ -3344,15 +3724,76 @@ function pdom() {
     PILOT_DOM.label = $("st-label"); PILOT_DOM.big = $("st-big"); PILOT_DOM.sub = $("st-sub");
     PILOT_DOM.barwrap = $("st-barwrap"); PILOT_DOM.bar = $("st-bar");
     PILOT_DOM.preview = $("st-preview"); PILOT_DOM.footer = $("st-footer");
+    PILOT_DOM.foottext = $("st-foottext");
+    PILOT_DOM.mapbtn = $("st-map");
+    PILOT_DOM.ring = $("st-ring");
+    PILOT_DOM.ringFill = PILOT_DOM.ring.querySelector(".br-fill");
+    PILOT_DOM.ringAcc = PILOT_DOM.ring.querySelector(".br-accent");
+    PILOT_DOM.footring = $("st-footring");
+    PILOT_DOM.footFill = PILOT_DOM.footring.querySelector(".br-fill");
   }
   return PILOT_DOM;
+}
+
+/* ---- the beat ring ------------------------------------------------------
+   One SVG circle whose dash offset is driven straight off beatAt(): it fills
+   over a beat and snaps empty at the next. On a bar's downbeat a second ring
+   flashes thicker and fades out over the first ~45% of that beat, so the
+   pilot can feel where bar one is without counting.
+   Rendered per frame from the synced clock — no setInterval anywhere. */
+const RING_C = 2 * Math.PI * 45;      // r=45 in the 100x100 viewBox
+const FOOTRING_C = 2 * Math.PI * 42;
+function setRing(node, fillNode, accNode, beat, color, C) {
+  if (!node) return;
+  if (!beat) { if (!node.classList.contains("hidden")) node.classList.add("hidden"); return; }
+  node.classList.remove("hidden");
+  if (color) node.style.setProperty("--ringColor", color);
+  fillNode.setAttribute("stroke-dasharray", C.toFixed(3));
+  fillNode.setAttribute("stroke-dashoffset", (C * (1 - beat.phase)).toFixed(3));
+  if (accNode) {
+    const a = beat.downbeat ? Math.max(0, 1 - beat.phase / 0.45) : 0;
+    accNode.style.opacity = a ? a.toFixed(3) : "0";
+    accNode.setAttribute("stroke-width", (5 + 9 * a).toFixed(2));
+  }
+}
+
+function hideRings(D) {
+  setRing(D.ring, D.ringFill, D.ringAcc, null);
+  setRing(D.footring, D.footFill, null, null);
+  D.stage.classList.remove("hasring");
+  D.stage.classList.remove("ringwide");
+}
+
+function pilotRings(D, s, t) {
+  const beat = beatAt(APP.tl, t);
+  if (!beat) { hideRings(D); return; }
+  const accent = s.accent || "#ffffff";
+  let big = null, bigColor = accent;
+  if (s.phase === "GETREADY" || s.phase === "PRESHOW") {
+    big = beat;
+  } else if (s.phase === "PULSE" && s.pulse) {
+    // locked to THIS cue's own flash grid rather than the show grid, so the
+    // ring and the screen flash are one instruction. When the cue's bpm is the
+    // show's bpm and it starts on a beat, they are the same edges anyway.
+    big = { phase: s.pulse.beatPhase, downbeat: (s.pulse.beatIndex % BEATS_PER_BAR) === 0 };
+    bigColor = s.pulse.on ? "#000000" : "#ffffff";
+  }
+  setRing(D.ring, D.ringFill, D.ringAcc, big, bigColor, RING_C);
+  D.stage.classList.toggle("hasring", !!big);
+  D.stage.classList.toggle("ringwide", !!big && (D.big.textContent || "").length > 2);
+  // between cues, a small dim ring keeps the tempo on screen
+  const between = s.phase === "IDLE" || s.phase === "STOP" || s.phase === "VENT";
+  setRing(D.footring, D.footFill, null, between ? beat : null, accent, FOOTRING_C);
 }
 
 let lastPreviewSig = "";
 function renderPilot(now) {
   const D = pdom();
+  const canMap = !!(APP.tl && APP.tl.balloons.length);
 
   if (APP.hold) {
+    hideRings(D);
+    D.mapbtn.classList.add("hidden");
     setStagePhase(D, "HOLD");
     setTxt(D.label, "SHOW HOLD");
     D.big.classList.add("text");
@@ -3365,6 +3806,8 @@ function renderPilot(now) {
   }
 
   if (!APP.tl) {
+    hideRings(D);
+    D.mapbtn.classList.add("hidden");
     setStagePhase(D, "IDLE");
     setTxt(D.label, "NO SHOW LOADED");
     D.big.classList.add("text"); setTxt(D.big, "SETUP");
@@ -3375,6 +3818,8 @@ function renderPilot(now) {
   }
 
   if (!APP.armed) {
+    hideRings(D);                      // no T0 yet, so no beat grid to sit on
+    D.mapbtn.classList.toggle("hidden", !canMap);
     setStagePhase(D, "IDLE");
     setTxt(D.label, "NOT ARMED");
     D.big.classList.remove("text");
@@ -3471,6 +3916,11 @@ function renderPilot(now) {
   D.left.className = s.ventChip ? "ventchip" : "";
   setTxt(D.right, s.phase === "PRESHOW" || s.phase === "IDLE" ? "" : fmtMMSS(t));
 
+  // the map is reachable whenever the pilot is not mid-cue
+  D.mapbtn.classList.toggle("hidden",
+    !(canMap && (s.phase === "IDLE" || s.phase === "PRESHOW" || s.phase === "ENDED")));
+
+  pilotRings(D, s, t);
   renderPreview(D, s);
   renderFooter(D, now);
 }
@@ -3522,10 +3972,177 @@ function renderFooter(D, now) {
   const st = syncStatus();
   const parts = [];
   parts.push(APP.show ? APP.show.title : "no show");
-  parts.push(APP.myGroup && APP.tl ? APP.tl.labelOf[APP.myGroup] : "no group");
+  // identity: "#12 · NORTH ROW" when the show numbers its balloons
+  const who = APP.myGroup && APP.tl ? APP.tl.labelOf[APP.myGroup] : "no group";
+  parts.push(APP.myBalloon != null ? "#" + APP.myBalloon + " · " + who : who);
   parts.push(fmtClockShort(now));
   parts.push(st.level === "green" ? "SYNCED ±" + Math.round(SYNC.uncertainty) + "ms" : st.short);
-  setTxt(D.footer, parts.join("  ·  "));
+  setTxt(D.foottext, parts.join("  ·  "));
+}
+
+/* ============================================================================
+   ===== UI: FIELD MAP =====
+   Where every numbered balloon parks. Drawn from the crowd's point of view:
+   the audience is along the BOTTOM edge, so x runs left-to-right exactly as
+   the crowd sees it and y=0 (the front row) is nearest the bottom. Same
+   renderer for the pilot ("you are #12", highlighted), the conductor (the
+   whole layout) and the editor (draggable).
+   ========================================================================= */
+const MAP_PAD = 12;
+function mapGeom(canvas, count) {
+  const w = Math.max(240, canvas.clientWidth || canvas.parentNode.clientWidth || 320);
+  const h = Math.round(Math.max(200, Math.min(520, w * 0.62)));
+  const crowdH = 22;
+  const fx = MAP_PAD, fy = MAP_PAD;
+  const fw = w - MAP_PAD * 2, fh = h - MAP_PAD * 2 - crowdH;
+  const r = Math.max(9, Math.min(21, Math.sqrt(Math.max(1, fw * fh) / Math.max(1, count)) / 2.9));
+  return {
+    w: w, h: h, fx: fx, fy: fy, fw: fw, fh: fh, crowdH: crowdH, r: r,
+    px: function (x) { return fx + x * fw; },
+    py: function (y) { return fy + (1 - y) * fh; },      // y=0 (crowd side) at the bottom
+    ux: function (px) { return (px - fx) / fw; },
+    uy: function (py) { return 1 - (py - fy) / fh; }
+  };
+}
+
+function drawFieldMap(canvas, o) {
+  if (!canvas) return null;
+  const balloons = o.balloons || [];
+  const g = mapGeom(canvas, balloons.length);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  if (canvas.width !== Math.round(g.w * dpr) || canvas.height !== Math.round(g.h * dpr)) {
+    canvas.width = Math.round(g.w * dpr); canvas.height = Math.round(g.h * dpr);
+  }
+  canvas.style.height = g.h + "px";
+  const c = canvas.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, g.w, g.h);
+
+  // field
+  c.fillStyle = "#080c15";
+  c.fillRect(0, 0, g.w, g.h);
+  c.fillStyle = "#0b1220";
+  c.fillRect(g.fx, g.fy, g.fw, g.fh);
+  c.strokeStyle = "#22304a"; c.lineWidth = 1;
+  c.strokeRect(g.fx + 0.5, g.fy + 0.5, g.fw - 1, g.fh - 1);
+  c.strokeStyle = "rgba(255,255,255,.05)";
+  for (let i = 1; i < 6; i++) {
+    const x = g.fx + g.fw * i / 6;
+    c.beginPath(); c.moveTo(x, g.fy); c.lineTo(x, g.fy + g.fh); c.stroke();
+  }
+  for (let i = 1; i < 4; i++) {
+    const y = g.fy + g.fh * i / 4;
+    c.beginPath(); c.moveTo(g.fx, y); c.lineTo(g.fx + g.fw, y); c.stroke();
+  }
+
+  // the crowd edge — the one thing that makes the map unambiguous
+  const cy = g.fy + g.fh;
+  c.fillStyle = "#1b2740";
+  c.fillRect(g.fx, cy + 3, g.fw, g.crowdH - 6);
+  c.fillStyle = "#9fb2d4";
+  c.font = "800 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText("▲ CROWD / STAGE — this edge faces the audience ▲", g.fx + g.fw / 2, cy + 3 + (g.crowdH - 6) / 2);
+  c.textAlign = "left";
+  c.fillStyle = "#5b6479";
+  c.font = "700 9.5px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+  c.fillText("BACK OF FIELD", g.fx + 5, g.fy + 9);
+
+  // balloons
+  const hits = [];
+  const pulse = 0.5 + 0.5 * Math.sin((o.nowMs || 0) / 1000 * Math.PI * 2 * 0.9);
+  balloons.forEach(function (b) {
+    const x = g.px(b.x), y = g.py(b.y);
+    const mine = o.highlight != null && b.n === o.highlight;
+    const sel = o.selected != null && b.n === o.selected;
+    const col = (o.colorOf && o.colorOf[b.group]) || "#8b96ad";
+    const r = mine ? g.r * 1.18 : g.r;
+    if (mine) {
+      c.beginPath();
+      c.arc(x, y, r + 5 + 7 * pulse, 0, Math.PI * 2);
+      c.strokeStyle = "rgba(255,255,255," + (0.15 + 0.5 * (1 - pulse)).toFixed(3) + ")";
+      c.lineWidth = 3;
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fillStyle = col;
+    c.globalAlpha = mine ? 1 : 0.88;
+    c.fill();
+    c.globalAlpha = 1;
+    c.lineWidth = mine ? 3 : (sel ? 2.5 : 1);
+    c.strokeStyle = mine ? "#ffffff" : (sel ? "#ffffff" : "rgba(0,0,0,.55)");
+    c.stroke();
+    c.fillStyle = "#0a0d14";
+    c.font = "900 " + Math.round(r * 1.02) + "px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(String(b.n), x, y + 0.5);
+    if (b.label && g.r >= 13) {
+      c.fillStyle = "rgba(232,236,244,.72)";
+      c.font = "700 9.5px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+      c.fillText(b.label.slice(0, 14), x, y + r + 8);
+    }
+    hits.push({ n: b.n, x: x, y: y, r: Math.max(r, 16) });
+  });
+  c.textAlign = "left";
+  if (!balloons.length) {
+    c.fillStyle = "#5b6479";
+    c.font = "700 13px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+    c.textAlign = "center";
+    c.fillText("No balloons placed yet.", g.fx + g.fw / 2, g.fy + g.fh / 2);
+    c.textAlign = "left";
+  }
+  return { geom: g, hits: hits };
+}
+
+function mapHitAt(hits, x, y) {
+  let best = null, bestD = Infinity;
+  (hits || []).forEach(function (h) {
+    const d = Math.hypot(x - h.x, y - h.y);
+    if (d <= h.r && d < bestD) { bestD = d; best = h; }
+  });
+  return best;
+}
+
+/* ---- the shared PILOT / CONDUCTOR map overlay ---------------------------- */
+function openFieldMap() {
+  if (!APP.tl || !APP.tl.balloons.length) {
+    showFatal("NO FIELD MAP", "", ["This show does not place its balloons on the field.",
+      "Add balloons in the EDITOR's MAP tab, or run the show group-by-group as before."]);
+    return;
+  }
+  APP.mapOpen = true;
+  $("overlay-map").classList.remove("hidden");
+  const mine = APP.myBalloon != null ? APP.tl.balloonOf[APP.myBalloon] : null;
+  setTxt($("map-title"), mine ? "FIELD MAP — YOU ARE #" + mine.n : "FIELD MAP — " + APP.tl.balloons.length + " BALLOONS");
+  const leg = $("map-legend");
+  clear(leg);
+  APP.tl.groups.forEach(function (gr) {
+    const n = APP.tl.balloons.filter(function (b) { return b.group === gr.id; }).length;
+    if (!n) return;
+    const chip = el("span", "edchip", "");
+    const dot = el("span", "dot");
+    dot.style.setProperty("--g", gr.color);
+    chip.appendChild(dot);
+    chip.appendChild(el("span", null, gr.label + " · " + n));
+    leg.appendChild(chip);
+  });
+  setTxt($("map-note"), mine
+    ? "Your balloon is the pulsing one. Park where it sits relative to the crowd edge — the map is drawn from the crowd's point of view, so left on this map is left as they see it."
+    : "Drawn from the crowd's point of view: left on this map is left as the audience sees it, and the bottom edge is the crowd line.");
+  drawMapOverlay();
+}
+function closeFieldMap() {
+  APP.mapOpen = false;
+  $("overlay-map").classList.add("hidden");
+}
+function drawMapOverlay() {
+  if (!APP.mapOpen || !APP.tl) return;
+  drawFieldMap($("map-canvas"), {
+    balloons: APP.tl.balloons, colorOf: APP.tl.colorOf,
+    highlight: APP.role === "pilot" ? APP.myBalloon : null,
+    nowMs: Date.now()
+  });
 }
 
 /* ============================================================================
@@ -3559,6 +4176,19 @@ function renderCondSetup() {
 
   renderSyncPanels();
   renderArmPanel($("c-armpanel"), true);
+
+  // field layout (only when the show numbers its balloons)
+  const mc = $("c-mapcard");
+  const nb = APP.tl ? APP.tl.balloons.length : 0;
+  mc.classList.toggle("hidden", !nb);
+  if (nb) {
+    const ms = $("c-mapstate");
+    clear(ms);
+    ms.appendChild(el("span", "badge grey", nb + " balloons placed"));
+    ms.appendChild(el("div", "tiny", APP.tl.groups.map(function (g) {
+      return APP.tl.balloons.filter(function (b) { return b.group === g.id; }).length + " × " + g.label;
+    }).join(" · ")));
+  }
 
   // POST status + share block
   const box = $("c-armpanel");
@@ -3945,6 +4575,14 @@ const ED = {
   options: null,
   groups: null,
   cues: [],
+  balloons: [],          // [{ n, group, x, y, label? }] — identity + placement
+  bpm: 0,                // beat grid for an IMPORTED show with no analysis
+  beatOffsetMs: 0,
+  tab: "timeline",       // "timeline" | "map"
+  selBalloon: null,      // balloon number open in the map inspector
+  mapHits: [],
+  mapGeom: null,
+  mapDrag: null,
   advisories: [],
   audit: null,           // chAudit() result: per-cue issues + group loads
   valid: null,           // last validateShow() result for the edited cue list
@@ -3967,9 +4605,19 @@ function edDefaultOptions() {
    "longBurnMs", "stopMs", "ventLeadMs", "beatsPerBar"].forEach(function (k) { o[k] = CH_DEFAULTS[k]; });
   return o;
 }
+/* When the show has balloons, THEY define which groups are real: a group with
+   nobody in it should not get cues written for it. Falls back to every group
+   if the balloons somehow cover none of them. */
+function edGenGroups() {
+  const all = ED.groups || CH_DEFAULTS.groups.slice();
+  if (!ED.balloons || !ED.balloons.length) return all;
+  const used = all.filter(function (g) { return ED.balloons.some(function (b) { return b.group === g.id; }); });
+  return used.length ? used : all;
+}
 function edOpt(extra) {
   return Object.assign({}, ED.options || edDefaultOptions(), {
-    groups: ED.groups || CH_DEFAULTS.groups.slice(),
+    groups: edGenGroups(),
+    balloons: ED.balloons || [],
     title: ED.title, audioTitle: ED.audioTitle
   }, extra || {});
 }
@@ -3978,9 +4626,13 @@ function edMs(v) {
   if (v >= 1000) return (Math.round(v / 100) / 10) + "s";
   return Math.round(v) + "ms";
 }
-function edBeatMs() { return 60000 / ((ED.summary && ED.summary.bpm) || 120); }
-function edBeatT0() { return (ED.summary && ED.summary.beatOffsetMs) || 0; }
-function edHasGrid() { return !!(ED.summary && ED.summary.bpm); }
+/* The beat grid comes from the analysis when there is one, and otherwise from
+   an imported show's own audio.bpm — so importing a show that already carries
+   a tempo keeps snapping to it. */
+function edBpm() { return (ED.summary && ED.summary.bpm) || ED.bpm || 0; }
+function edBeatMs() { return 60000 / (edBpm() || 120); }
+function edBeatT0() { return (ED.summary ? ED.summary.beatOffsetMs : ED.beatOffsetMs) || 0; }
+function edHasGrid() { return !!edBpm(); }
 function edSnap(t) {
   if (!edHasGrid()) return Math.round(t / 50) * 50;
   const b = edBeatMs(), t0 = edBeatT0();
@@ -4055,6 +4707,7 @@ function renderEditorSetup() {
   // groups
   const gb = $("e-groups");
   clear(gb);
+  const nBalloons = (ED.balloons || []).length;
   ED.groups.forEach(function (g, i) {
     const row = el("div", "edrow");
     const col = el("input");
@@ -4064,6 +4717,10 @@ function renderEditorSetup() {
     lab.type = "text"; lab.className = "grow"; lab.value = g.label;
     lab.oninput = function () { g.label = lab.value || ("GROUP " + (i + 1)); edSave(); };
     row.appendChild(col); row.appendChild(lab);
+    if (nBalloons) {
+      const k = ED.balloons.filter(function (b) { return b.group === g.id; }).length;
+      row.appendChild(el("span", "badge " + (k ? "grey" : "yellow"), k ? k + " ✈" : "empty"));
+    }
     if (ED.groups.length > 1) {
       const rm = el("button", null, "✕");
       rm.onclick = function () { ED.groups.splice(i, 1); edFixCueGroups(); renderEditorSetup(); edSave(); };
@@ -4079,6 +4736,11 @@ function renderEditorSetup() {
       renderEditorSetup(); edSave();
     };
     gb.appendChild(add);
+  }
+  if (nBalloons) {
+    const used = edGenGroups().map(function (g) { return g.label; });
+    gb.appendChild(el("div", "tiny", nBalloons + " balloons are placed on the field (MAP tab in the editor). " +
+      "Generation writes cues for the groups that actually have balloons in them: " + used.join(", ") + "."));
   }
   gb.appendChild(el("div", "tiny", "Groups are the rows of balloons on the field. The briefing tells each pilot which one they are in."));
 
@@ -4185,6 +4847,9 @@ function edGenerate(onlySections) {
 
 function edFixCueGroups() {
   const ids = ED.groups.map(function (g) { return g.id; });
+  // a balloon whose group no longer exists has no assignment — drop it
+  ED.balloons = normalizeBalloons(ED.balloons, ids);
+  if (ED.selBalloon != null && !ED.balloons.some(function (b) { return b.n === ED.selBalloon; })) ED.selBalloon = null;
   ED.cues = ED.cues.filter(function (c) {
     if (c.groups.some(function (g) { return String(g).toLowerCase() === "all"; })) return true;
     c.groups = c.groups.filter(function (g) { return ids.indexOf(g) !== -1; });
@@ -4197,7 +4862,8 @@ function edFixCueGroups() {
 /* ---- show assembly / validation ----------------------------------------- */
 function edShowObject() {
   const o = chOptions(edOpt());
-  const A = { durationMs: ED.durationMs || 1000 };
+  // bpm + beat offset ride out with the show so every pilot gets the tempo ring
+  const A = { durationMs: ED.durationMs || 1000, bpm: edBpm(), beatOffsetMs: edBeatT0() };
   return chBuildShow(ED.cues, o, A);
 }
 function edRevalidate() {
@@ -4257,12 +4923,208 @@ function renderEditorWork() {
   if (!ED.fitted) edFit();      // a project restored from storage opens fitted
   setTxt($("ew-title"), ED.title);
   edRevalidate();
+  edSetTab(ED.tab, true);
   edDraw();
   edRenderInspector();
   edRenderProblems();
   edRenderAdvisories();
   edRenderMirror(true);
   setTxt($("ew-hint"), "Tap a cue to edit it · drag it to move · drag an edge to stretch · tap empty lane space to add a burn · tap a coloured section band to relabel or regenerate it · drag the waveform to scrub, drag the ruler strip to pan.");
+}
+
+/* ---- TIMELINE / MAP tabs -------------------------------------------------- */
+function edSetTab(name, force) {
+  const t = name === "map" ? "map" : "timeline";
+  if (ED.tab === t && !force) return;
+  ED.tab = t;
+  if (t === "map") { ED.play.on = false; edStopAudio(); edUpdateTransport(); }
+  $("ew-tab-timeline").classList.toggle("hidden", t !== "timeline");
+  $("ew-tab-map").classList.toggle("hidden", t !== "map");
+  $("ew-tabbtn-timeline").classList.toggle("on", t === "timeline");
+  $("ew-tabbtn-map").classList.toggle("on", t === "map");
+  if (t === "map") edRenderMap();
+  else edDraw();
+  edSave();
+}
+
+/* ---- the map tab ---------------------------------------------------------- */
+function edGroupIds() { return (ED.groups || []).map(function (g) { return g.id; }); }
+function edColorOf() {
+  const m = {};
+  (ED.groups || []).forEach(function (g) { m[g.id] = g.color; });
+  return m;
+}
+function edDrawMap() {
+  const res = drawFieldMap($("ew-mapcanvas"), {
+    balloons: ED.balloons, colorOf: edColorOf(),
+    selected: ED.selBalloon, nowMs: 0
+  });
+  ED.mapHits = res ? res.hits : [];
+  ED.mapGeom = res ? res.geom : null;
+}
+function edRenderMap() {
+  const cnt = $("ew-bcount");
+  if (cnt && document.activeElement !== cnt) cnt.value = String(ED.balloons.length);
+  edDrawMap();
+  setTxt($("ew-maphint"), ED.balloons.length
+    ? "Drag a balloon to move it · tap one to renumber, reassign or name it. The crowd is along the bottom edge, so left on this map is left as the audience sees it."
+    : "Set a count above to create balloons 1…N, then drag them into position.");
+  edRenderMapInspector();
+}
+
+function edRenderMapInspector() {
+  const box = $("ew-mapinspector");
+  if (!box) return;
+  clear(box);
+  const b = ED.selBalloon != null ? ED.balloons.filter(function (x) { return x.n === ED.selBalloon; })[0] : null;
+  if (!b) {
+    box.appendChild(el("h3", null, "No balloon selected"));
+    box.appendChild(el("p", "small", "Tap a balloon on the map to renumber it, move it to another group, or give it the pilot's name."));
+    const counts = el("div", "edstat");
+    (ED.groups || []).forEach(function (g) {
+      const n = ED.balloons.filter(function (x) { return x.group === g.id; }).length;
+      const s = el("span", null, g.label + ": ");
+      s.appendChild(el("b", null, n + (n === 1 ? " balloon" : " balloons")));
+      counts.appendChild(s);
+    });
+    box.appendChild(counts);
+    return;
+  }
+  box.appendChild(el("h3", null, "Balloon #" + b.n));
+
+  const grid = el("div", "edgrid");
+  // number
+  const nw = el("label", "edfld");
+  nw.appendChild(el("span", null, "Assignment number"));
+  const ni = el("input");
+  ni.type = "number"; ni.min = "1"; ni.step = "1"; ni.value = String(b.n); ni.inputMode = "numeric";
+  const nmsg = el("div", "tiny", "");
+  ni.onchange = function () {
+    const v = Math.round(parseFloat(ni.value) || 0);
+    if (v < 1) { ni.value = String(b.n); setTxt(nmsg, "Numbers start at 1."); return; }
+    if (v !== b.n && ED.balloons.some(function (x) { return x.n === v; })) {
+      ni.value = String(b.n);
+      setTxt(nmsg, "#" + v + " is already taken — two pilots cannot share a number.");
+      return;
+    }
+    b.n = v; ED.selBalloon = v;
+    ED.balloons.sort(function (x, y) { return x.n - y.n; });
+    setTxt(nmsg, "");
+    edMapChanged();
+  };
+  nw.appendChild(ni);
+  grid.appendChild(nw);
+  // label
+  const lw = el("label", "edfld");
+  lw.appendChild(el("span", null, "Label (pilot name — optional)"));
+  const li = el("input");
+  li.type = "text"; li.value = b.label || ""; li.placeholder = "e.g. Brian";
+  li.oninput = function () {
+    const v = li.value.trim();
+    if (v) b.label = v; else delete b.label;
+    edDrawMap(); edSave();
+  };
+  lw.appendChild(li);
+  grid.appendChild(lw);
+  box.appendChild(grid);
+  box.appendChild(nmsg);
+
+  // group
+  const chips = el("div", "edchips");
+  chips.style.marginTop = "8px";
+  chips.appendChild(el("span", "edchip lab", "GROUP"));
+  (ED.groups || []).forEach(function (g) {
+    const btn = el("button", "edchip" + (b.group === g.id ? " on" : ""), g.label);
+    btn.onclick = function () { b.group = g.id; edMapChanged(); };
+    chips.appendChild(btn);
+  });
+  box.appendChild(chips);
+
+  box.appendChild(el("div", "tiny", "Position: " + Math.round(b.x * 100) + "% across · " +
+    Math.round(b.y * 100) + "% back from the crowd."));
+
+  const foot = el("div", "row");
+  foot.style.marginTop = "8px";
+  const del = el("button", "danger", "REMOVE THIS BALLOON");
+  del.onclick = function () {
+    ED.balloons = ED.balloons.filter(function (x) { return x.n !== b.n; });
+    ED.selBalloon = null;
+    edMapChanged();
+  };
+  foot.appendChild(del);
+  const close = el("button", null, "DONE");
+  close.onclick = function () { ED.selBalloon = null; edMapChanged(); };
+  foot.appendChild(close);
+  box.appendChild(foot);
+}
+
+/* balloons feed the group list the generator uses, and ride out in the show,
+   so any balloon edit re-runs validation and re-saves. */
+function edMapChanged() {
+  ED.balloons = normalizeBalloons(ED.balloons, edGroupIds());
+  if (ED.selBalloon != null && !ED.balloons.some(function (b) { return b.n === ED.selBalloon; })) ED.selBalloon = null;
+  edRevalidate();
+  edRenderMap();
+  edSave();
+}
+
+function edSetBalloonCount(n) {
+  const count = Math.max(0, Math.min(400, Math.round(Number(n) || 0)));
+  ED.balloons = makeBalloons(edGroupIds(), count);
+  ED.selBalloon = null;
+  edMapChanged();
+}
+function edAddBalloon() {
+  const ids = edGroupIds();
+  if (!ids.length) return;
+  let n = 1;
+  while (ED.balloons.some(function (b) { return b.n === n; })) n++;
+  // land it in whichever group currently has the fewest
+  let best = ids[0], bestN = Infinity;
+  ids.forEach(function (gid) {
+    const k = ED.balloons.filter(function (b) { return b.group === gid; }).length;
+    if (k < bestN) { bestN = k; best = gid; }
+  });
+  ED.balloons.push({ n: n, group: best, x: 0.5, y: 0.5 });
+  ED.selBalloon = n;
+  edMapChanged();
+}
+
+/* ---- map pointer interaction (works with touch: pointer events only) ------ */
+function edMapLocal(ev) {
+  const cv = $("ew-mapcanvas");
+  const r = cv.getBoundingClientRect();
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+function edMapDown(ev) {
+  if (ED.tab !== "map") return;
+  const p = edMapLocal(ev);
+  const hit = mapHitAt(ED.mapHits, p.x, p.y);
+  ev.preventDefault();
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  ED.mapDrag = { n: hit ? hit.n : null, moved: false, x: p.x, y: p.y };
+  if (hit) { ED.selBalloon = hit.n; edDrawMap(); edRenderMapInspector(); }
+}
+function edMapMove(ev) {
+  const d = ED.mapDrag;
+  if (!d || d.n == null || !ED.mapGeom) return;
+  const p = edMapLocal(ev);
+  if (Math.abs(p.x - d.x) > 3 || Math.abs(p.y - d.y) > 3) d.moved = true;
+  if (!d.moved) return;
+  const b = ED.balloons.filter(function (x) { return x.n === d.n; })[0];
+  if (!b) return;
+  b.x = Math.max(0, Math.min(1, ED.mapGeom.ux(p.x)));
+  b.y = Math.max(0, Math.min(1, ED.mapGeom.uy(p.y)));
+  edDrawMap();
+}
+function edMapUp(ev) {
+  const d = ED.mapDrag;
+  ED.mapDrag = null;
+  if (!d) return;
+  try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (e) {}
+  if (d.n == null && !d.moved) { ED.selBalloon = null; edDrawMap(); edRenderMapInspector(); return; }
+  if (d.moved) { edRevalidate(); edSave(); }
+  edRenderMapInspector();
 }
 
 function edStateBadge() {
@@ -4861,6 +5723,15 @@ function edRenderProblems() {
     st.appendChild(s);
   });
   box.appendChild(st);
+  // what rides out with the show besides the cues
+  const extras = [];
+  extras.push(edBpm()
+    ? "Beat ring: " + Math.round(edBpm() * 100) / 100 + " BPM grid travels with the show — every pilot sees a tempo ring."
+    : "No tempo in this project, so the exported show carries no beat ring.");
+  extras.push((ED.balloons || []).length
+    ? (ED.balloons.length + " numbered balloons + their field positions are exported with the show.")
+    : "No balloons placed — pilots will pick a group, as before. (MAP tab to number them.)");
+  box.appendChild(el("div", "tiny", extras.join(" ")));
 }
 
 function edRenderAdvisories() {
@@ -4955,7 +5826,7 @@ function edPlayPause() {
   edUpdateTransport();
 }
 function edFrame() {
-  if (!ED.ready) return;
+  if (!ED.ready || ED.tab === "map") return;
   if (ED.play.on) {
     ED.playheadMs = ED.play.withAudio
       ? ED.play.anchorMs + (ED.audio.ctx.currentTime - ED.play.anchorCtx) * 1000
@@ -5042,6 +5913,11 @@ function edImportText(text) {
   ED.durationMs = show.audio.durationMs;
   ED.options = Object.assign(edDefaultOptions(), show.defaults || {});
   if (ED.summary && Math.abs(ED.summary.durationMs - ED.durationMs) > 4000) ED.summary = null;
+  // an imported show can carry its own beat grid and its own field layout
+  ED.bpm = typeof show.audio.bpm === "number" ? show.audio.bpm : 0;
+  ED.beatOffsetMs = typeof show.audio.beatOffsetMs === "number" ? show.audio.beatOffsetMs : 0;
+  ED.balloons = normalizeBalloons(show.balloons, ED.groups.map(function (g) { return g.id; }));
+  ED.selBalloon = null;
   ED.advisories = [];
   ED.ready = true;
   ED.sel = null;
@@ -5056,7 +5932,8 @@ function edSave() {
   store(LS.editor, {
     v: 1, title: ED.title, audioTitle: ED.audioTitle, fileName: ED.fileName,
     durationMs: ED.durationMs, options: ED.options, groups: ED.groups,
-    cues: ED.cues, advisories: ED.advisories, summary: ED.summary, ready: ED.ready
+    cues: ED.cues, advisories: ED.advisories, summary: ED.summary, ready: ED.ready,
+    balloons: ED.balloons, bpm: ED.bpm, beatOffsetMs: ED.beatOffsetMs, tab: ED.tab
   });
 }
 function edRestore() {
@@ -5074,6 +5951,11 @@ function edRestore() {
     ED.cues = Array.isArray(p.cues) ? p.cues : [];
     ED.advisories = Array.isArray(p.advisories) ? p.advisories : [];
     ED.summary = p.summary || null;
+    ED.bpm = typeof p.bpm === "number" ? p.bpm : 0;
+    ED.beatOffsetMs = typeof p.beatOffsetMs === "number" ? p.beatOffsetMs : 0;
+    ED.balloons = normalizeBalloons(p.balloons, ED.groups.map(function (g) { return g.id; }));
+    ED.tab = p.tab === "map" ? "map" : "timeline";
+    ED.selBalloon = null;
     ED.ready = !!p.ready && ED.cues.length > 0;
     ED.fitted = false;
     if (ED.ready) edRevalidate();
@@ -5084,6 +5966,7 @@ function edForget() {
   ED.ready = false; ED.cues = []; ED.advisories = []; ED.summary = null;
   ED.title = ""; ED.audioTitle = ""; ED.fileName = ""; ED.durationMs = 0;
   ED.audio.buf = null; ED.sel = null; ED.tl = null; ED.audit = null;
+  ED.balloons = []; ED.selBalloon = null; ED.bpm = 0; ED.beatOffsetMs = 0; ED.tab = "timeline";
   ED.options = edDefaultOptions();
   renderEditorSetup();
 }
@@ -5115,7 +5998,20 @@ function edWireEvents() {
       }
     }, { passive: false });
   }
-  window.addEventListener("resize", function () { if (APP.screen === "editor-work") edDraw(); });
+  const mv = $("ew-mapcanvas");
+  if (mv) {
+    mv.addEventListener("pointerdown", edMapDown);
+    mv.addEventListener("pointermove", edMapMove);
+    mv.addEventListener("pointerup", edMapUp);
+    mv.addEventListener("pointercancel", edMapUp);
+  }
+  const bc = $("ew-bcount");
+  if (bc) bc.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edSetBalloonCount(bc.value); } });
+  window.addEventListener("resize", function () {
+    if (APP.screen !== "editor-work") return;
+    if (ED.tab === "map") edDrawMap(); else edDraw();
+    if (APP.mapOpen) drawMapOverlay();
+  });
   document.addEventListener("keydown", function (ev) {
     if (APP.screen !== "editor-work") return;
     const tag = (document.activeElement && document.activeElement.tagName) || "";
@@ -5144,6 +6040,12 @@ function edWireEvents() {
       case "ed-export": edDownload(); break;
       case "ed-copy": edCopyShow(); break;
       case "ed-use": edUseShow(); break;
+      case "ed-tab-timeline": edSetTab("timeline"); break;
+      case "ed-tab-map": edSetTab("map"); break;
+      case "ed-bset": edSetBalloonCount($("ew-bcount").value); break;
+      case "ed-barrange": ED.balloons = arrangeBalloons(ED.balloons, edGroupIds()); edMapChanged(); break;
+      case "ed-badd": edAddBalloon(); break;
+      case "ed-bclear": ED.balloons = []; ED.selBalloon = null; edMapChanged(); break;
     }
   });
 }
@@ -5163,6 +6065,7 @@ function loop() {
   else if (APP.screen === "cond-run") renderConductor(now);
   else if (APP.screen === "editor-work") edFrame();
   else if (APP.screen === "debug") setTxt($("d-clock"), fmtClock(now, true));
+  if (APP.mapOpen) drawMapOverlay();
 
   // live countdown under the arm panels
   ["p-armpanel-cd", "c-armpanel-cd"].forEach(function (id) {
@@ -5246,6 +6149,8 @@ document.addEventListener("click", function (ev) {
     case "hold": doHold(); break;
     case "dismiss-left": $("overlay-left").classList.add("hidden"); APP.leftAppFlag = false; requestWakeLock(); break;
     case "dismiss-fatal": $("overlay-fatal").classList.add("hidden"); break;
+    case "map": openFieldMap(); break;
+    case "dismiss-map": closeFieldMap(); break;
     case "sync": runSync().then(renderAll); break;
     case "test-t0":
       if (!APP.show) { showFatal("NO SHOW LOADED", "", ["Load a show first."]); break; }
@@ -5334,6 +6239,7 @@ function setRole(role) {
   APP.workerUrl = load(LS.worker) || WORKER_URL_DEFAULT;
   APP.paLatencyMs = parseInt(load(LS.pa) || "0", 10) || 0;
   APP.myGroup = load(LS.group);
+  APP.myBalloon = parseInt(load(LS.balloon) || "", 10) || null;
 
   const reanchored = restoreSync();
   restoreShow();
