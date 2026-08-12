@@ -6,7 +6,7 @@
 
 *Live state, not a log (workspace convention — root CLAUDE.md, "status report" protocol): add items as work opens them, **delete** them when done, update after every meaningful unit of work. **Numbered, in priority order** — Brian references items by number. A "status report" scoped to this project reads exactly this list.*
 
-1. **Build v1 (IN PROGRESS — started 2026-08-12).** Approved plan: `~/.claude/plans/i-have-an-idea-hidden-scone.md` (copy the essentials here as they land). Build order: scaffolding ✓ → Worker files ✓ (deploy pending, see item 2) → sync engine → pilot renderer → conductor → audio analysis → auto-choreographer → tweak editor → GitHub Pages live.
+1. **Build v1 (IN PROGRESS — started 2026-08-12).** Approved plan: `~/.claude/plans/i-have-an-idea-hidden-scone.md`. Build order: scaffolding ✓ → Worker files ✓ (deploy pending, see item 2) → **playback core ✓ (2026-08-12: sync engine, timeline engine, pilot display, conductor w/ Web Audio + QR — 144 node assertions green, reviewed)** → audio analysis → auto-choreographer → tweak editor → GitHub Pages live. Untested on real hardware yet: iOS wake lock, Web Audio with a real song, live Worker. Design judgment made in build (revisit with Brian if the demo feels wrong): vent warnings auto-fire on *sustained* burn length (a pulse's blips don't trigger one), and get-ready windows clamp to whatever room the previous cue leaves.
 2. **Cloudflare Worker deploy (needs Brian once):** Brian has no CF account/login on record. When ready: `cd worker/`, `npx wrangler login` (interactive — Brian types `! npx wrangler login` in a session), `npx wrangler kv namespace create GLOW` (paste the id into `wrangler.toml`), `npx wrangler deploy`. Until deployed, the app runs in wall-clock fallback mode (yellow "UNVERIFIED CLOCK" banner) — fully testable locally.
 3. **Pick 1–2 candidate songs** for the first auto-choreographed demo show (Brian). Rhythmic/strong-beat material analyzes best.
 4. **Havasu 2027 pitch angle (target):** working demo → pitch to Havasu organizers for the night glow (event Jan 21–24, 2027; Brian is applying as a pilot — see workspace to-do #4 / `BALLOONING/Havasu 2027/`).
@@ -22,7 +22,8 @@ A web app (single URL, no install) that lets dozens-to-hundreds of balloon pilot
 | File | Status | What it is |
 |---|---|---|
 | `index.html` | primary copy (being built) | The entire app, one self-contained vanilla-JS file: role picker (PILOT / CONDUCTOR / EDITOR), NTP-style sync engine, timeline engine, pilot cue display, conductor (Web Audio + T0 arming + QR), audio analysis, auto-choreographer, tweak editor |
-| `shows/demo-show.json` | working | Demo show + schema reference (`glow-show/1` format) |
+| `shows/demo-show.json` | working | Demo show + schema reference (`glow-show/1` format). ⚠ Mirrored inline in `index.html` as `DEMO_SHOW` (so the demo works offline/file://) — change both together |
+| `test/` | working | 3 node suites, 144 assertions, extracted live from `index.html` (no duplicated logic) — see `test/CLAUDE.md`; run after any core edit |
 | `worker/time.js` | primary copy | The only backend: Cloudflare Worker — `GET /time` (ms server clock for sync), `GET/POST /t0` (armed start + hold flag, KV-backed) |
 | `worker/wrangler.toml` | working | Worker config; KV namespace id filled at first deploy (to-do 2) |
 

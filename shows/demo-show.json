@@ -1,0 +1,95 @@
+{
+  "format": "glow-show/1",
+  "title": "Glow Show Demo - 90 Seconds",
+  "audio": {
+    "title": "(demo timing only - no audio file required)",
+    "durationMs": 90000
+  },
+  "groups": [
+    { "id": "north",  "label": "NORTH ROW",      "color": "#00c8ff" },
+    { "id": "south",  "label": "SOUTH ROW",      "color": "#ff3ea5" },
+    { "id": "shapes", "label": "SPECIAL SHAPES", "color": "#ffd400" }
+  ],
+  "defaults": {
+    "getReadyMs": 5000,
+    "ventWarnMs": 20000,
+    "longBurnMs": 6000,
+    "stopMs": 2000
+  },
+  "cues": [
+    {
+      "t": 15000,
+      "dur": 3000,
+      "type": "burn",
+      "groups": ["all"],
+      "label": "Opening all-burn"
+    },
+    {
+      "t": 24000,
+      "dur": 12000,
+      "type": "burn",
+      "groups": ["north"],
+      "label": "North long burn",
+      "vent": true
+    },
+    {
+      "t": 26000,
+      "dur": 3000,
+      "type": "burn",
+      "groups": ["shapes"],
+      "label": "Shapes accent"
+    },
+    {
+      "t": 31000,
+      "dur": 3000,
+      "type": "burn",
+      "groups": ["south"],
+      "label": "South accent"
+    },
+    {
+      "t": 40000,
+      "dur": 8000,
+      "type": "pulse",
+      "groups": ["all"],
+      "bpm": 128,
+      "label": "Chorus pulse"
+    },
+    {
+      "t": 52000,
+      "dur": 6000,
+      "type": "alternate",
+      "groups": ["north", "south"],
+      "periodMs": 1000,
+      "label": "Ping-pong"
+    },
+    {
+      "t": 58500,
+      "dur": 2000,
+      "type": "burn",
+      "groups": ["shapes"],
+      "label": "Shapes solo"
+    },
+    {
+      "t": 61000,
+      "dur": 4000,
+      "type": "pulse",
+      "groups": ["north", "shapes"],
+      "bpm": 96,
+      "label": "Half-time pulse"
+    },
+    {
+      "t": 63000,
+      "dur": 2000,
+      "type": "burn",
+      "groups": ["south"],
+      "label": "South punch"
+    },
+    {
+      "t": 70000,
+      "dur": 14000,
+      "type": "burn",
+      "groups": ["all"],
+      "label": "GRAND FINALE - ALL BURN"
+    }
+  ]
+}

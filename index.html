@@ -1,0 +1,2536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<title>Glow Show</title>
+<!--
+  GLOW SHOW — synchronized balloon-glow choreography.
+  ONE self-contained file. Vanilla HTML/CSS/JS. No frameworks, no build step,
+  no external resources of any kind. Runs from file:// and fully offline at showtime.
+
+  Architecture (see ../CLAUDE.md — authoritative):
+    synced clocks + preloaded timeline + PA-announced start.  NOT mesh networking.
+
+  Module seams inside the single <script> below (search for the ===== headers):
+    PURE CORE (extractable & node-testable, zero DOM references)
+      ===== SHOW PARSER / VALIDATOR =====
+      ===== TIMELINE ENGINE =====
+    ===== SYNC ENGINE =====
+    ===== T0 / ARMING =====
+    ===== QR ENCODER =====
+    ===== WAKE LOCK =====
+    ===== UI SHELL =====
+    ===== UI: PILOT =====
+    ===== UI: CONDUCTOR =====
+    ===== UI: SETTINGS / DEBUG =====
+    ===== EDITOR (stub — v2 seam) =====
+    ===== BOOT =====
+
+  A later EDITOR/choreographer agent should reuse PURE CORE + SYNC ENGINE untouched:
+  the timeline engine is pure functions of (show, myGroups, tMs) -> render state.
+-->
+<style>
+/* ===================== BASE ===================== */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;width:100%;overflow-x:hidden}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:#05060a;color:#e8ecf4;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent;
+}
+:root{
+  --accent:#00c8ff;
+  --card:#11151f;
+  --card2:#181d2a;
+  --line:#2a3346;
+  --muted:#8b96ad;
+  --ok:#1fd67a;
+  --warn:#ffc400;
+  --bad:#ff3b30;
+  --pad: max(12px, env(safe-area-inset-left));
+}
+.hidden{display:none !important}
+h1,h2,h3{margin:0 0 .4em;line-height:1.15;font-weight:800;letter-spacing:.01em}
+h1{font-size:clamp(22px,6.5vw,34px)}
+h2{font-size:clamp(17px,4.6vw,22px)}
+h3{font-size:clamp(14px,3.8vw,17px);color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+p{margin:0 0 .7em;line-height:1.45}
+a{color:#6fc3ff}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.small{font-size:13px;color:var(--muted)}
+.tiny{font-size:11.5px;color:var(--muted)}
+
+/* ===================== LAYOUT ===================== */
+.screen{display:none;min-height:100%;width:100%}
+.screen.active{display:block}
+.wrap{
+  max-width:640px;margin:0 auto;
+  padding: calc(env(safe-area-inset-top) + 14px + var(--bannerH, 0px)) var(--pad) calc(env(safe-area-inset-bottom) + 48px);
+}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px}
+.card > h3{margin-bottom:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{min-width:0}
+.grow{flex:1 1 auto}
+.stack{display:flex;flex-direction:column;gap:10px}
+hr.sep{border:0;border-top:1px solid var(--line);margin:12px 0}
+
+/* ===================== CONTROLS ===================== */
+button,.btn{
+  font:inherit;font-weight:700;color:#e8ecf4;background:var(--card2);
+  border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px;min-height:52px;cursor:pointer;text-align:center;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.42;cursor:not-allowed}
+button.primary{background:#1d4ed8;border-color:#2a5ff0}
+button.go{background:#0b7a3f;border-color:#12a457}
+button.danger{background:#7a1410;border-color:#b3261e}
+button.wide{width:100%}
+button.huge{min-height:92px;font-size:clamp(19px,5.4vw,26px);border-radius:16px}
+button.ghost{background:transparent}
+input[type=text],input[type=url],input[type=number],textarea,select{
+  font:inherit;width:100%;background:#0a0e16;color:#e8ecf4;
+  border:1px solid var(--line);border-radius:10px;padding:12px;min-height:48px;
+}
+textarea{min-height:130px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;resize:vertical}
+input[type=range]{width:100%;height:44px}
+label.fld{display:block;margin:0 0 10px}
+label.fld > span{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px;text-transform:uppercase;letter-spacing:.07em}
+.linkbtn{background:none;border:none;color:#6fc3ff;text-decoration:underline;padding:6px 2px;min-height:0;font-weight:600;font-size:13px}
+
+/* ===================== BADGES / BANNERS ===================== */
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.badge.green{background:#06351f;color:#3ff094;border:1px solid #0d7a48}
+.badge.yellow{background:#3a2c00;color:#ffd44d;border:1px solid #8a6a00}
+.badge.red{background:#3d0d0a;color:#ff8b83;border:1px solid #a02a22}
+.badge.grey{background:#1a1f2b;color:#9aa6bd;border:1px solid #2a3346}
+#banners{position:fixed;top:0;left:0;right:0;z-index:900;pointer-events:none}
+.banner{
+  pointer-events:auto;padding:calc(env(safe-area-inset-top) + 7px) 12px 7px;
+  font-size:13px;font-weight:800;text-align:center;letter-spacing:.02em;line-height:1.25;
+}
+.banner.red{background:#b3261e;color:#fff}
+.banner.yellow{background:#ffc400;color:#241a00}
+.banner + .banner{padding-top:7px}
+/* --bannerH is measured in renderChrome() so nothing ever hides under the banners */
+
+/* ===================== ROLE PICKER ===================== */
+.rolewrap{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 24px + var(--bannerH, 0px)) var(--pad) 40px}
+.rolebtn{width:100%;min-height:132px;font-size:clamp(26px,8vw,38px);border-radius:20px;margin:0 0 16px;flex-direction:column;gap:6px}
+.rolebtn small{display:block;font-size:13px;font-weight:600;color:#b7c2d6;letter-spacing:.04em;text-transform:uppercase}
+.rolebtn.pilot{background:#7a2c00;border-color:#ff5a00}
+.rolebtn.cond{background:#12224d;border-color:#3b6fe0}
+.rolebtn.editor{background:#141821;border-color:#2a3346;color:#7b869c;min-height:88px;font-size:22px}
+
+/* ===================== PILOT STAGE (the glance display) ===================== */
+#stage{
+  position:fixed;inset:0;z-index:10;
+  display:flex;flex-direction:column;
+  background:#04050a;color:#c4302b;
+  padding:calc(env(safe-area-inset-top) + 8px + var(--bannerH, 0px)) 10px calc(env(safe-area-inset-bottom) + 6px);
+  transition:none;
+}
+.stage-top{min-height:26px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:800;letter-spacing:.05em}
+.stage-main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.4vh;min-height:0;width:100%}
+.stage-label{font-size:clamp(15px,5.2vw,30px);font-weight:800;letter-spacing:.09em;text-transform:uppercase;opacity:.92;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage-big{font-size:min(30vh,34vw);line-height:.94;font-weight:900;letter-spacing:-.02em}
+.stage-big.text{font-size:min(19vh,20vw);letter-spacing:.02em}
+.stage-sub{font-size:clamp(15px,5vw,28px);font-weight:800;letter-spacing:.06em;opacity:.9}
+.stage-bar{width:92%;height:2.2vh;min-height:12px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden;margin-top:1.4vh;border:1px solid rgba(255,255,255,.25)}
+.stage-bar i{display:block;height:100%;background:currentColor;width:100%;border-radius:99px}
+.stage-footer{font-size:11.5px;letter-spacing:.03em;opacity:.72;text-align:center;padding-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ventchip{background:#4b0f8f;color:#f3e8ff;border:1px solid #a25cff;border-radius:999px;padding:5px 10px;font-weight:900;font-size:12px}
+
+.preview{display:flex;gap:6px;width:100%;min-height:9vh;max-height:11vh;margin-bottom:5px}
+.pvblk{flex:1 1 0;border-radius:10px;border:1px solid rgba(255,255,255,.14);padding:6px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;background:rgba(255,255,255,.03)}
+.pvblk .pvt{font-size:11px;font-weight:800;letter-spacing:.04em;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pvblk .pvm{font-size:clamp(14px,4.4vw,20px);font-weight:900}
+.pvblk.mine{background:rgba(255,255,255,.1)}
+.pvblk.dim{opacity:.36}
+
+/* phase colors — state IS the background */
+#stage.ph-PRESHOW,#stage.ph-IDLE,#stage.ph-ENDED{background:#04050a;color:#c4302b}
+#stage.ph-GETREADY{background:#e08a00;color:#180d00}
+#stage.ph-BURN{background:#ff5a00;color:#1a0500}
+#stage.ph-PULSE{background:#000;color:#fff}
+#stage.ph-STOP{background:#00164a;color:#cfe0ff}
+#stage.ph-VENT{background:#4b0f8f;color:#f6ecff}
+#stage.ph-HOLD{background:#001233;color:#cfe0ff}
+#stage.ph-GETREADY{animation:readypulse .5s steps(1,end) infinite}
+@keyframes readypulse{0%{box-shadow:inset 0 0 0 14px rgba(0,0,0,.55)}50%{box-shadow:inset 0 0 0 14px rgba(255,255,255,.5)}}
+#stage.ph-BURN .stage-label,#stage.ph-GETREADY .stage-label{opacity:1}
+
+/* ===================== OVERLAYS ===================== */
+.overlay{position:fixed;inset:0;z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:18px}
+#overlay-left{background:#b3261e;color:#fff}
+#overlay-fatal{background:#8c0f08;color:#fff;justify-content:flex-start;overflow-y:auto;padding-top:calc(env(safe-area-inset-top) + 28px)}
+.overlay h1{font-size:clamp(26px,8vw,44px)}
+.overlay .errlist{text-align:left;max-width:640px;width:100%;background:rgba(0,0,0,.32);border-radius:12px;padding:14px;font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6}
+.overlay .errlist li{margin:0 0 6px}
+
+/* ===================== TABLES (debug) ===================== */
+table.dbg{width:100%;border-collapse:collapse;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+table.dbg th,table.dbg td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right}
+table.dbg th:first-child,table.dbg td:first-child{text-align:left}
+table.dbg tr.best td{color:#3ff094;font-weight:800}
+.tblscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.bigclock{font-family:ui-monospace,Menlo,monospace;font-size:clamp(34px,12vw,64px);font-weight:800;letter-spacing:-.01em;text-align:center;padding:8px 0}
+
+/* ===================== GROUP / CUE CHIPS ===================== */
+.grpbtn{width:100%;min-height:84px;font-size:clamp(18px,5.4vw,24px);border-left:10px solid var(--g,#666)}
+.grpbtn.sel{background:#1d3a2c;border-color:#2fa36a}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#161b26;border:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:99px;background:var(--g,#666);flex:0 0 auto}
+
+/* conductor timeline */
+.tl{position:relative;width:100%;height:96px;background:#0a0e16;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tl .lane{position:absolute;left:0;right:0;height:1px;background:#1c2434}
+.tl .blk{position:absolute;border-radius:4px;opacity:.9}
+.tl .ph{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 8px #fff}
+.mirror{display:flex;flex-direction:column;gap:8px}
+.mrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#0a0e16}
+.mrow .mstate{margin-left:auto;font-weight:900;font-size:15px;letter-spacing:.06em;padding:4px 12px;border-radius:8px}
+.mrow .mname{font-weight:800;font-size:14px}
+.ms-BURN{background:#ff5a00;color:#1a0500}
+.ms-PULSE{background:#fff;color:#000}
+.ms-GETREADY{background:#e08a00;color:#180d00}
+.ms-STOP{background:#00164a;color:#cfe0ff}
+.ms-VENT{background:#4b0f8f;color:#f6ecff}
+.ms-IDLE,.ms-PRESHOW,.ms-ENDED{background:#141a26;color:#7b869c}
+
+canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated;background:#fff;border-radius:10px;padding:8px;display:block;margin:0 auto}
+.sharebox{word-break:break-all;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#0a0e16;border:1px solid var(--line);border-radius:10px;padding:10px;line-height:1.5}
+.bigtime{font-size:clamp(44px,17vw,96px);font-weight:900;text-align:center;letter-spacing:-.02em;line-height:1;padding:6px 0}
+.checklist{list-style:none;padding:0;margin:0}
+.checklist li{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;display:flex;gap:9px;align-items:flex-start}
+.checklist li:last-child{border-bottom:0}
+.checklist li::before{content:"☐";font-size:17px;line-height:1.1}
+.footlinks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;padding:6px 0 0}
+</style>
+</head>
+<body>
+
+<div id="banners"></div>
+
+<!-- ===================== ROLE PICKER ===================== -->
+<section id="screen-role" class="screen">
+  <div class="rolewrap">
+    <h1 style="text-align:center;letter-spacing:.06em">GLOW SHOW</h1>
+    <p class="small" style="text-align:center;margin-bottom:22px">Synchronized balloon-glow choreography. Pick your role.</p>
+    <button class="rolebtn pilot" data-role="pilot">PILOT<small>I fly a balloon in the glow</small></button>
+    <button class="rolebtn cond" data-role="conductor">CONDUCTOR<small>I run the music and the start</small></button>
+    <button class="rolebtn editor" disabled>EDITOR<small>coming soon</small></button>
+    <p class="tiny" style="text-align:center;margin-top:18px">Run this in a normal browser tab &mdash; not added to the home screen (screen wake lock is unreliable in installed web apps).</p>
+  </div>
+</section>
+
+<!-- ===================== PILOT SETUP ===================== -->
+<section id="screen-pilot-setup" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h1 style="margin:0">PILOT</h1>
+      <button class="linkbtn" data-act="switch-role">switch role</button>
+    </div>
+
+    <div class="card">
+      <h3>1 &middot; Show</h3>
+      <div id="p-showstate" class="small" style="margin-bottom:10px"></div>
+      <div class="stack">
+        <button class="wide" data-act="load-demo">LOAD DEMO SHOW</button>
+        <label class="fld"><span>Show URL</span><input type="url" id="p-showurl" placeholder="https://.../my-show.json" inputmode="url"></label>
+        <button class="wide" data-act="load-url">LOAD FROM URL</button>
+        <label class="fld"><span>or paste show JSON</span><textarea id="p-showjson" placeholder='{"format":"glow-show/1", ...}'></textarea></label>
+        <button class="wide" data-act="load-paste">LOAD PASTED JSON</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 &middot; Your group</h3>
+      <div id="p-groups" class="stack"></div>
+    </div>
+
+    <div class="card">
+      <h3>3 &middot; Clock sync</h3>
+      <div id="p-syncpanel"></div>
+    </div>
+
+    <div class="card">
+      <h3>4 &middot; Start time (T0)</h3>
+      <div id="p-armpanel"></div>
+    </div>
+
+    <div class="card">
+      <h3>5 &middot; Before the glow</h3>
+      <div id="p-wakestate" class="small" style="margin-bottom:10px"></div>
+      <ul class="checklist">
+        <li>Screen brightness all the way UP</li>
+        <li>Auto-Lock / screen timeout set to NEVER (Settings &rarr; Display)</li>
+        <li>Do Not Disturb ON &mdash; a call takes the screen</li>
+        <li>Stay in THIS tab. Leaving the app breaks the display.</li>
+        <li>Music stops = STOP BURNING (the standing abort call)</li>
+      </ul>
+    </div>
+
+    <button class="wide huge primary" data-act="open-display">OPEN GLOW DISPLAY</button>
+    <div class="footlinks">
+      <button class="linkbtn" data-act="settings">settings</button>
+      <button class="linkbtn" data-act="debug">sync debug</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PILOT RUN (the glance display) ===================== -->
+<section id="screen-pilot-run" class="screen">
+  <div id="stage" class="ph-IDLE">
+    <div class="stage-top">
+      <span id="st-left"></span>
+      <span id="st-right"></span>
+    </div>
+    <div class="stage-main">
+      <div id="st-label" class="stage-label"></div>
+      <div id="st-big" class="stage-big"></div>
+      <div id="st-sub" class="stage-sub"></div>
+      <div id="st-barwrap" class="stage-bar hidden"><i id="st-bar"></i></div>
+    </div>
+    <div id="st-preview" class="preview"></div>
+    <div id="st-footer" class="stage-footer"></div>
+  </div>
+</section>
+
+<!-- ===================== CONDUCTOR SETUP ===================== -->
+<section id="screen-cond-setup" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h1 style="margin:0">CONDUCTOR</h1>
+      <button class="linkbtn" data-act="switch-role">switch role</button>
+    </div>
+
+    <div class="card">
+      <h3>1 &middot; Show</h3>
+      <div id="c-showstate" class="small" style="margin-bottom:10px"></div>
+      <div class="stack">
+        <button class="wide" data-act="load-demo">LOAD DEMO SHOW</button>
+        <label class="fld"><span>Show URL (also used in the share link / QR)</span><input type="url" id="c-showurl" placeholder="https://.../my-show.json" inputmode="url"></label>
+        <button class="wide" data-act="load-url">LOAD FROM URL</button>
+        <label class="fld"><span>or paste show JSON</span><textarea id="c-showjson" placeholder='{"format":"glow-show/1", ...}'></textarea></label>
+        <button class="wide" data-act="load-paste">LOAD PASTED JSON</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 &middot; Music</h3>
+      <div class="stack">
+        <input type="file" id="c-audiofile" accept="audio/*">
+        <div id="c-audiostate" class="small"></div>
+        <label class="fld"><span>PA latency compensation &mdash; audio starts this much EARLY</span>
+          <input type="range" id="c-pa" min="0" max="500" step="5">
+        </label>
+        <div class="small" id="c-palabel"></div>
+        <div class="tiny">Wired aux to the PA is strongly preferred. Bluetooth to a PA adds 100&ndash;300&nbsp;ms of its own, and it drifts.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>3 &middot; Clock sync</h3>
+      <div id="c-syncpanel"></div>
+    </div>
+
+    <div class="card">
+      <h3>4 &middot; Arm the start</h3>
+      <div id="c-armpanel"></div>
+    </div>
+
+    <button class="wide huge primary" data-act="open-conductor-run">OPEN SHOW VIEW</button>
+    <div class="footlinks">
+      <button class="linkbtn" data-act="settings">settings</button>
+      <button class="linkbtn" data-act="debug">sync debug</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CONDUCTOR RUN ===================== -->
+<section id="screen-cond-run" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h2 id="cr-title" style="margin:0"></h2>
+      <button class="linkbtn" data-act="cond-setup">setup</button>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <span id="cr-clock" class="mono" style="font-size:15px;font-weight:800"></span>
+        <span id="cr-sync"></span>
+      </div>
+      <div class="bigtime" id="cr-elapsed">--:--</div>
+      <div class="small" style="text-align:center" id="cr-status"></div>
+      <div class="tl" id="cr-tl" style="margin-top:12px"></div>
+      <div class="tiny" style="margin-top:6px" id="cr-drift"></div>
+    </div>
+    <div class="card">
+      <h3>Now / next</h3>
+      <div id="cr-cues" class="stack"></div>
+    </div>
+    <div class="card">
+      <h3>All-groups mirror</h3>
+      <div id="cr-mirror" class="mirror"></div>
+    </div>
+    <button class="wide huge danger" data-act="hold">SHOW HOLD &mdash; STOP EVERYTHING</button>
+    <div class="footlinks"><button class="linkbtn" data-act="switch-role">switch role</button></div>
+  </div>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<section id="screen-settings" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h1 style="margin:0">Settings</h1>
+      <button class="linkbtn" data-act="back">back</button>
+    </div>
+    <div class="card">
+      <h3>Worker URL</h3>
+      <p class="small">The tiny time server every phone syncs against (<code>/time</code>, <code>/t0</code>). Leave empty to run on the phone clock with an UNVERIFIED CLOCK warning &mdash; everything still works, just less precisely.</p>
+      <label class="fld"><span>Base URL, no trailing slash</span><input type="url" id="s-worker" placeholder="https://glow-show.YOURNAME.workers.dev" inputmode="url"></label>
+      <div class="row">
+        <button class="grow primary" data-act="save-worker">SAVE</button>
+        <button class="grow" data-act="test-worker">TEST</button>
+      </div>
+      <div id="s-workerstate" class="small" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>Reset</h3>
+      <div class="stack">
+        <button data-act="forget-show">Forget cached show</button>
+        <button data-act="forget-all" class="danger">Clear ALL saved data</button>
+      </div>
+    </div>
+    <div class="footlinks"><button class="linkbtn" data-act="debug">sync debug</button></div>
+  </div>
+</section>
+
+<!-- ===================== DEBUG ===================== -->
+<section id="screen-debug" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h1 style="margin:0">Sync debug</h1>
+      <button class="linkbtn" data-act="back">back</button>
+    </div>
+    <div class="card">
+      <h3>Clock parade</h3>
+      <p class="tiny">Line the phones up side by side. These digits must tick over together.</p>
+      <div class="bigclock" id="d-clock">--:--:--.-</div>
+      <div class="row" style="justify-content:center"><span id="d-badge"></span></div>
+    </div>
+    <div class="card">
+      <h3>Offset</h3>
+      <div id="d-offset" class="small mono"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="grow primary" data-act="sync">RE-SYNC NOW</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Rounds</h3>
+      <div class="tblscroll"><table class="dbg" id="d-rounds"></table></div>
+      <p class="tiny" style="margin-top:8px">Rounds with RTT &gt; 2&times; the best RTT are discarded. Offset = median of the three lowest-RTT survivors. Uncertainty = best RTT / 2.</p>
+    </div>
+    <div class="card">
+      <h3>Local test</h3>
+      <p class="small">Arms the loaded show against this device only &mdash; nothing is pushed to the Worker.</p>
+      <button class="wide" data-act="test-t0">TEST: T0 = now + 10s</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== OVERLAYS ===================== -->
+<div id="overlay-left" class="overlay hidden">
+  <h1>YOU LEFT THE APP</h1>
+  <p style="font-size:18px;font-weight:700;max-width:22em">The display was not running while you were away. Check the sync badge and confirm your start time before the next cue.</p>
+  <button class="huge wide" style="max-width:420px;background:#fff;color:#b3261e;border-color:#fff" data-act="dismiss-left">I&rsquo;M BACK &mdash; CONTINUE</button>
+</div>
+
+<div id="overlay-fatal" class="overlay hidden">
+  <h1 id="fatal-title">SHOW FILE REJECTED</h1>
+  <p id="fatal-sub" style="font-weight:700;max-width:32em"></p>
+  <ul class="errlist" id="fatal-list"></ul>
+  <button class="huge wide" style="max-width:420px;background:#fff;color:#8c0f08;border-color:#fff" data-act="dismiss-fatal">BACK</button>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   GLOW SHOW — single-file app
+   ============================================================================ */
+
+/* ===== CONFIG ============================================================= */
+// Worker not deployed yet (project CLAUDE.md to-do 2). Empty => wall-clock fallback,
+// with a loud UNVERIFIED CLOCK banner. Settable at runtime from the settings screen.
+const WORKER_URL_DEFAULT = "";
+
+const LS = {
+  role:      "glow.role",
+  worker:    "glow.workerUrl",
+  show:      "glow.show",
+  showSrc:   "glow.showSrc",
+  group:     "glow.group",
+  sync:      "glow.sync",
+  pa:        "glow.paLatencyMs",
+  armed:     "glow.armed"
+};
+
+const SYNC_ROUNDS      = 10;
+const SYNC_MIN_GAP_MS  = 150;
+const SYNC_STALE_MS    = 60 * 60 * 1000;   // 60 min -> yellow STALE
+const SYNC_AUTO_MS     = 10 * 60 * 1000;   // silent re-sync every 10 min
+const T0_POLL_MS       = 5000;
+const DRIFT_CHECK_MS   = 30000;
+const DRIFT_WARN_MS    = 60;
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>>>>>>>  PURE CORE  START  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+   Everything between the PURE CORE markers is dependency-free: no DOM, no
+   globals outside this block, no browser APIs. It can be extracted verbatim and
+   evaluated in node for tests, and it is the part a later EDITOR / auto-
+   choreographer reuses unchanged.
+   ######################################################################### */
+
+/* ===== SHOW PARSER / VALIDATOR ==============================================
+   parseShowText(text)  -> { ok, show?, errors[] }
+   validateShow(raw)    -> { ok, show?, errors[], warnings[] }
+   Rules enforced (all loud — a broken show is NEVER rendered):
+     - format version gate ("glow-show/1")
+     - groups defined, unique ids, "all" reserved, hex colors
+     - cues sorted by t; t/dur finite and positive; t+dur inside audio duration
+     - per-type requirements (pulse.bpm, alternate.periodMs + >=2 groups)
+     - no overlapping cues within any single group, AFTER expansion of
+       `alternate` cues and AFTER resolving the implicit "all" group
+   ========================================================================= */
+const SHOW_FORMAT = "glow-show/1";
+const CUE_TYPES = ["burn", "pulse", "alternate"];
+const SHOW_DEFAULTS = { getReadyMs: 5000, ventWarnMs: 20000, longBurnMs: 6000, stopMs: 2000 };
+
+function _isNum(v) { return typeof v === "number" && isFinite(v); }
+function _isStr(v) { return typeof v === "string" && v.trim().length > 0; }
+
+function parseShowText(text) {
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    return { ok: false, errors: ["Not valid JSON: " + e.message], warnings: [] };
+  }
+  return validateShow(raw);
+}
+
+function validateShow(raw) {
+  const errors = [], warnings = [];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, errors: ["Show file must be a JSON object."], warnings: [] };
+  }
+
+  // --- format gate -------------------------------------------------------
+  if (raw.format !== SHOW_FORMAT) {
+    errors.push('format must be "' + SHOW_FORMAT + '" (got ' + JSON.stringify(raw.format) + ").");
+  }
+  if (!_isStr(raw.title)) errors.push("title must be a non-empty string.");
+
+  // --- audio -------------------------------------------------------------
+  const audio = (raw.audio && typeof raw.audio === "object") ? raw.audio : {};
+  if (!_isNum(audio.durationMs) || audio.durationMs <= 0) {
+    errors.push("audio.durationMs must be a positive number of milliseconds.");
+  }
+
+  // --- groups ------------------------------------------------------------
+  const groupIds = [];
+  if (!Array.isArray(raw.groups) || raw.groups.length === 0) {
+    errors.push("groups[] must contain at least one group.");
+  } else {
+    raw.groups.forEach(function (g, i) {
+      const where = "groups[" + i + "]";
+      if (!g || typeof g !== "object") { errors.push(where + " must be an object."); return; }
+      if (!_isStr(g.id)) { errors.push(where + ".id must be a non-empty string."); return; }
+      const id = g.id.trim();
+      if (!/^[a-z0-9_-]+$/i.test(id)) errors.push(where + '.id "' + id + '" may only contain letters, numbers, - and _.');
+      if (id.toLowerCase() === "all") errors.push(where + '.id cannot be "all" — "all" is the reserved implicit group (every pilot).');
+      if (groupIds.indexOf(id) !== -1) errors.push(where + '.id "' + id + '" is duplicated.');
+      else groupIds.push(id);
+      if (!_isStr(g.label)) errors.push(where + ".label must be a non-empty string.");
+      if (!_isStr(g.color) || !/^#[0-9a-f]{6}$/i.test(g.color)) errors.push(where + '.color must be a #rrggbb hex colour (got ' + JSON.stringify(g.color) + ").");
+    });
+  }
+
+  // --- defaults ----------------------------------------------------------
+  const defs = Object.assign({}, SHOW_DEFAULTS);
+  if (raw.defaults != null) {
+    if (typeof raw.defaults !== "object" || Array.isArray(raw.defaults)) {
+      errors.push("defaults must be an object.");
+    } else {
+      Object.keys(SHOW_DEFAULTS).forEach(function (k) {
+        if (raw.defaults[k] === undefined) return;
+        if (!_isNum(raw.defaults[k]) || raw.defaults[k] < 0) errors.push("defaults." + k + " must be a non-negative number of ms.");
+        else defs[k] = raw.defaults[k];
+      });
+    }
+  }
+
+  // --- cues --------------------------------------------------------------
+  if (!Array.isArray(raw.cues) || raw.cues.length === 0) {
+    errors.push("cues[] must contain at least one cue.");
+  } else {
+    let prevT = -Infinity;
+    raw.cues.forEach(function (c, i) {
+      const where = "cues[" + i + "]" + (c && c.label ? ' ("' + c.label + '")' : "");
+      if (!c || typeof c !== "object") { errors.push(where + " must be an object."); return; }
+      if (!_isNum(c.t) || c.t < 0) errors.push(where + ".t must be a number of ms >= 0.");
+      if (!_isNum(c.dur) || c.dur <= 0) errors.push(where + ".dur must be a positive number of ms.");
+      if (CUE_TYPES.indexOf(c.type) === -1) errors.push(where + '.type must be one of ' + CUE_TYPES.join(" / ") + " (got " + JSON.stringify(c.type) + ").");
+      if (!_isStr(c.label)) errors.push(where + ".label must be a non-empty string.");
+      if (c.vent !== undefined && typeof c.vent !== "boolean") errors.push(where + ".vent must be true/false if present.");
+
+      if (!Array.isArray(c.groups) || c.groups.length === 0) {
+        errors.push(where + ".groups[] must list at least one group id (or \"all\").");
+      } else {
+        c.groups.forEach(function (gid) {
+          if (typeof gid !== "string") { errors.push(where + ".groups[] entries must be strings."); return; }
+          if (gid.toLowerCase() === "all") return;
+          if (groupIds.indexOf(gid) === -1) errors.push(where + ' references unknown group "' + gid + '". Known: ' + groupIds.join(", ") + ".");
+        });
+        if (c.groups.length > 1 && c.groups.some(function (g) { return String(g).toLowerCase() === "all"; })) {
+          errors.push(where + ' mixes "all" with named groups — use "all" on its own.');
+        }
+      }
+
+      if (c.type === "pulse") {
+        if (!_isNum(c.bpm) || c.bpm < 20 || c.bpm > 300) errors.push(where + ".bpm must be a number between 20 and 300 for a pulse cue.");
+      }
+      if (c.type === "alternate") {
+        if (!_isNum(c.periodMs) || c.periodMs <= 0) errors.push(where + ".periodMs must be a positive number of ms for an alternate cue.");
+        else if (_isNum(c.dur) && c.periodMs > c.dur) errors.push(where + ".periodMs is longer than the cue itself — nothing would alternate.");
+        if (Array.isArray(c.groups)) {
+          const resolvedCount = c.groups.some(function (g) { return String(g).toLowerCase() === "all"; }) ? groupIds.length : c.groups.length;
+          if (resolvedCount < 2) errors.push(where + " is an alternate cue but resolves to fewer than 2 groups — nothing to alternate between.");
+        }
+      }
+
+      if (_isNum(c.t)) {
+        if (c.t < prevT) errors.push(where + " is out of order: t=" + c.t + " comes after a cue at t=" + prevT + ". cues[] must be sorted by t.");
+        prevT = Math.max(prevT, c.t);
+      }
+      if (_isNum(c.t) && _isNum(c.dur) && _isNum(audio.durationMs) && c.t + c.dur > audio.durationMs) {
+        errors.push(where + " ends at " + (c.t + c.dur) + "ms, past audio.durationMs (" + audio.durationMs + "ms).");
+      }
+    });
+  }
+
+  if (errors.length) return { ok: false, errors: errors, warnings: warnings };
+
+  // --- structural check that needs expansion: per-group overlap ----------
+  const show = { format: raw.format, title: raw.title.trim(), audio: { title: audio.title || "", durationMs: audio.durationMs },
+                 groups: raw.groups.map(function (g) { return { id: g.id.trim(), label: g.label.trim(), color: g.color }; }),
+                 defaults: defs,
+                 cues: raw.cues.map(function (c) {
+                   const o = { t: c.t, dur: c.dur, type: c.type, groups: c.groups.slice(), label: c.label.trim() };
+                   if (c.bpm !== undefined) o.bpm = c.bpm;
+                   if (c.periodMs !== undefined) o.periodMs = c.periodMs;
+                   if (c.vent !== undefined) o.vent = c.vent;
+                   return o;
+                 }) };
+
+  const segs = expandSegments(show);
+  const perGroupSpans = {};
+  show.groups.forEach(function (g) { perGroupSpans[g.id] = []; });
+  segs.forEach(function (s) {
+    s.groups.forEach(function (gid) { perGroupSpans[gid].push(s); });
+  });
+  Object.keys(perGroupSpans).forEach(function (gid) {
+    const list = perGroupSpans[gid].slice().sort(function (a, b) { return a.t - b.t; });
+    for (let i = 1; i < list.length; i++) {
+      const p = list[i - 1], c = list[i];
+      if (c.t < p.end) {
+        errors.push('Group "' + gid + '" has overlapping cues: "' + p.label + '" (' + p.t + "–" + p.end + "ms) overlaps \"" + c.label + '" (' + c.t + "–" + c.end + "ms). A pilot cannot be given two cues at once.");
+      }
+    }
+  });
+
+  if (errors.length) return { ok: false, errors: errors, warnings: warnings };
+
+  const lastEnd = segs.reduce(function (m, s) { return Math.max(m, s.end); }, 0);
+  if (lastEnd < show.audio.durationMs - 30000) {
+    warnings.push("Last cue ends " + Math.round((show.audio.durationMs - lastEnd) / 1000) + "s before the end of the audio.");
+  }
+  return { ok: true, show: show, errors: [], warnings: warnings };
+}
+
+/* ===== TIMELINE ENGINE ======================================================
+   compileShow(show) -> timeline
+   stateAt(timeline, myGroupIds, tMs) -> render state (pure, side-effect free)
+
+   Derived at compile time — NEVER authored in the show file:
+     GET READY : `getReadyMs` before each cue relevant to the pilot's group,
+                 CLAMPED to the end of that group's previous cue so a get-ready
+                 can never appear while the pilot is still burning. Between the
+                 legs of a ping-pong the STOP window fills the whole gap and
+                 outranks GET READY, so the legs never spam "get ready" — but a
+                 cue that follows closely still gets whatever warning fits.
+     STOP      : `stopMs` after every cue ends, truncated at the group's next
+                 cue start so a STOP can never eat the following burn.
+     VENT WARN : `ventWarnMs` before any cue whose SUSTAINED CONTINUOUS burn is
+                 >= longBurnMs, or any cue with "vent": true (any type).
+                 Sustained continuous burn by type:
+                   burn      -> dur
+                   alternate -> periodMs (one leg, not the whole cue)
+                   pulse     -> 0 (blips on a beat grid, never a held burn)
+                 i.e. auto-vent tracks the buoyancy the pilot actually takes on,
+                 not the wall-clock length of the section.
+
+   Priority when several apply: BURN/PULSE > STOP > GET READY > VENT > IDLE.
+   A vent warning that loses the priority contest is still reported as
+   `ventChip` so the UI can show a corner chip without hijacking a live burn.
+   ========================================================================= */
+function expandSegments(show) {
+  // Resolve "all", expand `alternate` into per-group burn windows.
+  const groupIds = show.groups.map(function (g) { return g.id; });
+  const labelOf = {};
+  show.groups.forEach(function (g) { labelOf[g.id] = g.label; });
+  const resolve = function (gs) {
+    return gs.some(function (g) { return String(g).toLowerCase() === "all"; }) ? groupIds.slice() : gs.slice();
+  };
+  const out = [];
+  show.cues.forEach(function (cue, ci) {
+    const gs = resolve(cue.groups);
+    if (cue.type === "alternate") {
+      const p = cue.periodMs;
+      let k = 0;
+      while (true) {
+        const s = cue.t + k * p;
+        if (s >= cue.t + cue.dur) break;
+        const e = Math.min(s + p, cue.t + cue.dur);
+        if (e - s < 1) break;
+        const g = gs[k % gs.length];
+        out.push({
+          cueIndex: ci, segIndex: out.length, type: "burn", t: s, end: e, dur: e - s,
+          groups: [g], label: cue.label + " · " + (labelOf[g] || g),
+          baseLabel: cue.label, fromAlternate: true, leg: k, bpm: null,
+          allGroups: gs.slice(), isAll: cue.groups.some(function (x) { return String(x).toLowerCase() === "all"; })
+        });
+        k++;
+      }
+    } else {
+      out.push({
+        cueIndex: ci, segIndex: out.length, type: cue.type, t: cue.t, end: cue.t + cue.dur, dur: cue.dur,
+        groups: gs, label: cue.label, baseLabel: cue.label, fromAlternate: false, leg: 0,
+        bpm: cue.type === "pulse" ? cue.bpm : null,
+        allGroups: gs.slice(), isAll: cue.groups.some(function (x) { return String(x).toLowerCase() === "all"; })
+      });
+    }
+  });
+  out.sort(function (a, b) { return a.t - b.t; });
+  out.forEach(function (s, i) { s.segIndex = i; });
+  return out;
+}
+
+function compileShow(show) {
+  const d = show.defaults || SHOW_DEFAULTS;
+  const groupIds = show.groups.map(function (g) { return g.id; });
+  const segments = expandSegments(show);
+
+  // --- vent warnings (derived) ------------------------------------------
+  const vents = [];
+  show.cues.forEach(function (cue, ci) {
+    const sustained = cue.type === "burn" ? cue.dur
+                    : cue.type === "alternate" ? cue.periodMs
+                    : 0;                              // pulse = blips, never a held burn
+    const trigger = cue.vent === true || sustained >= d.longBurnMs;
+    if (!trigger) return;
+    const gs = cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; }) ? groupIds.slice() : cue.groups.slice();
+    vents.push({
+      cueIndex: ci, t: cue.t - d.ventWarnMs, end: cue.t,
+      cueT: cue.t, cueDur: cue.dur, cueType: cue.type, groups: gs, label: cue.label,
+      explicit: cue.vent === true
+    });
+  });
+
+  // --- per-group derived windows ----------------------------------------
+  const perGroup = {};
+  groupIds.forEach(function (gid) {
+    const windows = segments.filter(function (s) { return s.groups.indexOf(gid) !== -1; })
+                            .sort(function (a, b) { return a.t - b.t; });
+    const readies = [], stops = [];
+    windows.forEach(function (w, i) {
+      const prevEnd = i > 0 ? windows[i - 1].end : -Infinity;
+      // clamp the get-ready to the end of this group's previous cue — never
+      // warn a pilot about the next burn while they are still on this one.
+      const readyStart = Math.max(w.t - d.getReadyMs, prevEnd);
+      if (readyStart < w.t) readies.push({ t: readyStart, end: w.t, seg: w });
+      const nextStart = (i + 1 < windows.length) ? windows[i + 1].t : Infinity;
+      const stopEnd = Math.min(w.end + d.stopMs, nextStart);
+      if (stopEnd > w.end) stops.push({ t: w.end, end: stopEnd, seg: w });
+    });
+    perGroup[gid] = {
+      windows: windows, readies: readies, stops: stops,
+      vents: vents.filter(function (v) { return v.groups.indexOf(gid) !== -1; })
+    };
+  });
+
+  // --- preview cues (source cues, not expanded legs) ---------------------
+  const previewCues = show.cues.map(function (cue, ci) {
+    const gs = cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; }) ? groupIds.slice() : cue.groups.slice();
+    return { cueIndex: ci, t: cue.t, dur: cue.dur, end: cue.t + cue.dur, type: cue.type,
+             groups: gs, isAll: gs.length === groupIds.length && cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; }),
+             label: cue.label, bpm: cue.bpm || null, periodMs: cue.periodMs || null };
+  });
+
+  const lastEnd = segments.reduce(function (m, s) { return Math.max(m, s.end); }, 0);
+  return {
+    show: show, defaults: d, groups: show.groups, groupIds: groupIds,
+    colorOf: show.groups.reduce(function (m, g) { m[g.id] = g.color; return m; }, {}),
+    labelOf: show.groups.reduce(function (m, g) { m[g.id] = g.label; return m; }, {}),
+    segments: segments, vents: vents, perGroup: perGroup, previewCues: previewCues,
+    audioMs: show.audio.durationMs,
+    endMs: Math.max(show.audio.durationMs, lastEnd + d.stopMs)
+  };
+}
+
+const PHASE_RANK = { IDLE: 1, VENT: 2, GETREADY: 3, STOP: 4, PULSE: 5, BURN: 5 };
+
+function stateAt(tl, myGroups, tMs) {
+  const groups = (myGroups || []).filter(function (g) { return !!tl.perGroup[g]; });
+  let phase = "IDLE", rank = 1, seg = null, stopRec = null, readyRec = null;
+  let ventBest = null;
+
+  groups.forEach(function (gid) {
+    const pg = tl.perGroup[gid];
+    for (let i = 0; i < pg.windows.length; i++) {
+      const w = pg.windows[i];
+      if (tMs >= w.t && tMs < w.end) {
+        const ph = (w.type === "pulse") ? "PULSE" : "BURN";
+        if (PHASE_RANK[ph] >= rank) { rank = PHASE_RANK[ph]; phase = ph; seg = w; }
+      }
+    }
+    for (let i = 0; i < pg.stops.length; i++) {
+      const s = pg.stops[i];
+      if (tMs >= s.t && tMs < s.end && PHASE_RANK.STOP > rank) { rank = PHASE_RANK.STOP; phase = "STOP"; stopRec = s; }
+    }
+    for (let i = 0; i < pg.readies.length; i++) {
+      const r = pg.readies[i];
+      if (tMs >= r.t && tMs < r.end && PHASE_RANK.GETREADY > rank) { rank = PHASE_RANK.GETREADY; phase = "GETREADY"; readyRec = r; }
+    }
+    for (let i = 0; i < pg.vents.length; i++) {
+      const v = pg.vents[i];
+      if (tMs >= v.t && tMs < v.end) {
+        if (!ventBest || v.cueT < ventBest.cueT) ventBest = v;
+      }
+    }
+  });
+  if (ventBest && rank < PHASE_RANK.VENT) { rank = PHASE_RANK.VENT; phase = "VENT"; }
+
+  // pre-show / ended only when nothing else is happening
+  if (phase === "IDLE" && tMs < 0) phase = "PRESHOW";
+  if (phase === "IDLE" && tMs >= tl.endMs) phase = "ENDED";
+
+  // ---- next cue for me -------------------------------------------------
+  let nextOwn = null;
+  groups.forEach(function (gid) {
+    tl.perGroup[gid].windows.forEach(function (w) {
+      if (w.t > tMs && (!nextOwn || w.t < nextOwn.t)) nextOwn = w;
+    });
+  });
+
+  // ---- preview strip: next 3 source cues (all groups) ------------------
+  const next = [];
+  for (let i = 0; i < tl.previewCues.length && next.length < 3; i++) {
+    const c = tl.previewCues[i];
+    if (c.t <= tMs) continue;
+    next.push({
+      cue: c, msUntil: c.t - tMs,
+      mine: groups.some(function (g) { return c.groups.indexOf(g) !== -1; })
+    });
+  }
+
+  // ---- pulse grid ------------------------------------------------------
+  let pulse = null;
+  if (phase === "PULSE" && seg && seg.bpm) {
+    const beatMs = 60000 / seg.bpm;
+    const el = tMs - seg.t;
+    const beatIndex = Math.floor(el / beatMs);
+    const beatPhase = (el - beatIndex * beatMs) / beatMs;
+    pulse = {
+      beatMs: beatMs, beatIndex: beatIndex, beatPhase: beatPhase,
+      on: beatPhase < 0.5,
+      totalBeats: Math.ceil(seg.dur / beatMs)
+    };
+  }
+
+  const accentGroup = groups.length ? groups[0] : null;
+  return {
+    tMs: tMs,
+    phase: phase,
+    myGroups: groups,
+    accent: accentGroup ? tl.colorOf[accentGroup] : "#ffffff",
+    seg: seg,
+    label: seg ? seg.label : (readyRec ? readyRec.seg.label : (stopRec ? stopRec.seg.label : (ventBest ? ventBest.label : null))),
+    remainMs: seg ? (seg.end - tMs) : null,
+    elapsedMs: seg ? (tMs - seg.t) : null,
+    progress: seg ? Math.max(0, Math.min(1, (tMs - seg.t) / seg.dur)) : null,
+    countdownMs: readyRec ? (readyRec.end - tMs) : null,
+    readySeg: readyRec ? readyRec.seg : null,
+    stopRemainMs: stopRec ? (stopRec.end - tMs) : null,
+    stopSeg: stopRec ? stopRec.seg : null,
+    pulse: pulse,
+    vent: ventBest ? {
+      msUntil: ventBest.cueT - tMs, cueT: ventBest.cueT, cueDur: ventBest.cueDur,
+      cueType: ventBest.cueType, label: ventBest.label, explicit: ventBest.explicit
+    } : null,
+    ventChip: !!(ventBest && phase !== "VENT"),
+    nextOwn: nextOwn ? { seg: nextOwn, msUntil: nextOwn.t - tMs } : null,
+    next: next,
+    endMs: tl.endMs,
+    audioMs: tl.audioMs
+  };
+}
+
+/* ===== small pure formatters (shared by UI and tests) ==================== */
+function fmtMMSS(ms) {
+  const neg = ms < 0;
+  let s = Math.floor(Math.abs(ms) / 1000);
+  const m = Math.floor(s / 60);
+  s = s % 60;
+  return (neg ? "-" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+}
+function fmtSecs(ms) { return Math.max(0, Math.ceil(ms / 1000)); }
+function slugify(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "show";
+}
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>>>>>>>>  PURE CORE  END  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+   ######################################################################### */
+
+
+/* ===== INLINE DEMO SHOW ====================================================
+   MIRROR of shows/demo-show.json (which is the primary copy — see
+   shows/CLAUDE.md). Inlined so "LOAD DEMO SHOW" works from file:// and with no
+   network at all. The loader prefers the file and falls back to this copy.
+   ========================================================================= */
+const DEMO_SHOW = {
+  format: "glow-show/1",
+  title: "Glow Show Demo - 90 Seconds",
+  audio: { title: "(demo timing only - no audio file required)", durationMs: 90000 },
+  groups: [
+    { id: "north",  label: "NORTH ROW",      color: "#00c8ff" },
+    { id: "south",  label: "SOUTH ROW",      color: "#ff3ea5" },
+    { id: "shapes", label: "SPECIAL SHAPES", color: "#ffd400" }
+  ],
+  defaults: { getReadyMs: 5000, ventWarnMs: 20000, longBurnMs: 6000, stopMs: 2000 },
+  cues: [
+    { t: 15000, dur: 3000,  type: "burn",      groups: ["all"],              label: "Opening all-burn" },
+    { t: 24000, dur: 12000, type: "burn",      groups: ["north"],            label: "North long burn", vent: true },
+    { t: 26000, dur: 3000,  type: "burn",      groups: ["shapes"],           label: "Shapes accent" },
+    { t: 31000, dur: 3000,  type: "burn",      groups: ["south"],            label: "South accent" },
+    { t: 40000, dur: 8000,  type: "pulse",     groups: ["all"], bpm: 128,    label: "Chorus pulse" },
+    { t: 52000, dur: 6000,  type: "alternate", groups: ["north", "south"], periodMs: 1000, label: "Ping-pong" },
+    { t: 58500, dur: 2000,  type: "burn",      groups: ["shapes"],           label: "Shapes solo" },
+    { t: 61000, dur: 4000,  type: "pulse",     groups: ["north", "shapes"], bpm: 96, label: "Half-time pulse" },
+    { t: 63000, dur: 2000,  type: "burn",      groups: ["south"],            label: "South punch" },
+    { t: 70000, dur: 14000, type: "burn",      groups: ["all"],              label: "GRAND FINALE - ALL BURN" }
+  ]
+};
+
+/* ===== APP STATE ========================================================= */
+const APP = {
+  role: null,            // 'pilot' | 'conductor'
+  screen: "role",
+  prevScreen: null,
+  show: null,            // validated show object
+  tl: null,              // compiled timeline
+  showSrcUrl: "",        // URL the show came from (for share links)
+  myGroup: null,
+  workerUrl: WORKER_URL_DEFAULT,
+  armed: null,           // { t0, source: 'auto'|'manual'|'url'|'test' }
+  hold: false,
+  paLatencyMs: 0,
+  leftAppFlag: false,
+  audio: { ctx: null, buffer: null, src: null, name: "", startedAtCtx: null, startedAtSynced: null, playing: false, lastDrift: null, driftWarn: false }
+};
+
+/* ===== tiny DOM helpers ================================================== */
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+function setTxt(node, t) { if (node && node.textContent !== t) node.textContent = t; }
+function store(k, v) { try { localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); } catch (e) {} }
+function load(k, asJson) {
+  try { const v = localStorage.getItem(k); if (v == null) return null; return asJson ? JSON.parse(v) : v; }
+  catch (e) { return null; }
+}
+function drop(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+function fmtClock(epochMs, tenths) {
+  const d = new Date(epochMs);
+  let h = d.getHours(); const ap = h >= 12 ? "PM" : "AM";
+  h = h % 12; if (h === 0) h = 12;
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  const t = tenths ? "." + String(Math.floor(d.getMilliseconds() / 100)) : "";
+  return h + ":" + mm + ":" + ss + t + " " + ap;
+}
+function fmtClockShort(epochMs) {
+  const d = new Date(epochMs);
+  let h = d.getHours(); h = h % 12; if (h === 0) h = 12;
+  return h + ":" + String(d.getMinutes()).padStart(2, "0") + ":" + String(d.getSeconds()).padStart(2, "0");
+}
+
+/* ============================================================================
+   ===== SYNC ENGINE =====
+   NTP-style handshake against the Worker's /time endpoint.
+   Synced clock = performance.now() + offset  (epoch ms).
+   performance.now() is monotonic, so an OS clock step mid-show cannot move it.
+   On reload performance.now()'s origin resets, so we re-anchor from a stored
+   wall-clock delta and say so loudly until a real re-sync lands.
+   ========================================================================= */
+const SYNC = {
+  offset: null,          // ms to add to performance.now() to get server epoch
+  uncertainty: null,     // ± ms
+  syncedAtEpoch: null,   // when the offset was established (wall clock)
+  wallDelta: null,       // syncedNow - Date.now() at sync time (survives reload)
+  rounds: [],            // [{i, rtt, offset, kept}]
+  mode: "unverified",    // 'unverified' | 'synced' | 'reanchored'
+  lastError: null,
+  busy: false,
+  lastAutoAt: 0
+};
+
+function syncedNow() {
+  return SYNC.offset === null ? Date.now() : performance.now() + SYNC.offset;
+}
+function syncAgeMs() { return SYNC.syncedAtEpoch === null ? null : Math.max(0, Date.now() - SYNC.syncedAtEpoch); }
+
+function syncStatus() {
+  if (SYNC.mode === "unverified") {
+    return { level: "red", short: "UNVERIFIED CLOCK", full: APP.workerUrl ? "NOT SYNCED — using this phone's clock" : "UNVERIFIED CLOCK — using phone clock (no Worker URL set)" };
+  }
+  const age = syncAgeMs();
+  if (SYNC.mode === "reanchored") {
+    return { level: "yellow", short: "RE-ANCHORED", full: "Re-anchored from wall clock after reload — re-sync when possible" };
+  }
+  if (age != null && age > SYNC_STALE_MS) {
+    return { level: "yellow", short: "STALE — RE-SYNC", full: "Clock sync is " + Math.round(age / 60000) + " min old — STALE, re-sync when possible" };
+  }
+  return { level: "green", short: "SYNCED ±" + Math.round(SYNC.uncertainty) + "ms · age " + Math.round((age || 0) / 60000) + "m", full: null };
+}
+
+function persistSync() {
+  store(LS.sync, { wallDelta: SYNC.wallDelta, uncertainty: SYNC.uncertainty, syncedAtEpoch: SYNC.syncedAtEpoch });
+}
+
+function restoreSync() {
+  const s = load(LS.sync, true);
+  if (!s || typeof s.wallDelta !== "number") return false;
+  // performance.now()'s origin reset on reload; rebuild the offset from wall clock.
+  SYNC.wallDelta = s.wallDelta;
+  SYNC.uncertainty = typeof s.uncertainty === "number" ? s.uncertainty : null;
+  SYNC.syncedAtEpoch = s.syncedAtEpoch || null;
+  SYNC.offset = (Date.now() + s.wallDelta) - performance.now();
+  SYNC.mode = "reanchored";
+  return true;
+}
+
+function median(arr) {
+  const a = arr.slice().sort(function (x, y) { return x - y; });
+  const n = a.length;
+  if (!n) return null;
+  return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+}
+
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+async function runSync(opts) {
+  opts = opts || {};
+  if (SYNC.busy) return { ok: false, error: "already syncing" };
+  if (!APP.workerUrl) { SYNC.lastError = "No Worker URL set."; renderChrome(); return { ok: false, error: SYNC.lastError }; }
+  SYNC.busy = true;
+  SYNC.lastError = null;
+  const rounds = [];
+  try {
+    for (let i = 0; i < SYNC_ROUNDS; i++) {
+      const gapStart = performance.now();
+      let serverT = null;
+      const a = performance.now();
+      try {
+        const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/time", { cache: "no-store", mode: "cors" });
+        const j = await res.json();
+        serverT = j && typeof j.t === "number" ? j.t : null;
+      } catch (e) {
+        serverT = null;
+      }
+      const b = performance.now();
+      if (serverT !== null) {
+        const rtt = b - a;
+        rounds.push({ i: i + 1, rtt: rtt, offset: serverT + rtt / 2 - b, kept: true });
+      } else {
+        rounds.push({ i: i + 1, rtt: NaN, offset: NaN, kept: false, failed: true });
+      }
+      if (!opts.silent) { SYNC.rounds = rounds.slice(); renderSyncPanels(); }
+      const spent = performance.now() - gapStart;
+      if (i < SYNC_ROUNDS - 1 && spent < SYNC_MIN_GAP_MS) await sleep(SYNC_MIN_GAP_MS - spent);
+    }
+
+    const good = rounds.filter(function (r) { return !r.failed; });
+    if (good.length < 3) {
+      SYNC.lastError = "Only " + good.length + "/" + SYNC_ROUNDS + " sync rounds reached the server.";
+      SYNC.rounds = rounds;
+      if (SYNC.mode === "synced") SYNC.mode = "reanchored"; // keep the old offset, flag it
+      return { ok: false, error: SYNC.lastError };
+    }
+    const minRtt = Math.min.apply(null, good.map(function (r) { return r.rtt; }));
+    good.forEach(function (r) { r.kept = r.rtt <= 2 * minRtt; });
+    const kept = good.filter(function (r) { return r.kept; }).sort(function (x, y) { return x.rtt - y.rtt; });
+    const best3 = kept.slice(0, 3);
+    const off = median(best3.map(function (r) { return r.offset; }));
+
+    SYNC.rounds = rounds;
+    SYNC.offset = off;
+    SYNC.uncertainty = minRtt / 2;
+    SYNC.syncedAtEpoch = Date.now();
+    SYNC.wallDelta = (performance.now() + off) - Date.now();
+    SYNC.mode = "synced";
+    persistSync();
+    return { ok: true, offset: off, uncertainty: SYNC.uncertainty };
+  } finally {
+    SYNC.busy = false;
+    renderChrome();
+    renderSyncPanels();
+  }
+}
+
+function maybeAutoSync() {
+  if (!APP.workerUrl || SYNC.busy) return;
+  const now = Date.now();
+  if (now - SYNC.lastAutoAt < SYNC_AUTO_MS) return;
+  SYNC.lastAutoAt = now;
+  runSync({ silent: true });
+}
+
+/* ============================================================================
+   ===== T0 / ARMING =====
+   Two paths, both first-class:
+     AUTO  — poll {worker}/t0?showId=slug every 5s while in pre-show.
+     PA    — MC announces a time; pilot taps the matching giant minute button.
+   ========================================================================= */
+function showId() { return APP.show ? slugify(APP.show.title) : "default"; }
+
+function armT0(t0, source) {
+  APP.armed = { t0: t0, source: source || "manual" };
+  store(LS.armed, { t0: t0, source: APP.armed.source, showId: showId() });
+  requestWakeLock();
+  renderAll();
+}
+function disarm() {
+  APP.armed = null;
+  drop(LS.armed);
+  stopAudio();
+  renderAll();
+}
+function restoreArmed() {
+  const a = load(LS.armed, true);
+  if (!a || typeof a.t0 !== "number") return;
+  const now = syncedNow();
+  if (a.t0 < now - 15 * 60 * 1000 || a.t0 > now + 6 * 60 * 60 * 1000) { drop(LS.armed); return; }
+  if (APP.show && a.showId && a.showId !== showId()) { drop(LS.armed); return; }
+  APP.armed = { t0: a.t0, source: a.source || "manual" };
+}
+
+function nextMinuteMarks(count, leadMs) {
+  const now = syncedNow();
+  const first = Math.ceil((now + (leadMs || 15000)) / 60000) * 60000;
+  const out = [];
+  for (let i = 0; i < count; i++) out.push(first + i * 60000);
+  return out;
+}
+
+let t0PollTimer = null;
+function startT0Poll() {
+  if (t0PollTimer) return;
+  t0PollTimer = setInterval(pollT0, T0_POLL_MS);
+  pollT0();
+}
+function stopT0Poll() { if (t0PollTimer) { clearInterval(t0PollTimer); t0PollTimer = null; } }
+
+async function pollT0() {
+  if (!APP.workerUrl || !APP.show) return;
+  try {
+    const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/t0?showId=" + encodeURIComponent(showId()), { cache: "no-store", mode: "cors" });
+    const j = await res.json();
+    if (!j) return;
+    const wasHold = APP.hold;
+    APP.hold = !!j.hold;
+    if (APP.hold && !wasHold) { stopAudio(); renderAll(); }
+    if (typeof j.t0 === "number" && !APP.hold) {
+      const now = syncedNow();
+      if (j.t0 > now - 2000 && (!APP.armed || APP.armed.t0 !== j.t0)) {
+        armT0(j.t0, "auto");
+      }
+    }
+  } catch (e) { /* offline is the normal case at showtime — stay quiet */ }
+}
+
+async function postT0(payload) {
+  if (!APP.workerUrl) return { ok: false, error: "No Worker URL set — pilots must be armed over the PA." };
+  try {
+    const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/t0", {
+      method: "POST", mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (!res.ok) return { ok: false, error: "Worker returned " + res.status };
+    return { ok: true, data: j };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
+/* ============================================================================
+   ===== QR ENCODER =====
+   Byte mode, EC level M, versions 1..20, all 8 masks scored by the standard
+   penalty rules. Self-contained (no external code) — used for the conductor's
+   share link. ~200 lines.
+   ========================================================================= */
+const QR = (function () {
+  // version -> [ecCodewordsPerBlock, g1Blocks, g1DataCW, g2Blocks, g2DataCW]  (EC level M)
+  const EC_M = {
+    1: [10, 1, 16, 0, 0],   2: [16, 1, 28, 0, 0],   3: [26, 1, 44, 0, 0],   4: [18, 2, 32, 0, 0],
+    5: [24, 2, 43, 0, 0],   6: [16, 4, 27, 0, 0],   7: [18, 4, 31, 0, 0],   8: [22, 2, 38, 2, 39],
+    9: [22, 3, 36, 2, 37], 10: [26, 4, 43, 1, 44], 11: [30, 1, 50, 4, 51], 12: [22, 6, 36, 2, 37],
+   13: [22, 8, 37, 1, 38], 14: [24, 4, 40, 5, 41], 15: [24, 5, 41, 5, 42], 16: [28, 7, 45, 3, 46],
+   17: [28, 10, 46, 1, 47], 18: [26, 9, 43, 4, 44], 19: [26, 3, 44, 11, 45], 20: [26, 3, 41, 13, 42]
+  };
+  const ALIGN = {
+    1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42],
+    9: [6, 26, 46], 10: [6, 28, 50], 11: [6, 30, 54], 12: [6, 32, 58], 13: [6, 34, 62], 14: [6, 26, 46, 66],
+    15: [6, 26, 48, 70], 16: [6, 26, 50, 74], 17: [6, 30, 54, 78], 18: [6, 30, 56, 82], 19: [6, 30, 58, 86], 20: [6, 34, 62, 90]
+  };
+
+  // --- GF(256) ----------------------------------------------------------
+  const EXP = new Array(512), LOG = new Array(256);
+  (function () {
+    let x = 1;
+    for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+    for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  })();
+  function gmul(a, b) { return (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]]; }
+
+  function genPoly(n) {
+    let g = [1];
+    for (let i = 0; i < n; i++) {
+      const ng = new Array(g.length + 1).fill(0);
+      for (let j = 0; j < g.length; j++) { ng[j] ^= g[j]; ng[j + 1] ^= gmul(g[j], EXP[i]); }
+      g = ng;
+    }
+    return g;
+  }
+  function ecBytes(data, ecLen) {
+    const g = genPoly(ecLen);
+    const res = new Array(data.length + ecLen).fill(0);
+    for (let i = 0; i < data.length; i++) res[i] = data[i];
+    for (let i = 0; i < data.length; i++) {
+      const c = res[i];
+      if (c === 0) continue;
+      for (let j = 0; j < g.length; j++) res[i + j] ^= gmul(g[j], c);
+    }
+    return res.slice(data.length);
+  }
+
+  function dataCapacity(v) {
+    const t = EC_M[v];
+    return t[1] * t[2] + t[3] * t[4];
+  }
+  function bytesCapacity(v) {
+    const countBits = v <= 9 ? 8 : 16;
+    return Math.floor((dataCapacity(v) * 8 - 4 - countBits) / 8);
+  }
+
+  function utf8Bytes(str) {
+    const out = [];
+    for (let i = 0; i < str.length; i++) {
+      let c = str.charCodeAt(i);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) { out.push(0xc0 | (c >> 6), 0x80 | (c & 63)); }
+      else if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
+        const c2 = str.charCodeAt(++i);
+        const cp = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
+        out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+      } else { out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+    }
+    return out;
+  }
+
+  function buildCodewords(bytes, v) {
+    const bits = [];
+    const push = function (val, n) { for (let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    push(0b0100, 4);                      // byte mode
+    push(bytes.length, v <= 9 ? 8 : 16);  // char count
+    bytes.forEach(function (b) { push(b, 8); });
+    const capBits = dataCapacity(v) * 8;
+    for (let i = 0; i < 4 && bits.length < capBits; i++) bits.push(0);   // terminator
+    while (bits.length % 8) bits.push(0);
+    const cw = [];
+    for (let i = 0; i < bits.length; i += 8) {
+      let b = 0;
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+      cw.push(b);
+    }
+    const pads = [0xEC, 0x11];
+    let p = 0;
+    while (cw.length < dataCapacity(v)) cw.push(pads[p++ % 2]);
+
+    // split into blocks, compute EC, interleave
+    const t = EC_M[v], ecLen = t[0];
+    const blocks = [], ecs = [];
+    let idx = 0;
+    for (let i = 0; i < t[1]; i++) { const b = cw.slice(idx, idx + t[2]); idx += t[2]; blocks.push(b); ecs.push(ecBytes(b, ecLen)); }
+    for (let i = 0; i < t[3]; i++) { const b = cw.slice(idx, idx + t[4]); idx += t[4]; blocks.push(b); ecs.push(ecBytes(b, ecLen)); }
+    const maxData = Math.max(t[2], t[4] || 0);
+    const out = [];
+    for (let i = 0; i < maxData; i++) blocks.forEach(function (b) { if (i < b.length) out.push(b[i]); });
+    for (let i = 0; i < ecLen; i++) ecs.forEach(function (e) { out.push(e[i]); });
+    return out;
+  }
+
+  function bchFormat(data) {
+    let d = data << 10;
+    for (let i = 4; i >= 0; i--) if (d & (1 << (i + 10))) d ^= 0x537 << i;
+    return ((data << 10) | d) ^ 0x5412;
+  }
+  function bchVersion(v) {
+    let d = v << 12;
+    for (let i = 5; i >= 0; i--) if (d & (1 << (i + 12))) d ^= 0x1f25 << i;
+    return (v << 12) | d;
+  }
+
+  function makeMatrix(v, codewords) {
+    const size = 17 + 4 * v;
+    const m = [], fn = [];
+    for (let r = 0; r < size; r++) { m.push(new Array(size).fill(0)); fn.push(new Array(size).fill(false)); }
+    const set = function (r, c, val) { m[r][c] = val; fn[r][c] = true; };
+
+    // finder patterns + separators
+    const finder = function (r0, c0) {
+      for (let dr = -1; dr <= 7; dr++) for (let dc = -1; dc <= 7; dc++) {
+        const r = r0 + dr, c = c0 + dc;
+        if (r < 0 || c < 0 || r >= size || c >= size) continue;
+        const inRing = (dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6);
+        let val = 0;
+        if (inRing) {
+          const md = Math.max(Math.abs(dr - 3), Math.abs(dc - 3));
+          val = (md !== 2) ? 1 : 0;
+        }
+        set(r, c, val);
+      }
+    };
+    finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+
+    // timing patterns
+    for (let i = 8; i < size - 8; i++) { set(6, i, i % 2 === 0 ? 1 : 0); set(i, 6, i % 2 === 0 ? 1 : 0); }
+
+    // alignment patterns
+    const centers = ALIGN[v] || [];
+    for (let i = 0; i < centers.length; i++) for (let j = 0; j < centers.length; j++) {
+      const last = centers.length - 1;
+      if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) continue;
+      const cr = centers[i], cc = centers[j];
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        const md = Math.max(Math.abs(dr), Math.abs(dc));
+        set(cr + dr, cc + dc, md !== 1 ? 1 : 0);
+      }
+    }
+
+    // reserve format areas (values written later)
+    for (let i = 0; i <= 8; i++) { if (!fn[8][i]) set(8, i, 0); if (!fn[i][8]) set(i, 8, 0); }
+    for (let i = 0; i < 8; i++) { if (!fn[8][size - 1 - i]) set(8, size - 1 - i, 0); if (!fn[size - 1 - i][8]) set(size - 1 - i, 8, 0); }
+    set(size - 8, 8, 1); // dark module
+
+    // version info (v >= 7)
+    if (v >= 7) {
+      const bits = bchVersion(v);
+      for (let i = 0; i < 18; i++) {
+        const b = (bits >> i) & 1;
+        const a = size - 11 + (i % 3), bb = Math.floor(i / 3);
+        set(bb, a, b); set(a, bb, b);
+      }
+    }
+
+    // data placement (zigzag, skipping column 6)
+    let bi = 0;
+    const totalBits = codewords.length * 8;
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (let vert = 0; vert < size; vert++) {
+        for (let j = 0; j < 2; j++) {
+          const c = right - j;
+          const upward = ((right + 1) & 2) === 0;
+          const r = upward ? size - 1 - vert : vert;
+          if (fn[r][c]) continue;
+          let bit = 0;
+          if (bi < totalBits) { bit = (codewords[bi >> 3] >> (7 - (bi & 7))) & 1; bi++; }
+          m[r][c] = bit;
+        }
+      }
+    }
+    return { m: m, fn: fn, size: size };
+  }
+
+  const MASKS = [
+    function (r, c) { return (r + c) % 2 === 0; },
+    function (r, c) { return r % 2 === 0; },
+    function (r, c) { return c % 3 === 0; },
+    function (r, c) { return (r + c) % 3 === 0; },
+    function (r, c) { return (Math.floor(c / 3) + Math.floor(r / 2)) % 2 === 0; },
+    function (r, c) { return (r * c) % 2 + (r * c) % 3 === 0; },
+    function (r, c) { return ((r * c) % 2 + (r * c) % 3) % 2 === 0; },
+    function (r, c) { return ((r + c) % 2 + (r * c) % 3) % 2 === 0; }
+  ];
+
+  function penalty(m, size) {
+    let p = 0;
+    // rule 1: runs of 5+
+    for (let k = 0; k < 2; k++) {
+      for (let i = 0; i < size; i++) {
+        let run = 1, prev = -1;
+        for (let j = 0; j < size; j++) {
+          const val = k === 0 ? m[i][j] : m[j][i];
+          if (val === prev) { run++; if (run === 5) p += 3; else if (run > 5) p += 1; }
+          else { prev = val; run = 1; }
+        }
+      }
+    }
+    // rule 2: 2x2 blocks
+    for (let r = 0; r < size - 1; r++) for (let c = 0; c < size - 1; c++) {
+      const v = m[r][c];
+      if (v === m[r][c + 1] && v === m[r + 1][c] && v === m[r + 1][c + 1]) p += 3;
+    }
+    // rule 3: finder-like patterns with 4 light modules on one side
+    const pat = [1, 0, 1, 1, 1, 0, 1];
+    const hasAt = function (line, i) {
+      for (let k = 0; k < 7; k++) if (line[i + k] !== pat[k]) return false;
+      return true;
+    };
+    const light4 = function (line, from) {
+      for (let k = 0; k < 4; k++) { const idx = from + k; if (idx < 0 || idx >= line.length || line[idx] !== 0) return false; }
+      return true;
+    };
+    for (let k = 0; k < 2; k++) {
+      for (let i = 0; i < size; i++) {
+        const line = [];
+        for (let j = 0; j < size; j++) line.push(k === 0 ? m[i][j] : m[j][i]);
+        for (let j = 0; j + 7 <= size; j++) {
+          if (!hasAt(line, j)) continue;
+          if (light4(line, j - 4) || light4(line, j + 7)) p += 40;
+        }
+      }
+    }
+    // rule 4: dark proportion
+    let dark = 0;
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) dark += m[r][c];
+    const pct = dark * 100 / (size * size);
+    p += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return p;
+  }
+
+  function writeFormat(m, size, mask) {
+    const bits = bchFormat((0b00 << 3) | mask); // EC level M = 00
+    const bit = function (i) { return (bits >> i) & 1; };
+    for (let i = 0; i <= 5; i++) m[i][8] = bit(i);
+    m[7][8] = bit(6); m[8][8] = bit(7); m[8][7] = bit(8);
+    for (let i = 9; i < 15; i++) m[8][14 - i] = bit(i);
+    for (let i = 0; i < 8; i++) m[8][size - 1 - i] = bit(i);
+    for (let i = 8; i < 15; i++) m[size - 15 + i][8] = bit(i);
+    m[size - 8][8] = 1;
+  }
+
+  // Returns { size, modules: boolean[][] } or null if the text will not fit.
+  function encode(text) {
+    const bytes = utf8Bytes(text);
+    let v = 0;
+    for (let i = 1; i <= 20; i++) if (bytes.length <= bytesCapacity(i)) { v = i; break; }
+    if (!v) return null;
+    const cw = buildCodewords(bytes, v);
+    const base = makeMatrix(v, cw);
+    let best = null;
+    for (let mask = 0; mask < 8; mask++) {
+      const m = base.m.map(function (row) { return row.slice(); });
+      for (let r = 0; r < base.size; r++) for (let c = 0; c < base.size; c++) {
+        if (!base.fn[r][c] && MASKS[mask](r, c)) m[r][c] ^= 1;
+      }
+      writeFormat(m, base.size, mask);
+      const p = penalty(m, base.size);
+      if (!best || p < best.p) best = { p: p, m: m };
+    }
+    return { size: base.size, version: v, modules: best.m };
+  }
+
+  function draw(canvas, text, quiet) {
+    const q = quiet == null ? 4 : quiet;
+    const res = encode(text);
+    if (!res) return false;
+    const n = res.size + q * 2;
+    const scale = Math.max(2, Math.floor(560 / n));
+    canvas.width = n * scale; canvas.height = n * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000000";
+    for (let r = 0; r < res.size; r++) for (let c = 0; c < res.size; c++) {
+      if (res.modules[r][c]) ctx.fillRect((c + q) * scale, (r + q) * scale, scale, scale);
+    }
+    return true;
+  }
+
+  // _internals is exposed only so the encoder can be round-trip tested
+  // (encode -> decode the matrix back to the original string). Nothing in the
+  // app reads it.
+  return {
+    encode: encode, draw: draw, bytesCapacity: bytesCapacity,
+    _internals: { makeMatrix: makeMatrix, MASKS: MASKS, EC_M: EC_M, dataCapacity: dataCapacity }
+  };
+})();
+
+/* ============================================================================
+   ===== WAKE LOCK =====
+   ========================================================================= */
+const WAKE = { lock: null, supported: ("wakeLock" in navigator), failed: false, msg: "" };
+
+async function requestWakeLock() {
+  if (!WAKE.supported) { WAKE.failed = true; WAKE.msg = "This browser has no screen wake lock."; renderChrome(); return; }
+  try {
+    if (WAKE.lock) return;
+    WAKE.lock = await navigator.wakeLock.request("screen");
+    WAKE.failed = false; WAKE.msg = "Screen wake lock held.";
+    WAKE.lock.addEventListener("release", function () { WAKE.lock = null; renderChrome(); });
+  } catch (e) {
+    WAKE.lock = null; WAKE.failed = true;
+    WAKE.msg = "Wake lock refused: " + (e && e.message ? e.message : e);
+  }
+  renderChrome();
+  if (APP.screen === "pilot-setup") renderPilotSetup();
+}
+
+/* ============================================================================
+   ===== UI SHELL =====
+   ========================================================================= */
+const SCREENS = ["role", "pilot-setup", "pilot-run", "cond-setup", "cond-run", "settings", "debug"];
+function screenNode(name) { return $("screen-" + name); }
+
+function go(name) {
+  if (name !== "settings" && name !== "debug") APP.prevScreen = name;
+  APP.screen = name;
+  SCREENS.forEach(function (s) {
+    const n = screenNode(s);
+    if (n) n.classList.toggle("active", s === name);
+  });
+  window.scrollTo(0, 0);
+  if (name === "pilot-run" || name === "cond-run") requestWakeLock();
+  renderAll();
+}
+
+function renderAll() {
+  renderChrome();
+  switch (APP.screen) {
+    case "pilot-setup": renderPilotSetup(); break;
+    case "cond-setup": renderCondSetup(); break;
+    case "settings": renderSettings(); break;
+    case "debug": renderDebug(); break;
+  }
+}
+
+function renderChrome() {
+  const box = $("banners");
+  const wanted = [];
+  const st = syncStatus();
+  if (st.level === "red") wanted.push({ cls: "red", txt: "⚠ " + st.full });
+  else if (st.level === "yellow") wanted.push({ cls: "yellow", txt: "⚠ " + st.full });
+  if (SYNC.lastError) wanted.push({ cls: "yellow", txt: "SYNC: " + SYNC.lastError });
+  if (WAKE.failed && (APP.armed || APP.screen === "pilot-run")) {
+    wanted.push({ cls: "red", txt: "SCREEN MAY SLEEP — set Auto-Lock to Never: Settings → Display & Brightness → Auto-Lock" });
+  }
+  if (APP.hold) wanted.push({ cls: "red", txt: "SHOW HOLD IS ACTIVE — STOP BURNING" });
+
+  const sig = wanted.map(function (w) { return w.cls + "|" + w.txt; }).join("\n");
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig;
+  clear(box);
+  wanted.forEach(function (w) { box.appendChild(el("div", "banner " + w.cls, w.txt)); });
+  // measure, so no screen ever hides content under the fixed banner stack
+  document.documentElement.style.setProperty("--bannerH", box.offsetHeight + "px");
+}
+
+function badgeNode() {
+  const st = syncStatus();
+  const b = el("span", "badge " + (st.level === "green" ? "green" : st.level === "yellow" ? "yellow" : "red"), st.short);
+  return b;
+}
+
+function showFatal(title, sub, lines) {
+  $("fatal-title").textContent = title;
+  $("fatal-sub").textContent = sub || "";
+  const ul = $("fatal-list");
+  clear(ul);
+  (lines || []).forEach(function (l) { ul.appendChild(el("li", null, "• " + l)); });
+  $("overlay-fatal").classList.remove("hidden");
+}
+
+/* ---- show loading (shared by both roles) ------------------------------- */
+function applyShow(result, srcUrl) {
+  if (!result.ok) {
+    showFatal("SHOW FILE REJECTED", "This show will not be played. Fix these and reload it:", result.errors);
+    return false;
+  }
+  APP.show = result.show;
+  APP.tl = compileShow(result.show);
+  APP.showSrcUrl = srcUrl || "";
+  store(LS.show, result.show);
+  store(LS.showSrc, srcUrl || "");
+  if (APP.myGroup && APP.tl.groupIds.indexOf(APP.myGroup) === -1) { APP.myGroup = null; drop(LS.group); }
+  if (result.warnings && result.warnings.length) {
+    console.warn("Show warnings:", result.warnings);
+  }
+  renderAll();
+  return true;
+}
+
+async function loadDemoShow() {
+  // Prefer the file on disk (primary copy) so edits there are picked up;
+  // fall back to the inline mirror so this works from file:// and offline.
+  try {
+    const res = await fetch("shows/demo-show.json", { cache: "no-store" });
+    if (res.ok) {
+      const txt = await res.text();
+      const parsed = parseShowText(txt);
+      if (parsed.ok) return applyShow(parsed, "shows/demo-show.json");
+      showFatal("DEMO SHOW FILE IS BROKEN", "shows/demo-show.json failed validation:", parsed.errors);
+      return false;
+    }
+  } catch (e) { /* file:// or offline — use the inline mirror */ }
+  return applyShow(validateShow(DEMO_SHOW), "");
+}
+
+async function loadShowFromUrl(url) {
+  if (!url) return;
+  try {
+    const res = await fetch(url, { cache: "no-store", mode: "cors" });
+    if (!res.ok) { showFatal("COULD NOT LOAD SHOW", url, ["HTTP " + res.status + " " + res.statusText]); return; }
+    const txt = await res.text();
+    applyShow(parseShowText(txt), url);
+  } catch (e) {
+    showFatal("COULD NOT LOAD SHOW", url, [String(e && e.message || e), "If you are offline, paste the show JSON instead."]);
+  }
+}
+
+function restoreShow() {
+  const s = load(LS.show, true);
+  if (!s) return;
+  const r = validateShow(s);
+  if (r.ok) { APP.show = r.show; APP.tl = compileShow(r.show); APP.showSrcUrl = load(LS.showSrc) || ""; }
+  else drop(LS.show);
+}
+
+/* ============================================================================
+   ===== UI: PILOT =====
+   ========================================================================= */
+function renderPilotSetup() {
+  // --- show state ---
+  const ss = $("p-showstate");
+  clear(ss);
+  if (APP.show) {
+    ss.appendChild(el("b", null, APP.show.title));
+    ss.appendChild(el("div", "tiny", APP.tl.previewCues.length + " cues · " + fmtMMSS(APP.tl.audioMs) + " · groups: " + APP.tl.groupIds.join(", ")));
+  } else {
+    ss.appendChild(el("b", null, "No show loaded."));
+  }
+
+  // --- groups ---
+  const gbox = $("p-groups");
+  clear(gbox);
+  if (!APP.show) { gbox.appendChild(el("div", "small", "Load a show first.")); }
+  else {
+    APP.tl.groups.forEach(function (g) {
+      const b = el("button", "grpbtn" + (APP.myGroup === g.id ? " sel" : ""), g.label);
+      b.style.setProperty("--g", g.color);
+      b.onclick = function () {
+        APP.myGroup = g.id; store(LS.group, g.id); renderPilotSetup();
+      };
+      gbox.appendChild(b);
+    });
+    const note = el("div", "small", APP.myGroup ? "You are in " + APP.tl.labelOf[APP.myGroup] + ". You will also burn on every ALL cue." : "Pick your group — the briefing tells you which one.");
+    gbox.appendChild(note);
+  }
+
+  renderSyncPanels();
+  renderArmPanel($("p-armpanel"), false);
+
+  // --- wake lock state ---
+  const w = $("p-wakestate");
+  clear(w);
+  if (!WAKE.supported) w.appendChild(el("span", "badge red", "NO WAKE LOCK — set Auto-Lock to Never"));
+  else if (WAKE.lock) w.appendChild(el("span", "badge green", "SCREEN WAKE LOCK HELD"));
+  else if (WAKE.failed) w.appendChild(el("span", "badge red", "WAKE LOCK REFUSED — set Auto-Lock to Never"));
+  else w.appendChild(el("span", "badge grey", "Wake lock requested when you arm"));
+}
+
+function renderSyncPanels() {
+  [["p-syncpanel", false], ["c-syncpanel", true]].forEach(function (pair) {
+    const box = $(pair[0]);
+    if (!box) return;
+    clear(box);
+    const row = el("div", "row");
+    row.appendChild(badgeNode());
+    if (SYNC.uncertainty != null) row.appendChild(el("span", "tiny", "±" + Math.round(SYNC.uncertainty) + "ms"));
+    if (syncAgeMs() != null) row.appendChild(el("span", "tiny", "synced " + Math.round(syncAgeMs() / 1000) + "s ago"));
+    box.appendChild(row);
+
+    const st = syncStatus();
+    if (st.full) box.appendChild(el("p", "small", st.full));
+    if (!APP.workerUrl) box.appendChild(el("p", "small", "No Worker URL set. Everything still runs, on this phone's own clock — set the URL in settings to get real sync."));
+    if (SYNC.lastError) box.appendChild(el("p", "small", "Last attempt: " + SYNC.lastError));
+
+    const btnRow = el("div", "row");
+    const b = el("button", "grow primary huge", SYNC.busy ? "SYNCING…" : "SYNC CLOCK");
+    b.disabled = SYNC.busy || !APP.workerUrl;
+    b.onclick = function () { runSync().then(renderAll); };
+    btnRow.appendChild(b);
+    box.appendChild(btnRow);
+
+    const links = el("div", "footlinks");
+    const l1 = el("button", "linkbtn", "worker url"); l1.onclick = function () { go("settings"); };
+    const l2 = el("button", "linkbtn", "debug / clock parade"); l2.onclick = function () { go("debug"); };
+    links.appendChild(l1); links.appendChild(l2);
+    box.appendChild(links);
+  });
+}
+
+function renderArmPanel(box, isConductor) {
+  if (!box) return;
+  clear(box);
+
+  if (APP.hold) {
+    box.appendChild(el("div", "badge red", "SHOW HOLD ACTIVE"));
+  }
+
+  if (APP.armed) {
+    const t0 = APP.armed.t0;
+    box.appendChild(el("div", "small", "ARMED" + (APP.armed.source === "auto" ? " BY CONDUCTOR" : APP.armed.source === "url" ? " FROM LINK" : APP.armed.source === "test" ? " (LOCAL TEST)" : "")));
+    box.appendChild(el("div", "bigtime", fmtClockShort(t0)));
+    const cd = el("div", "small", "");
+    cd.id = box.id + "-cd";
+    cd.style.textAlign = "center";
+    box.appendChild(cd);
+    const r = el("div", "row");
+    const d = el("button", "grow", "DISARM / CHANGE");
+    d.onclick = disarm;
+    r.appendChild(d);
+    box.appendChild(r);
+    return;
+  }
+
+  if (!APP.show) { box.appendChild(el("div", "small", "Load a show first.")); return; }
+
+  if (isConductor) {
+    box.appendChild(el("p", "small", "Snapped to the next whole minute so the MC can announce it cleanly."));
+    const mk = function (label, leadMs) {
+      const b = el("button", "wide huge go", label);
+      b.onclick = async function () {
+        const t0 = Math.ceil((syncedNow() + leadMs) / 60000) * 60000;
+        armT0(t0, "manual");
+        const res = await postT0({ showId: showId(), t0: t0, hold: false });
+        APP.condPost = res.ok ? { ok: true, at: Date.now() } : { ok: false, err: res.error };
+        renderCondSetup();
+      };
+      return b;
+    };
+    box.appendChild(mk("START +2:00", 120000));
+    box.appendChild(mk("START +5:00", 300000));
+  } else {
+    box.appendChild(el("p", "small", "The MC will call a time over the PA. Tap it. (If the Worker is reachable you will be armed automatically.)"));
+    nextMinuteMarks(4).forEach(function (t0) {
+      const b = el("button", "wide huge", fmtClockShort(t0));
+      b.onclick = function () { armT0(t0, "manual"); };
+      box.appendChild(b);
+    });
+  }
+
+  // custom time entry (both roles)
+  const wrap = el("div", "card");
+  wrap.style.margin = "10px 0 0";
+  const lab = el("label", "fld");
+  lab.appendChild(el("span", null, "Custom time (h:mm or h:mm:ss, next occurrence)"));
+  const inp = el("input");
+  inp.type = "text"; inp.placeholder = "9:15"; inp.inputMode = "numeric";
+  lab.appendChild(inp);
+  wrap.appendChild(lab);
+  const go2 = el("button", "wide", "ARM CUSTOM TIME");
+  const msg = el("div", "small", "");
+  go2.onclick = async function () {
+    const t0 = parseClockToEpoch(inp.value);
+    if (t0 == null) { msg.textContent = "Could not read that time. Try 9:15 or 9:15:30."; return; }
+    armT0(t0, "manual");
+    if (isConductor) {
+      const res = await postT0({ showId: showId(), t0: t0, hold: false });
+      APP.condPost = res.ok ? { ok: true, at: Date.now() } : { ok: false, err: res.error };
+      renderCondSetup();
+    }
+  };
+  wrap.appendChild(go2); wrap.appendChild(msg);
+  box.appendChild(wrap);
+}
+
+function parseClockToEpoch(str) {
+  const m = String(str || "").trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10), ss = m[3] ? parseInt(m[3], 10) : 0;
+  const ap = m[4] ? m[4].toLowerCase() : null;
+  if (mm > 59 || ss > 59) return null;
+  const now = new Date(syncedNow());
+  if (ap) { if (h === 12) h = 0; if (ap === "pm") h += 12; }
+  const build = function (dayOffset, hour) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, hour, mm, ss, 0);
+    return d.getTime();
+  };
+  const cands = [];
+  if (ap) { cands.push(build(0, h), build(1, h)); }
+  else {
+    // no am/pm: try both 12-hour readings today and tomorrow, take the soonest future one
+    const h12 = h % 12;
+    cands.push(build(0, h12), build(0, h12 + 12), build(1, h12), build(1, h12 + 12));
+    if (h > 12 && h < 24) cands.push(build(0, h), build(1, h));
+  }
+  const nowMs = syncedNow();
+  const fut = cands.filter(function (t) { return t > nowMs + 2000; }).sort(function (a, b) { return a - b; });
+  return fut.length ? fut[0] : null;
+}
+
+/* ---- the glance display ------------------------------------------------ */
+const PILOT_DOM = {};
+function pdom() {
+  if (!PILOT_DOM.stage) {
+    PILOT_DOM.stage = $("stage");
+    PILOT_DOM.left = $("st-left"); PILOT_DOM.right = $("st-right");
+    PILOT_DOM.label = $("st-label"); PILOT_DOM.big = $("st-big"); PILOT_DOM.sub = $("st-sub");
+    PILOT_DOM.barwrap = $("st-barwrap"); PILOT_DOM.bar = $("st-bar");
+    PILOT_DOM.preview = $("st-preview"); PILOT_DOM.footer = $("st-footer");
+  }
+  return PILOT_DOM;
+}
+
+let lastPreviewSig = "";
+function renderPilot(now) {
+  const D = pdom();
+
+  if (APP.hold) {
+    setStagePhase(D, "HOLD");
+    setTxt(D.label, "SHOW HOLD");
+    D.big.classList.add("text");
+    setTxt(D.big, "STOP BURNING");
+    setTxt(D.sub, "Wait for the conductor");
+    D.barwrap.classList.add("hidden");
+    setTxt(D.left, ""); setTxt(D.right, "");
+    renderFooter(D, now);
+    return;
+  }
+
+  if (!APP.tl) {
+    setStagePhase(D, "IDLE");
+    setTxt(D.label, "NO SHOW LOADED");
+    D.big.classList.add("text"); setTxt(D.big, "SETUP");
+    setTxt(D.sub, "tap to go back");
+    D.barwrap.classList.add("hidden");
+    renderFooter(D, now);
+    return;
+  }
+
+  if (!APP.armed) {
+    setStagePhase(D, "IDLE");
+    setTxt(D.label, "NOT ARMED");
+    D.big.classList.remove("text");
+    setTxt(D.big, fmtClockShort(now));
+    setTxt(D.sub, "tap for setup — arm a start time");
+    D.barwrap.classList.add("hidden");
+    setTxt(D.left, ""); setTxt(D.right, "");
+    renderPreview(D, null);
+    renderFooter(D, now);
+    return;
+  }
+
+  const t = now - APP.armed.t0;
+  const groups = APP.myGroup ? [APP.myGroup] : [];
+  const s = stateAt(APP.tl, groups, t);
+
+  setStagePhase(D, s.phase);
+  D.big.classList.remove("text");
+  D.barwrap.classList.add("hidden");
+
+  switch (s.phase) {
+    case "PRESHOW": {
+      setTxt(D.label, "SHOW STARTS AT " + fmtClockShort(APP.armed.t0));
+      setTxt(D.big, fmtMMSS(-t));
+      setTxt(D.sub, APP.myGroup ? APP.tl.labelOf[APP.myGroup] : "NO GROUP PICKED");
+      break;
+    }
+    case "IDLE": {
+      if (s.nextOwn) {
+        setTxt(D.label, "NEXT: " + s.nextOwn.seg.baseLabel.toUpperCase());
+        setTxt(D.big, fmtMMSS(s.nextOwn.msUntil));
+        setTxt(D.sub, (s.nextOwn.seg.type === "pulse" ? "PULSE " : "BURN ") + fmtSecs(s.nextOwn.seg.dur) + "s");
+      } else {
+        setTxt(D.label, "STANDING BY");
+        setTxt(D.big, fmtClockShort(now));
+        setTxt(D.sub, "no more cues for you");
+      }
+      break;
+    }
+    case "GETREADY": {
+      setTxt(D.label, "GET READY · " + (s.readySeg ? s.readySeg.baseLabel.toUpperCase() : ""));
+      setTxt(D.big, String(fmtSecs(s.countdownMs)));
+      setTxt(D.sub, (s.readySeg && s.readySeg.type === "pulse" ? "PULSE " : "BURN ") + fmtSecs(s.readySeg ? s.readySeg.dur : 0) + "s");
+      break;
+    }
+    case "BURN": {
+      setTxt(D.label, s.seg.baseLabel.toUpperCase());
+      D.big.classList.add("text");
+      setTxt(D.big, "BURN");
+      setTxt(D.sub, fmtSecs(s.remainMs) + "s");
+      D.barwrap.classList.remove("hidden");
+      D.bar.style.width = ((1 - s.progress) * 100).toFixed(2) + "%";
+      break;
+    }
+    case "PULSE": {
+      setTxt(D.label, s.seg.baseLabel.toUpperCase());
+      D.big.classList.add("text");
+      setTxt(D.big, "PULSE");
+      setTxt(D.sub, "BEAT " + (s.pulse.beatIndex + 1) + " / " + s.pulse.totalBeats);
+      D.barwrap.classList.remove("hidden");
+      D.bar.style.width = ((1 - s.progress) * 100).toFixed(2) + "%";
+      // flash the background on the beat grid, in the group's accent colour
+      D.stage.style.background = s.pulse.on ? s.accent : "#000000";
+      D.stage.style.color = s.pulse.on ? "#000000" : "#ffffff";
+      break;
+    }
+    case "STOP": {
+      setTxt(D.label, s.stopSeg ? s.stopSeg.baseLabel.toUpperCase() + " — ENDED" : "");
+      D.big.classList.add("text");
+      setTxt(D.big, "STOP");
+      setTxt(D.sub, "");
+      break;
+    }
+    case "VENT": {
+      const strobe = Math.floor(now / 500) % 2 === 0;
+      D.stage.style.background = strobe ? "#4b0f8f" : "#7d2ae8";
+      setTxt(D.label, "VENT WARNING");
+      D.big.classList.add("text");
+      setTxt(D.big, "VENT NOW");
+      setTxt(D.sub, ventText(s.vent));
+      break;
+    }
+    case "ENDED": {
+      setTxt(D.label, "SHOW COMPLETE");
+      D.big.classList.add("text");
+      setTxt(D.big, "DONE");
+      setTxt(D.sub, APP.show.title);
+      break;
+    }
+  }
+
+  // corner vent chip whenever a vent warning is live but not the top state
+  setTxt(D.left, s.ventChip ? "VENT — " + ventText(s.vent) : "");
+  D.left.className = s.ventChip ? "ventchip" : "";
+  setTxt(D.right, s.phase === "PRESHOW" || s.phase === "IDLE" ? "" : fmtMMSS(t));
+
+  renderPreview(D, s);
+  renderFooter(D, now);
+}
+
+// "12s BURN IN 0:20" — auto-vents only ever precede burns, but an author can
+// force "vent": true on any cue type, so the wording follows the cue.
+function ventText(v) {
+  const kind = v.cueType === "pulse" ? "PULSE" : v.cueType === "alternate" ? "ALTERNATING" : "BURN";
+  return fmtSecs(v.cueDur) + "s " + kind + " IN " + fmtMMSS(v.msUntil);
+}
+
+function setStagePhase(D, phase) {
+  const cls = "ph-" + phase;
+  if (D.stage.dataset.phase !== phase) {
+    D.stage.dataset.phase = phase;
+    D.stage.className = cls;
+    D.stage.style.background = "";
+    D.stage.style.color = "";
+    if (APP.myGroup && APP.tl) D.stage.style.setProperty("--accent", APP.tl.colorOf[APP.myGroup]);
+  }
+}
+
+function renderPreview(D, s) {
+  const items = s ? s.next : [];
+  const sig = items.map(function (n) { return n.cue.cueIndex + ":" + n.mine; }).join("|") + "/" + items.length;
+  if (sig !== lastPreviewSig) {
+    lastPreviewSig = sig;
+    clear(D.preview);
+    items.forEach(function (n) {
+      const blk = el("div", "pvblk " + (n.mine ? "mine" : "dim"));
+      const col = n.cue.isAll ? "#ffffff" : (APP.tl.colorOf[n.cue.groups[0]] || "#888");
+      blk.style.borderColor = col;
+      blk.style.boxShadow = "inset 0 -4px 0 " + col;
+      blk.appendChild(el("div", "pvt", (n.cue.isAll ? "ALL · " : "") + n.cue.label));
+      const m = el("div", "pvm", "");
+      m.dataset.ci = String(n.cue.cueIndex);
+      blk.appendChild(m);
+      D.preview.appendChild(blk);
+    });
+  }
+  // live T-minus on each block
+  const nodes = D.preview.querySelectorAll(".pvm");
+  for (let i = 0; i < nodes.length && i < items.length; i++) {
+    setTxt(nodes[i], "T-" + fmtMMSS(items[i].msUntil));
+  }
+}
+
+function renderFooter(D, now) {
+  const st = syncStatus();
+  const parts = [];
+  parts.push(APP.show ? APP.show.title : "no show");
+  parts.push(APP.myGroup && APP.tl ? APP.tl.labelOf[APP.myGroup] : "no group");
+  parts.push(fmtClockShort(now));
+  parts.push(st.level === "green" ? "SYNCED ±" + Math.round(SYNC.uncertainty) + "ms" : st.short);
+  setTxt(D.footer, parts.join("  ·  "));
+}
+
+/* ============================================================================
+   ===== UI: CONDUCTOR =====
+   ========================================================================= */
+function renderCondSetup() {
+  const ss = $("c-showstate");
+  clear(ss);
+  if (APP.show) {
+    ss.appendChild(el("b", null, APP.show.title));
+    ss.appendChild(el("div", "tiny", APP.tl.previewCues.length + " cues · " + fmtMMSS(APP.tl.audioMs) + " · groups: " + APP.tl.groupIds.join(", ")));
+  } else ss.appendChild(el("b", null, "No show loaded."));
+
+  // audio
+  const as = $("c-audiostate");
+  clear(as);
+  if (!APP.audio.buffer) as.appendChild(el("span", "badge grey", "NO AUDIO FILE — timeline will run silent"));
+  else {
+    const durMs = APP.audio.buffer.duration * 1000;
+    const diff = APP.show ? Math.abs(durMs - APP.tl.audioMs) : 0;
+    as.appendChild(el("div", null, APP.audio.name + " — " + fmtMMSS(durMs)));
+    if (APP.show && diff > 2000) {
+      as.appendChild(el("div", "badge red", "LENGTH MISMATCH: show says " + fmtMMSS(APP.tl.audioMs) + ", file is " + fmtMMSS(durMs)));
+    } else if (APP.show) {
+      as.appendChild(el("span", "badge green", "MATCHES SHOW LENGTH"));
+    }
+  }
+  const pa = $("c-pa");
+  pa.value = String(APP.paLatencyMs);
+  setTxt($("c-palabel"), "PA latency: " + APP.paLatencyMs + " ms early");
+
+  renderSyncPanels();
+  renderArmPanel($("c-armpanel"), true);
+
+  // POST status + share block
+  const box = $("c-armpanel");
+  if (APP.condPost) {
+    const b = el("div", APP.condPost.ok ? "badge green" : "badge red",
+      APP.condPost.ok ? "T0 PUSHED TO WORKER — pilots with signal arm themselves" : "T0 NOT PUSHED: " + APP.condPost.err + " — announce the time over the PA");
+    b.style.marginTop = "10px";
+    box.appendChild(b);
+  }
+  if (APP.armed) {
+    const share = buildShareUrl();
+    const card = el("div", "card");
+    card.style.margin = "12px 0 0";
+    card.appendChild(el("h3", null, "Share this start"));
+    card.appendChild(el("div", "sharebox", share));
+    const cv = el("canvas"); cv.id = "qr";
+    card.appendChild(cv);
+    const note = el("div", "tiny", "");
+    card.appendChild(note);
+    box.appendChild(card);
+    const okQr = QR.draw(cv, share, 4);
+    note.textContent = okQr
+      ? "Pilots can scan this instead of typing anything. It carries the show URL and the armed T0."
+      : "Link is too long to fit a QR code — send it as a message instead.";
+    if (!okQr) cv.classList.add("hidden");
+    if (!APP.showSrcUrl || /^shows\//.test(APP.showSrcUrl)) {
+      card.appendChild(el("div", "tiny", "NOTE: this show was not loaded from a public URL, so the link only carries T0 — pilots must already have the show."));
+    }
+  }
+}
+
+function buildShareUrl() {
+  const base = location.origin && location.origin !== "null"
+    ? location.origin + location.pathname
+    : location.href.split("?")[0].split("#")[0];
+  const p = [];
+  if (APP.showSrcUrl && /^https?:/i.test(APP.showSrcUrl)) p.push("show=" + encodeURIComponent(APP.showSrcUrl));
+  if (APP.armed) p.push("t0=" + APP.armed.t0);
+  return base + (p.length ? "?" + p.join("&") : "");
+}
+
+async function pickAudio(file) {
+  if (!file) return;
+  try {
+    if (!APP.audio.ctx) APP.audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await file.arrayBuffer();
+    APP.audio.buffer = await APP.audio.ctx.decodeAudioData(buf);
+    APP.audio.name = file.name;
+  } catch (e) {
+    APP.audio.buffer = null;
+    showFatal("AUDIO FILE REJECTED", file.name, [String(e && e.message || e), "Try a plain .mp3, .m4a or .wav."]);
+  }
+  renderCondSetup();
+}
+
+async function scheduleAudio() {
+  if (!APP.audio.buffer || !APP.armed || APP.hold || APP.audio.scheduling) return;
+  const ctx = APP.audio.ctx;
+  if (!ctx) return;
+  // A suspended context's currentTime is frozen; scheduling against it starts the
+  // music late by the resume latency. Await the resume, then re-check state (the
+  // rAF loop calls this every frame — the `scheduling` flag stops reentry).
+  APP.audio.scheduling = true;
+  if (ctx.state === "suspended") { try { await ctx.resume(); } catch (e) {} }
+  APP.audio.scheduling = false;
+  if (!APP.audio.buffer || !APP.armed || APP.hold || APP.audio.playing) return;
+  stopAudio();
+  const now = syncedNow();
+  const leadSec = (APP.armed.t0 - now) / 1000 - (APP.paLatencyMs / 1000);
+  const src = ctx.createBufferSource();
+  src.buffer = APP.audio.buffer;
+  src.connect(ctx.destination);
+  if (leadSec >= 0) {
+    src.start(ctx.currentTime + leadSec);
+    APP.audio.startedAtCtx = ctx.currentTime + leadSec;
+    APP.audio.offsetSec = 0;
+  } else {
+    // already past T0 — start mid-track at the right place
+    const into = -leadSec;
+    if (into >= APP.audio.buffer.duration) return;
+    src.start(ctx.currentTime, into);
+    APP.audio.startedAtCtx = ctx.currentTime - into;
+    APP.audio.offsetSec = into;
+  }
+  APP.audio.src = src;
+  APP.audio.playing = true;
+  APP.audio.startedAtSynced = APP.armed.t0 - APP.paLatencyMs;
+  src.onended = function () { APP.audio.playing = false; };
+}
+
+function stopAudio() {
+  if (APP.audio.src) {
+    try { APP.audio.src.stop(); } catch (e) {}
+    try { APP.audio.src.disconnect(); } catch (e) {}
+  }
+  APP.audio.src = null;
+  APP.audio.playing = false;
+}
+
+let lastDriftCheck = 0;
+function renderConductor(now) {
+  setTxt($("cr-title"), APP.show ? APP.show.title : "No show");
+  setTxt($("cr-clock"), fmtClock(now));
+  const bh = $("cr-sync");
+  const st = syncStatus();
+  if (bh.dataset.sig !== st.short) { bh.dataset.sig = st.short; clear(bh); bh.appendChild(badgeNode()); }
+
+  if (!APP.tl) { setTxt($("cr-elapsed"), "--:--"); setTxt($("cr-status"), "Load a show."); return; }
+
+  if (!APP.armed) {
+    setTxt($("cr-elapsed"), "--:--");
+    setTxt($("cr-status"), "NOT ARMED — go to setup and arm a start time.");
+    return;
+  }
+
+  const t = now - APP.armed.t0;
+  setTxt($("cr-elapsed"), (t < 0 ? "T-" + fmtMMSS(-t) : fmtMMSS(t) + " / " + fmtMMSS(APP.tl.audioMs)));
+  setTxt($("cr-status"), APP.hold ? "HOLD — audio stopped, pilots told to stop burning"
+    : t < 0 ? "Armed for " + fmtClockShort(APP.armed.t0) + (APP.audio.buffer ? " · music scheduled" : " · NO MUSIC LOADED")
+    : t < APP.tl.endMs ? "RUNNING" : "SHOW COMPLETE");
+
+  drawCondTimeline(t);
+  drawCondCues(t);
+  drawCondMirror(t);
+
+  // drift check
+  if (APP.audio.playing && now - lastDriftCheck > DRIFT_CHECK_MS) {
+    lastDriftCheck = now;
+    const ctx = APP.audio.ctx;
+    const audioElapsedMs = (ctx.currentTime - APP.audio.startedAtCtx) * 1000;
+    const clockElapsedMs = now - APP.audio.startedAtSynced;
+    APP.audio.lastDrift = audioElapsedMs - clockElapsedMs;
+    APP.audio.driftWarn = Math.abs(APP.audio.lastDrift) > DRIFT_WARN_MS;
+  }
+  const d = $("cr-drift");
+  if (APP.audio.lastDrift == null) setTxt(d, APP.audio.buffer ? "Drift check runs every 30s once the music is playing." : "No music loaded — pilots still run off the synced clock.");
+  else {
+    setTxt(d, "Audio vs synced clock: " + (APP.audio.lastDrift >= 0 ? "+" : "") + Math.round(APP.audio.lastDrift) + " ms" + (APP.audio.driftWarn ? "  ⚠ OVER 60 ms — music is sliding against the cues" : ""));
+    d.style.color = APP.audio.driftWarn ? "#ffc400" : "";
+  }
+}
+
+function drawCondTimeline(t) {
+  const box = $("cr-tl");
+  if (box.dataset.built !== showId()) {
+    box.dataset.built = showId();
+    clear(box);
+    const total = APP.tl.audioMs;
+    const lanes = APP.tl.groupIds.length;
+    APP.tl.segments.forEach(function (s) {
+      s.groups.forEach(function (gid) {
+        const li = APP.tl.groupIds.indexOf(gid);
+        const b = el("div", "blk");
+        b.style.left = (s.t / total * 100) + "%";
+        b.style.width = Math.max(0.4, s.dur / total * 100) + "%";
+        b.style.top = (6 + li * (84 / lanes)) + "px";
+        b.style.height = Math.max(8, (84 / lanes) - 6) + "px";
+        b.style.background = APP.tl.colorOf[gid];
+        b.style.opacity = s.type === "pulse" ? "0.55" : "0.95";
+        box.appendChild(b);
+      });
+    });
+    const ph = el("div", "ph"); ph.id = "cr-ph"; box.appendChild(ph);
+  }
+  const ph = $("cr-ph");
+  if (ph) {
+    const f = Math.max(0, Math.min(1, t / APP.tl.audioMs));
+    ph.style.left = (f * 100) + "%";
+  }
+}
+
+function drawCondCues(t) {
+  const box = $("cr-cues");
+  const cur = APP.tl.previewCues.filter(function (c) { return t >= c.t && t < c.end; });
+  const nxt = APP.tl.previewCues.filter(function (c) { return c.t > t; }).slice(0, 4);
+  const sig = cur.map(function (c) { return c.cueIndex; }).join(",") + "|" + nxt.map(function (c) { return c.cueIndex; }).join(",");
+  if (box.dataset.sig !== sig) {
+    box.dataset.sig = sig;
+    clear(box);
+    const mk = function (c, now) {
+      const row = el("div", "mrow");
+      const dot = el("span", "dot");
+      dot.style.setProperty("--g", c.isAll ? "#ffffff" : APP.tl.colorOf[c.groups[0]]);
+      row.appendChild(dot);
+      row.appendChild(el("span", "mname", (c.isAll ? "ALL · " : c.groups.map(function (g) { return APP.tl.labelOf[g]; }).join(" + ") + " · ") + c.label));
+      const m = el("span", "mstate " + (now ? "ms-BURN" : "ms-IDLE"), "");
+      m.dataset.ci = String(c.cueIndex);
+      row.appendChild(m);
+      return row;
+    };
+    if (!cur.length) box.appendChild(el("div", "small", "— no cue running —"));
+    cur.forEach(function (c) { box.appendChild(mk(c, true)); });
+    nxt.forEach(function (c) { box.appendChild(mk(c, false)); });
+  }
+  box.querySelectorAll(".mstate").forEach(function (n) {
+    const c = APP.tl.previewCues[parseInt(n.dataset.ci, 10)];
+    if (!c) return;
+    setTxt(n, t >= c.t && t < c.end ? fmtSecs(c.end - t) + "s left" : "T-" + fmtMMSS(c.t - t));
+  });
+}
+
+function drawCondMirror(t) {
+  const box = $("cr-mirror");
+  if (box.dataset.built !== showId()) {
+    box.dataset.built = showId();
+    clear(box);
+    APP.tl.groups.forEach(function (g) {
+      const row = el("div", "mrow");
+      const dot = el("span", "dot"); dot.style.setProperty("--g", g.color);
+      row.appendChild(dot);
+      row.appendChild(el("span", "mname", g.label));
+      const s = el("span", "mstate ms-IDLE", "IDLE");
+      s.dataset.g = g.id;
+      row.appendChild(s);
+      box.appendChild(row);
+    });
+  }
+  box.querySelectorAll(".mstate").forEach(function (n) {
+    const s = stateAt(APP.tl, [n.dataset.g], t);
+    const cls = "mstate ms-" + s.phase;
+    if (n.className !== cls) n.className = cls;
+    let txt = s.phase;
+    if (s.phase === "BURN") txt = "BURN " + fmtSecs(s.remainMs) + "s";
+    else if (s.phase === "GETREADY") txt = "READY " + fmtSecs(s.countdownMs);
+    else if (s.phase === "PULSE") txt = "PULSE " + (s.pulse.beatIndex + 1);
+    else if (s.phase === "VENT") txt = "VENT " + fmtMMSS(s.vent.msUntil);
+    setTxt(n, txt);
+  });
+}
+
+/* ============================================================================
+   ===== UI: SETTINGS / DEBUG =====
+   ========================================================================= */
+function renderSettings() {
+  $("s-worker").value = APP.workerUrl;
+  const st = $("s-workerstate");
+  clear(st);
+  st.appendChild(APP.workerUrl ? el("span", "badge grey", APP.workerUrl) : el("span", "badge yellow", "No Worker URL — wall-clock fallback"));
+}
+
+function renderDebug() {
+  const t = $("d-rounds");
+  clear(t);
+  const head = el("tr");
+  ["#", "RTT ms", "offset ms", ""].forEach(function (h) { head.appendChild(el("th", null, h)); });
+  t.appendChild(head);
+  if (!SYNC.rounds.length) {
+    const tr = el("tr"); const td = el("td", null, "no rounds yet"); td.colSpan = 4; tr.appendChild(td); t.appendChild(tr);
+  }
+  const kept = SYNC.rounds.filter(function (r) { return r.kept && !r.failed; }).sort(function (a, b) { return a.rtt - b.rtt; }).slice(0, 3)
+                 .map(function (r) { return r.i; });
+  SYNC.rounds.forEach(function (r) {
+    const tr = el("tr", kept.indexOf(r.i) !== -1 ? "best" : null);
+    tr.appendChild(el("td", null, String(r.i)));
+    tr.appendChild(el("td", null, r.failed ? "—" : r.rtt.toFixed(1)));
+    tr.appendChild(el("td", null, r.failed ? "—" : r.offset.toFixed(1)));
+    tr.appendChild(el("td", null, r.failed ? "FAILED" : (r.kept ? (kept.indexOf(r.i) !== -1 ? "USED" : "kept") : "discarded")));
+    t.appendChild(tr);
+  });
+
+  const o = $("d-offset");
+  clear(o);
+  const lines = [
+    "mode          : " + SYNC.mode,
+    "offset        : " + (SYNC.offset === null ? "— (using Date.now())" : SYNC.offset.toFixed(1) + " ms"),
+    "uncertainty   : " + (SYNC.uncertainty === null ? "—" : "± " + SYNC.uncertainty.toFixed(1) + " ms"),
+    "sync age      : " + (syncAgeMs() === null ? "—" : Math.round(syncAgeMs() / 1000) + " s"),
+    "wall delta    : " + (SYNC.wallDelta === null ? "—" : SYNC.wallDelta.toFixed(1) + " ms"),
+    "worker        : " + (APP.workerUrl || "(none)"),
+    "phone clock   : " + new Date().toISOString()
+  ];
+  lines.forEach(function (l) { o.appendChild(el("div", null, l)); });
+
+  const b = $("d-badge");
+  clear(b); b.appendChild(badgeNode());
+}
+
+/* ============================================================================
+   ===== EDITOR (stub — v2 seam) =====
+   A later agent adds the auto-choreographer + tweak editor here. It should
+   consume PURE CORE unchanged: generate a show object, run it through
+   validateShow(), then compileShow() and preview it with stateAt() — exactly
+   the path the pilot renderer uses, so what the editor previews is what the
+   pilots will see. Nothing above this line needs to change.
+   ========================================================================= */
+const EDITOR = { available: false };
+
+/* ============================================================================
+   ===== RENDER LOOP =====
+   One rAF loop against the synced clock. Cue transitions land within one frame
+   of their scheduled ms because every frame recomputes state from the clock —
+   nothing is scheduled with setTimeout.
+   ========================================================================= */
+let lastFrameAt = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  lastFrameAt = Date.now();
+  const now = syncedNow();
+  if (APP.screen === "pilot-run") renderPilot(now);
+  else if (APP.screen === "cond-run") renderConductor(now);
+  else if (APP.screen === "debug") setTxt($("d-clock"), fmtClock(now, true));
+
+  // live countdown under the arm panels
+  ["p-armpanel-cd", "c-armpanel-cd"].forEach(function (id) {
+    const n = $(id);
+    if (n && APP.armed) {
+      const dt = APP.armed.t0 - now;
+      setTxt(n, dt > 0 ? "T-" + fmtMMSS(dt) : "T+" + fmtMMSS(-dt));
+    }
+  });
+
+  // conductor: fire the music when we cross into the show
+  // (APP.tl guard matters: ?t0= in the URL can arm before any show is loaded)
+  if (APP.role === "conductor" && APP.armed && APP.tl && APP.audio.buffer && !APP.audio.playing && !APP.hold) {
+    const dt = APP.armed.t0 - now;
+    if (dt < 3000 && dt > -APP.tl.audioMs) scheduleAudio();
+  }
+
+  if (tick10s(now)) {
+    maybeAutoSync();
+    renderChrome();
+  }
+}
+// Browsers stop requestAnimationFrame when a tab is hidden, and some low-power
+// modes throttle it even while visible. If the page is visible but no frame has
+// run for a second, restart the loop rather than sit on a frozen cue.
+setInterval(function () {
+  if (document.hidden) return;
+  if (Date.now() - lastFrameAt > 1000) requestAnimationFrame(loop);
+}, 1000);
+
+let lastTick = 0;
+function tick10s(now) {
+  if (now - lastTick < 10000) return false;
+  lastTick = now;
+  return true;
+}
+
+/* ============================================================================
+   ===== EVENTS =====
+   ========================================================================= */
+document.addEventListener("click", function (ev) {
+  const btn = ev.target.closest("[data-act],[data-role]");
+  if (!btn) {
+    // tapping the stage while idle/unarmed goes back to setup
+    if (APP.screen === "pilot-run" && ev.target.closest("#stage")) {
+      const ph = $("stage").dataset.phase;
+      if (ph === "IDLE" || ph === "PRESHOW" || ph === "ENDED" || ph === "HOLD") go("pilot-setup");
+    }
+    return;
+  }
+  if (btn.dataset.role) { setRole(btn.dataset.role); return; }
+
+  const act = btn.dataset.act;
+  switch (act) {
+    case "switch-role": drop(LS.role); APP.role = null; go("role"); break;
+    case "back": go(APP.prevScreen || (APP.role === "conductor" ? "cond-setup" : "pilot-setup")); break;
+    case "settings": go("settings"); break;
+    case "debug": go("debug"); break;
+    case "load-demo": loadDemoShow(); break;
+    case "load-url": {
+      const inp = APP.role === "conductor" ? $("c-showurl") : $("p-showurl");
+      loadShowFromUrl(inp.value.trim());
+      break;
+    }
+    case "load-paste": {
+      const ta = APP.role === "conductor" ? $("c-showjson") : $("p-showjson");
+      applyShow(parseShowText(ta.value), "");
+      break;
+    }
+    case "open-display":
+      if (!APP.show) { showFatal("NO SHOW LOADED", "", ["Load a show before opening the glow display."]); break; }
+      if (!APP.myGroup) { showFatal("NO GROUP PICKED", "", ["Pick your group — the display cannot cue you without it."]); break; }
+      go("pilot-run");
+      break;
+    case "open-conductor-run":
+      if (!APP.show) { showFatal("NO SHOW LOADED", "", ["Load a show first."]); break; }
+      if (APP.audio.ctx && APP.audio.ctx.state === "suspended") APP.audio.ctx.resume();
+      go("cond-run");
+      break;
+    case "cond-setup": go("cond-setup"); break;
+    case "hold": doHold(); break;
+    case "dismiss-left": $("overlay-left").classList.add("hidden"); APP.leftAppFlag = false; requestWakeLock(); break;
+    case "dismiss-fatal": $("overlay-fatal").classList.add("hidden"); break;
+    case "sync": runSync().then(renderAll); break;
+    case "test-t0":
+      if (!APP.show) { showFatal("NO SHOW LOADED", "", ["Load a show first."]); break; }
+      armT0(syncedNow() + 10000, "test");
+      go(APP.role === "conductor" ? "cond-run" : "pilot-run");
+      break;
+    case "save-worker": {
+      const v = $("s-worker").value.trim().replace(/\/+$/, "");
+      APP.workerUrl = v; store(LS.worker, v);
+      SYNC.lastError = null;
+      renderSettings(); renderChrome();
+      if (v) runSync().then(renderAll);
+      break;
+    }
+    case "test-worker": testWorker(); break;
+    case "forget-show": drop(LS.show); drop(LS.showSrc); APP.show = null; APP.tl = null; renderAll(); break;
+    case "forget-all":
+      Object.keys(LS).forEach(function (k) { drop(LS[k]); });
+      location.reload();
+      break;
+  }
+});
+
+async function testWorker() {
+  const st = $("s-workerstate");
+  clear(st);
+  if (!APP.workerUrl) { st.appendChild(el("span", "badge red", "Enter a URL first")); return; }
+  st.appendChild(el("span", "badge grey", "testing…"));
+  try {
+    const a = performance.now();
+    const res = await fetch(APP.workerUrl + "/time", { cache: "no-store", mode: "cors" });
+    const j = await res.json();
+    const rtt = performance.now() - a;
+    clear(st);
+    if (typeof j.t === "number") {
+      st.appendChild(el("span", "badge green", "OK — " + Math.round(rtt) + "ms round trip"));
+      st.appendChild(el("div", "tiny", "server clock vs phone clock: " + Math.round(j.t - Date.now()) + " ms"));
+    } else st.appendChild(el("span", "badge red", "Bad response — no { t } field"));
+  } catch (e) {
+    clear(st);
+    st.appendChild(el("span", "badge red", "Unreachable: " + (e && e.message || e)));
+  }
+}
+
+async function doHold() {
+  APP.hold = true;
+  stopAudio();
+  renderAll();
+  const res = await postT0({ showId: showId(), t0: APP.armed ? APP.armed.t0 : null, hold: true });
+  const d = $("cr-drift");
+  if (d) setTxt(d, res.ok ? "HOLD pushed to the Worker." : "HOLD NOT pushed (" + res.error + ") — CALL IT OVER THE PA.");
+}
+
+$("c-audiofile").addEventListener("change", function (e) { pickAudio(e.target.files && e.target.files[0]); });
+$("c-pa").addEventListener("input", function (e) {
+  APP.paLatencyMs = parseInt(e.target.value, 10) || 0;
+  store(LS.pa, String(APP.paLatencyMs));
+  setTxt($("c-palabel"), "PA latency: " + APP.paLatencyMs + " ms early");
+});
+
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden) {
+    if (APP.armed && (APP.screen === "pilot-run" || APP.screen === "cond-run")) APP.leftAppFlag = true;
+  } else {
+    requestWakeLock();
+    if (APP.leftAppFlag && APP.role === "pilot") {
+      $("overlay-left").classList.remove("hidden");
+    }
+    renderAll();
+  }
+});
+
+function setRole(role) {
+  APP.role = role;
+  store(LS.role, role);
+  if (role === "pilot") { startT0Poll(); go("pilot-setup"); }
+  else { stopT0Poll(); go("cond-setup"); }
+}
+
+/* ============================================================================
+   ===== BOOT =====
+   ========================================================================= */
+(function boot() {
+  APP.workerUrl = load(LS.worker) || WORKER_URL_DEFAULT;
+  APP.paLatencyMs = parseInt(load(LS.pa) || "0", 10) || 0;
+  APP.myGroup = load(LS.group);
+
+  const reanchored = restoreSync();
+  restoreShow();
+
+  // URL params: ?show=<url>&t0=<epoch ms>
+  const q = new URLSearchParams(location.search);
+  const qShow = q.get("show");
+  const qT0 = q.get("t0");
+
+  const finish = function () {
+    restoreArmed();
+    if (qT0 && /^\d+$/.test(qT0)) armT0(parseInt(qT0, 10), "url");
+    const role = load(LS.role);
+    if (role === "pilot" || role === "conductor") { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
+    else go("role");
+    if (APP.workerUrl) runSync({ silent: true }).then(renderAll);
+    if (reanchored) SYNC.lastError = null;
+    requestAnimationFrame(loop);
+  };
+
+  if (qShow) loadShowFromUrl(qShow).then(finish);
+  else finish();
+})();
+</script>
+</body>
+</html>
