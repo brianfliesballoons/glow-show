@@ -3,3 +3,4 @@ test/script-*.js
 test/pure-core.js
 test/qr.js
 test/sync.js
+test/choreo.js

@@ -18,6 +18,10 @@
     PURE CORE (extractable & node-testable, zero DOM references)
       ===== SHOW PARSER / VALIDATOR =====
       ===== TIMELINE ENGINE =====
+    ===== AUDIO ANALYSIS (PURE DSP) =====   (its own pure block: FFT, onsets,
+                                             tempo, sections — node-testable)
+    ===== CHOREOGRAPHER (PURE) =====        (its own pure block: song analysis
+                                             in, validated show out)
     ===== SYNC ENGINE =====
     ===== T0 / ARMING =====
     ===== QR ENCODER =====
@@ -26,11 +30,16 @@
     ===== UI: PILOT =====
     ===== UI: CONDUCTOR =====
     ===== UI: SETTINGS / DEBUG =====
-    ===== EDITOR (stub — v2 seam) =====
+    ===== AUDIO ANALYSIS (BROWSER) =====    (file decode + progress only)
+    ===== UI: EDITOR =====                  (timeline workspace)
     ===== BOOT =====
 
-  A later EDITOR/choreographer agent should reuse PURE CORE + SYNC ENGINE untouched:
-  the timeline engine is pure functions of (show, myGroups, tMs) -> render state.
+  Three pure blocks (PURE CORE, AUDIO ANALYSIS (PURE DSP), CHOREOGRAPHER) carry
+  every rule and every calculation, hold no DOM references, and are sliced
+  straight out of this file by test/*-extract.js — the tests run the shipping
+  code, never a copy. The editor and the pilot display are thin: they render
+  what those blocks return. What the editor previews is what the phones show,
+  because it is literally the same stateAt().
 -->
 <style>
 /* ===================== BASE ===================== */
@@ -215,6 +224,51 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
 .checklist li:last-child{border-bottom:0}
 .checklist li::before{content:"☐";font-size:17px;line-height:1.1}
 .footlinks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;padding:6px 0 0}
+/* ===================== EDITOR ===================== */
+.edwrap{
+  max-width:1180px;margin:0 auto;
+  padding: calc(env(safe-area-inset-top) + 10px + var(--bannerH, 0px)) var(--pad) calc(env(safe-area-inset-bottom) + 40px);
+}
+.edbar{height:12px;border-radius:99px;background:#0a0e16;border:1px solid var(--line);overflow:hidden;margin:0 0 6px}
+.edbar i{display:block;height:100%;width:0%;background:#1d4ed8;transition:width .12s linear}
+.edtop{justify-content:space-between;gap:8px;margin:0 0 8px}
+.edtop b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.edtrans{gap:6px;margin:0 0 8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.edtrans button{min-height:44px;padding:8px 13px;border-radius:10px;flex:0 0 auto}
+.edtrans .mono{font-size:14px;font-weight:800;white-space:nowrap;padding:0 4px}
+#ew-canvaswrap{position:relative;width:100%;border:1px solid var(--line);border-radius:12px;background:#070a12;overflow:hidden}
+#ew-canvas,#ew-cursor{display:block;width:100%;touch-action:none}
+#ew-cursor{position:absolute;left:0;top:0;pointer-events:none}
+.edhint{margin:6px 0 12px}
+.edgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.edfld{display:block;margin:0 0 4px}
+.edfld > span{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 2px}
+.edfld > span b{color:#e8ecf4;font-variant-numeric:tabular-nums}
+.edfld input[type=range]{height:34px}
+.edchips{display:flex;flex-wrap:wrap;gap:6px}
+.edchip{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:800;
+  background:#161b26;border:1px solid var(--line);color:#c8d2e4;cursor:pointer;min-height:40px;
+}
+.edchip.on{background:#1d3a2c;border-color:#2fa36a;color:#eafff3}
+.edchip.lab{cursor:default;background:transparent;border-color:transparent;color:var(--muted);padding-left:0}
+.edissue{border-left:3px solid var(--bad);background:#2a0f0d;border-radius:8px;padding:8px 10px;margin:0 0 6px;font-size:13px;line-height:1.4}
+.edissue.warn{border-left-color:var(--warn);background:#2a2200}
+.edadv{border-left:3px solid #3a4560;padding:7px 10px;margin:0 0 6px;font-size:12.5px;line-height:1.45;color:#b7c2d6;background:#0d1119;border-radius:8px}
+.edok{color:#3ff094;font-weight:800}
+.edmini{display:flex;flex-direction:column;gap:6px}
+.edstat{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.edstat b{color:#e8ecf4}
+.edcolor{width:44px;height:44px;padding:2px;border-radius:10px;background:#0a0e16;border:1px solid var(--line)}
+.edrow{display:flex;gap:8px;align-items:center;margin:0 0 8px}
+.ednum{display:flex;gap:6px;flex-wrap:nowrap;align-items:center}
+.ednum input{flex:1 1 60px;min-width:0;text-align:center}
+.ednum button{flex:0 0 auto;min-height:48px;padding:0 16px;font-size:19px}
+.edrow > *{min-width:0}
+.edsel{font-size:14px}
+@media (max-width:640px){
+  .edtrans button{min-height:40px;padding:7px 10px;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -228,7 +282,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     <p class="small" style="text-align:center;margin-bottom:22px">Synchronized balloon-glow choreography. Pick your role.</p>
     <button class="rolebtn pilot" data-role="pilot">PILOT<small>I fly a balloon in the glow</small></button>
     <button class="rolebtn cond" data-role="conductor">CONDUCTOR<small>I run the music and the start</small></button>
-    <button class="rolebtn editor" disabled>EDITOR<small>coming soon</small></button>
+    <button class="rolebtn editor" data-role="editor">EDITOR<small>I build the show from a song</small></button>
     <p class="tiny" style="text-align:center;margin-top:18px">Run this in a normal browser tab &mdash; not added to the home screen (screen wake lock is unreliable in installed web apps).</p>
   </div>
 </section>
@@ -387,6 +441,121 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
   </div>
 </section>
 
+<!-- ===================== EDITOR: SETUP ===================== -->
+<section id="screen-editor" class="screen">
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h1 style="margin:0">EDITOR</h1>
+      <button class="linkbtn" data-act="switch-role">switch role</button>
+    </div>
+    <p class="small">Give it the song. It listens to the track &mdash; bass, beat, sections &mdash; and writes the choreography; then you tweak it. Everything happens on this device: the audio file is never uploaded anywhere.</p>
+
+    <div class="card">
+      <h3>1 &middot; The song</h3>
+      <div class="stack">
+        <input type="file" id="e-audiofile" accept="audio/*">
+        <div id="e-progwrap" class="hidden">
+          <div class="edbar"><i id="e-prog"></i></div>
+          <div class="tiny" id="e-progtext"></div>
+        </div>
+        <div id="e-audiostate" class="small"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 &middot; What it heard</h3>
+      <div id="e-analysis" class="small">No song analysed yet.</div>
+    </div>
+
+    <div class="card">
+      <h3>3 &middot; Groups</h3>
+      <div id="e-groups"></div>
+    </div>
+
+    <div class="card">
+      <h3>4 &middot; How to choreograph it</h3>
+      <div id="e-options" class="edgrid"></div>
+      <hr class="sep">
+      <button class="wide primary" data-act="ed-generate">GENERATE / REGENERATE THE SHOW</button>
+      <div id="e-genstate" class="small" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Or start from an existing show</h3>
+      <div class="stack">
+        <input type="file" id="e-showfile" accept="application/json,.json">
+        <label class="fld"><span>or paste show JSON</span><textarea id="e-showjson" placeholder='{"format":"glow-show/1", ...}'></textarea></label>
+        <button class="wide" data-act="ed-import">IMPORT THIS SHOW</button>
+        <div class="tiny">An imported show is fully editable. Without a song loaded the waveform strip stays empty and cues snap to a plain grid.</div>
+      </div>
+    </div>
+
+    <button class="wide huge primary" data-act="ed-open">OPEN THE TIMELINE EDITOR</button>
+    <div class="footlinks">
+      <button class="linkbtn" data-act="settings">settings</button>
+      <button class="linkbtn" data-act="ed-forget">discard this project</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== EDITOR: WORKSPACE ===================== -->
+<section id="screen-editor-work" class="screen">
+  <div class="edwrap">
+    <div class="row edtop">
+      <button class="linkbtn" data-act="ed-setup">&larr; setup</button>
+      <b id="ew-title"></b>
+      <span id="ew-state" class="badge grey"></span>
+    </div>
+
+    <div class="row edtrans">
+      <button id="ew-playbtn" data-act="ed-play">&#9654; PLAY</button>
+      <button data-act="ed-rewind">&#9198;</button>
+      <span class="mono" id="ew-time">0:00</span>
+      <button data-act="ed-zoomout">&minus;</button>
+      <button data-act="ed-zoomin">+</button>
+      <button data-act="ed-fit">FIT</button>
+      <button data-act="ed-export">EXPORT</button>
+      <button data-act="ed-copy">COPY</button>
+    </div>
+
+    <div id="ew-canvaswrap">
+      <canvas id="ew-canvas"></canvas>
+      <canvas id="ew-cursor"></canvas>
+    </div>
+    <div class="tiny edhint" id="ew-hint"></div>
+
+    <div class="card" id="ew-inspector"></div>
+
+    <div class="card">
+      <h3>Preview <span class="tiny" style="text-transform:none;letter-spacing:0">&mdash; what each group's phone shows at the playhead</span></h3>
+      <div id="ew-mirror" class="mirror"></div>
+    </div>
+
+    <div class="card">
+      <h3>Problems</h3>
+      <div id="ew-problems" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>What it wanted to do but couldn't</h3>
+      <div id="ew-advisories" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>Export</h3>
+      <div class="stack">
+        <div class="row">
+          <button class="grow primary" data-act="ed-export">DOWNLOAD SHOW JSON</button>
+          <button class="grow" data-act="ed-copy">COPY TO CLIPBOARD</button>
+        </div>
+        <button class="wide" data-act="ed-use">USE THIS SHOW IN PILOT / CONDUCTOR</button>
+        <div id="ew-exportstate" class="small"></div>
+      </div>
+    </div>
+    <div class="footlinks"><button class="linkbtn" data-act="switch-role">switch role</button></div>
+  </div>
+</section>
+
 <!-- ===================== SETTINGS ===================== -->
 <section id="screen-settings" class="screen">
   <div class="wrap">
@@ -481,7 +650,8 @@ const LS = {
   group:     "glow.group",
   sync:      "glow.sync",
   pa:        "glow.paLatencyMs",
-  armed:     "glow.armed"
+  armed:     "glow.armed",
+  editor:    "glow.editor"
 };
 
 const SYNC_ROUNDS      = 10;
@@ -911,6 +1081,1355 @@ function slugify(s) {
 /* ############################################################################
    >>>>>>>>>>>>>>>>>>>>>>>>>>>  PURE CORE  END  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
    ######################################################################### */
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>  AUDIO ANALYSIS (PURE DSP)  START  <<<<<<<<<<<<<<<<<<<<
+   Seam: ===== AUDIO ANALYSIS (PURE DSP) =====
+
+   Pure signal maths: a mono Float32Array of PCM in -> an `analysis` object out.
+   No DOM, no AudioContext, no globals, no timers. node runs this verbatim on
+   synthetic PCM, which is how tempo / onset / section detection are tested
+   (test/choreo-extract.js slices this block out; test/choreo-test.js drives it).
+
+   The browser half — file decode, resample, progress bar — lives far below at
+   ===== AUDIO ANALYSIS (BROWSER) =====. All it does is hand this code PCM and a
+   `onProgress` callback that yields to the event loop; nothing browser-shaped
+   ever leaks in here.
+
+   Chain:  frames (windowed FFT)  ->  band energies + spectral flux
+        -> onset envelope (adaptive threshold)
+        -> tempo (autocorrelation + harmonic prior + phase histogram)
+        -> beat grid + bar phase
+        -> sections (self-similarity novelty, checkerboard kernel) + labels
+   ######################################################################### */
+
+const AN_DEFAULTS = {
+  fftSize: 2048,          // ~93 ms window at 22.05 kHz
+  hop: 512,               // ~23 ms hop -> ~43 frames/s
+  targetRate: 22050,      // analysis rate (browser resamples to this)
+  lowHz: 150,             // bass / kick
+  midHz: 2000,            // vocals / melody below this, brightness above
+  minBpm: 60, maxBpm: 200,
+  prefLoBpm: 90, prefHiBpm: 180,
+  priorBpm: 125,          // log-normal tempo prior centre
+  priorSpread: 0.8,       // octaves (sigma)
+  prefBonus: 1.12,        // nudge toward the 90-180 band
+  beatsPerBar: 4,
+  onsetWinMs: 350,        // adaptive-threshold window for the onset envelope
+  coarseMs: 500,          // self-similarity frame size
+  kernelMs: 4000,         // checkerboard kernel radius
+  simFloor: 0.25,         // similarity width floor/ceiling, nats^2 — the floor
+  simCeil: 8,             //   is what stops a flat track inventing sections
+  stepWeight: 0.35,       // weight of the |energy step| term (nats)
+  novAbsMin: 0.10,        // a boundary must clear both an absolute and a
+  novRelMin: 0.18,        //   relative bar to count
+  minSectionMs: 8000,
+  maxSections: 24,
+  chunkFrames: 256,       // FFT frames between yields
+  waveBins: 1200          // silhouette resolution handed to the editor
+};
+
+/* ---- FFT (radix-2, iterative, in-place) --------------------------------- */
+const _fftCache = {};
+function _fftFor(n) {
+  if (_fftCache[n]) return _fftCache[n];
+  let levels = 0;
+  while ((1 << levels) < n) levels++;
+  if ((1 << levels) !== n) throw new Error("FFT size must be a power of two (got " + n + ")");
+  const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2);
+  for (let i = 0; i < n / 2; i++) { cos[i] = Math.cos(2 * Math.PI * i / n); sin[i] = Math.sin(2 * Math.PI * i / n); }
+  const rev = new Uint32Array(n);
+  for (let i = 0; i < n; i++) { let x = i, r = 0; for (let j = 0; j < levels; j++) { r = (r << 1) | (x & 1); x >>= 1; } rev[i] = r >>> 0; }
+  const f = function (re, im) {
+    for (let i = 0; i < n; i++) {
+      const j = rev[i];
+      if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+    }
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size) {
+        for (let j = i, k = 0; j < i + half; j++, k += step) {
+          const l = j + half;
+          const tre = re[l] * cos[k] + im[l] * sin[k];
+          const tim = -re[l] * sin[k] + im[l] * cos[k];
+          re[l] = re[j] - tre; im[l] = im[j] - tim;
+          re[j] += tre; im[j] += tim;
+        }
+      }
+    }
+  };
+  _fftCache[n] = f;
+  return f;
+}
+
+const _hannCache = {};
+function _hannWindow(n) {
+  if (_hannCache[n]) return _hannCache[n];
+  const w = new Float64Array(n);
+  for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n);
+  _hannCache[n] = w;
+  return w;
+}
+
+function _anOpts(o) { return Object.assign({}, AN_DEFAULTS, o || {}); }
+
+/* ---- frames: band energies, RMS, spectral flux --------------------------
+   Returns typed arrays, one value per frame. `flux` is the weighted
+   half-wave-rectified spectral flux (log-compressed magnitudes, weighted
+   toward low/mid because that is where a kick and a vocal live); `fluxLow` is
+   the same thing restricted to the bass bins, used to find the biggest bass
+   moments for ALL-burns.
+   ----------------------------------------------------------------------- */
+async function computeFrames(pcm, sampleRate, options) {
+  const o = _anOpts(options);
+  const N = o.fftSize, hop = o.hop, half = N >> 1;
+  const fft = _fftFor(N), win = _hannWindow(N);
+  const fps = sampleRate / hop;
+  const count = Math.max(1, Math.floor((pcm.length - N) / hop) + 1);
+
+  const low = new Float32Array(count), mid = new Float32Array(count), high = new Float32Array(count);
+  const rms = new Float32Array(count), flux = new Float32Array(count), fluxLow = new Float32Array(count);
+  const re = new Float64Array(N), im = new Float64Array(N);
+  const cur = new Float64Array(half + 1), prev = new Float64Array(half + 1);
+
+  const bLow = Math.max(1, Math.min(half - 1, Math.round(o.lowHz * N / sampleRate)));
+  const bMid = Math.max(bLow + 1, Math.min(half, Math.round(o.midHz * N / sampleRate)));
+  const wOf = new Float64Array(half + 1);
+  let wSum = 0, wLowSum = 0;
+  for (let b = 1; b <= half; b++) {
+    wOf[b] = b <= bLow ? 2.0 : (b <= bMid ? 1.4 : 0.55);
+    wSum += wOf[b];
+    if (b <= bLow) wLowSum += 1;
+  }
+  const scale = 2 / N;
+
+  for (let f = 0; f < count; f++) {
+    const off = f * hop;
+    let sq = 0;
+    if (off + N <= pcm.length) {
+      for (let i = 0; i < N; i++) { const s = pcm[off + i]; sq += s * s; re[i] = s * win[i]; im[i] = 0; }
+    } else {
+      for (let i = 0; i < N; i++) { const s = (off + i < pcm.length) ? pcm[off + i] : 0; sq += s * s; re[i] = s * win[i]; im[i] = 0; }
+    }
+    rms[f] = Math.sqrt(sq / N);
+    fft(re, im);
+
+    let pl = 0, pm = 0, ph = 0, fl = 0, flo = 0;
+    for (let b = 1; b <= half; b++) {
+      const m = Math.sqrt(re[b] * re[b] + im[b] * im[b]) * scale;
+      cur[b] = Math.log(1 + 500 * m);
+      const p = m * m;
+      if (b <= bLow) pl += p; else if (b <= bMid) pm += p; else ph += p;
+      if (f > 0) {
+        const d = cur[b] - prev[b];
+        if (d > 0) { fl += wOf[b] * d; if (b <= bLow) flo += d; }
+      }
+    }
+    low[f] = Math.sqrt(pl / bLow);
+    mid[f] = Math.sqrt(pm / Math.max(1, bMid - bLow));
+    high[f] = Math.sqrt(ph / Math.max(1, half - bMid));
+    flux[f] = fl / wSum;
+    fluxLow[f] = flo / wLowSum;
+    for (let b = 1; b <= half; b++) prev[b] = cur[b];
+
+    if (o.onProgress && (f % o.chunkFrames) === (o.chunkFrames - 1)) {
+      await o.onProgress(f / count, "frames");
+    }
+  }
+  return { hop: hop, fps: fps, count: count, sampleRate: sampleRate,
+           // a frame's timestamp is its window CENTRE, not its start: an onset
+           // shows up in the flux as soon as the transient enters the window,
+           // so frame-start timing runs ~half a window early (46 ms at 2048 /
+           // 22.05k). Everything downstream converts with centerMs.
+           centerMs: (N / 2) / sampleRate * 1000,
+           low: low, mid: mid, high: high, rms: rms, flux: flux, fluxLow: fluxLow };
+}
+
+/* frame index -> ms uses the window centre (see computeFrames) */
+function _centerMs(fps, o) { return (o.fftSize / 2) / (fps * o.hop) * 1000; }
+
+/* ---- onset envelope: flux minus a local moving mean, half-wave rectified */
+function onsetEnvelope(flux, fps, winMs) {
+  const n = flux.length;
+  const out = new Float32Array(n);
+  if (!n) return out;
+  const w = Math.max(3, Math.round((winMs || AN_DEFAULTS.onsetWinMs) / 1000 * fps));
+  const pre = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + flux[i];
+  let peak = 0;
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - w), b = Math.min(n, i + w + 1);
+    const mean = (pre[b] - pre[a]) / (b - a);
+    const v = flux[i] - mean;
+    out[i] = v > 0 ? v : 0;
+    if (out[i] > peak) peak = out[i];
+  }
+  if (peak > 0) for (let i = 0; i < n; i++) out[i] /= peak;
+  return out;
+}
+
+/* ---- tempo: ACF candidates -> harmonic prior -> phase histogram --------- */
+function _phaseScore(onset, lagFrames) {
+  const n = onset.length;
+  const bins = Math.max(4, Math.round(lagFrames * 2));
+  const h = new Float64Array(bins);
+  for (let i = 0; i < n; i++) {
+    const v = onset[i];
+    if (v <= 0) continue;
+    const ph = (i - Math.floor(i / lagFrames) * lagFrames) / lagFrames * bins;
+    let j0 = Math.floor(ph); const fr = ph - j0;
+    j0 = ((j0 % bins) + bins) % bins;
+    const j1 = (j0 + 1) % bins;
+    h[j0] += v * (1 - fr); h[j1] += v * fr;
+  }
+  // circular [1,2,1] smoothing so an onset half a bin off still counts
+  const s = new Float64Array(bins);
+  for (let j = 0; j < bins; j++) {
+    s[j] = (h[(j - 1 + bins) % bins] + 2 * h[j] + h[(j + 1) % bins]) / 4;
+  }
+  let bj = 0;
+  for (let j = 1; j < bins; j++) if (s[j] > s[bj]) bj = j;
+  // parabolic refinement around the winning bin
+  const ym = s[(bj - 1 + bins) % bins], y0 = s[bj], yp = s[(bj + 1) % bins];
+  const den = (ym - 2 * y0 + yp);
+  const delta = den !== 0 ? 0.5 * (ym - yp) / den : 0;
+  const phaseBins = bj + Math.max(-1, Math.min(1, delta));
+  let phaseFrames = phaseBins / bins * lagFrames;
+  phaseFrames = phaseFrames - Math.floor(phaseFrames / lagFrames) * lagFrames;
+  const nBeats = Math.max(1, Math.floor(n / lagFrames));
+  return { phaseFrames: phaseFrames, mean: y0 / nBeats, raw: y0, nBeats: nBeats };
+}
+
+function _tempoPrior(bpm, o) {
+  const p = Math.exp(-0.5 * Math.pow(Math.log2(bpm / o.priorBpm) / o.priorSpread, 2));
+  return (bpm >= o.prefLoBpm && bpm <= o.prefHiBpm) ? p * o.prefBonus : p;
+}
+
+function estimateTempo(onset, fps, options) {
+  const o = _anOpts(options);
+  const n = onset.length;
+  const fallback = { bpm: 120, beatOffsetMs: 0, lagFrames: 60 * fps / 120, phaseFrames: 0, confidence: 0, candidates: [] };
+  if (n < 16 || fps <= 0) return fallback;
+
+  const lagMin = Math.max(2, Math.floor(60 * fps / o.maxBpm));
+  const lagMax = Math.min(n - 2, Math.ceil(60 * fps / o.minBpm));
+  if (lagMax <= lagMin) return fallback;
+
+  let mean = 0;
+  for (let i = 0; i < n; i++) mean += onset[i];
+  mean /= n;
+  const x = new Float64Array(n);
+  let e0 = 0;
+  for (let i = 0; i < n; i++) { x[i] = onset[i] - mean; e0 += x[i] * x[i]; }
+  if (e0 <= 0) return fallback;
+
+  const acf = new Float64Array(lagMax + 2);
+  for (let L = lagMin; L <= lagMax; L++) {
+    let s = 0;
+    for (let i = 0; i + L < n; i++) s += x[i] * x[i + L];
+    acf[L] = s / e0;
+  }
+
+  // local maxima of the autocorrelation, strongest first
+  const peaks = [];
+  for (let L = lagMin + 1; L < lagMax; L++) {
+    if (acf[L] >= acf[L - 1] && acf[L] > acf[L + 1] && acf[L] > 0) peaks.push(L);
+  }
+  peaks.sort(function (a, b) { return acf[b] - acf[a] || a - b; });
+  const top = peaks.slice(0, 8);
+  if (!top.length) top.push(Math.round(60 * fps / 120));
+
+  // candidate lags plus their octave relatives (harmonic disambiguation)
+  const seen = {}, cands = [];
+  const addCand = function (L) {
+    if (!isFinite(L) || L < lagMin || L > lagMax) return;
+    const key = Math.round(L * 4);
+    if (seen[key]) return;
+    seen[key] = 1; cands.push(L);
+  };
+  top.forEach(function (L) { addCand(L); addCand(L * 2); addCand(L / 2); addCand(L * 3); addCand(L / 3); });
+
+  let best = null;
+  const scored = [];
+  cands.forEach(function (c) {
+    for (let d = -0.6; d <= 0.6001; d += 0.02) {
+      const L = c + d;
+      if (L < lagMin || L > lagMax) continue;
+      const bpm = 60 * fps / L;
+      if (bpm < o.minBpm || bpm > o.maxBpm) continue;
+      const r = _phaseScore(onset, L);
+      const score = r.mean * _tempoPrior(bpm, o);
+      if (!best || score > best.score) best = { score: score, raw: r.mean, lag: L, bpm: bpm, phaseFrames: r.phaseFrames };
+    }
+    const bpm0 = 60 * fps / c;
+    const r0 = _phaseScore(onset, c);
+    scored.push({ bpm: bpm0, score: r0.mean * _tempoPrior(bpm0, o) });
+  });
+  if (!best) return fallback;
+
+  scored.sort(function (a, b) { return b.score - a.score; });
+  let rival = 0;
+  for (let i = 0; i < scored.length; i++) {
+    if (Math.abs(Math.log2(scored[i].bpm / best.bpm)) > 0.12) { rival = scored[i].score; break; }
+  }
+  const conf = Math.max(0, Math.min(1, rival > 0 ? (best.score / rival - 1) : 1));
+
+  const beatMs = 60000 / best.bpm;
+  const offMs = best.phaseFrames * 1000 / fps + _centerMs(fps, o);
+  return {
+    bpm: Math.round(best.bpm * 100) / 100,
+    lagFrames: best.lag,
+    phaseFrames: best.phaseFrames,
+    beatOffsetMs: Math.round(offMs - Math.floor(offMs / beatMs) * beatMs),
+    confidence: Math.round(conf * 100) / 100,
+    candidates: scored.slice(0, 5)
+  };
+}
+
+/* ---- beat grid ---------------------------------------------------------- */
+function _sampleAt(arr, idx) {
+  if (!arr.length) return 0;
+  const i = Math.max(0, Math.min(arr.length - 1.001, idx));
+  const i0 = Math.floor(i), fr = i - i0;
+  const i1 = Math.min(arr.length - 1, i0 + 1);
+  return arr[i0] * (1 - fr) + arr[i1] * fr;
+}
+
+function buildBeats(onset, onsetLow, fps, tempo, durationMs, options) {
+  const o = _anOpts(options);
+  const cm = _centerMs(fps, o);
+  const beatMs = 60000 / tempo.bpm;
+  const t0 = tempo.beatOffsetMs;
+  const beats = [];
+  let peak = 0, peakLow = 0;
+  for (let k = 0; ; k++) {
+    const t = t0 + k * beatMs;
+    if (t > durationMs || k > 20000) break;
+    const idx = (t - cm) / 1000 * fps;
+    // strongest onset within +/- 1 frame — the grid is quantised, real hits are not
+    let s = 0, sl = 0;
+    for (let d = -1; d <= 1; d++) {
+      s = Math.max(s, _sampleAt(onset, idx + d));
+      sl = Math.max(sl, _sampleAt(onsetLow, idx + d));
+    }
+    if (s > peak) peak = s;
+    if (sl > peakLow) peakLow = sl;
+    beats.push({ t: Math.round(t), strength: s, low: sl });
+  }
+  beats.forEach(function (b) {
+    b.strength = peak > 0 ? Math.round(b.strength / peak * 1000) / 1000 : 0;
+    b.low = peakLow > 0 ? Math.round(b.low / peakLow * 1000) / 1000 : 0;
+  });
+  return beats;
+}
+
+/* Which beat of the bar carries the bass? That beat is the downbeat. */
+function estimateBarPhase(beats, beatsPerBar) {
+  const bpb = beatsPerBar || 4;
+  if (!beats.length) return 0;
+  const acc = new Float64Array(bpb);
+  for (let i = 0; i < beats.length; i++) acc[i % bpb] += beats[i].low * 1.4 + beats[i].strength;
+  let bj = 0;
+  for (let j = 1; j < bpb; j++) if (acc[j] > acc[bj]) bj = j;
+  return bj;
+}
+
+/* ---- sections: self-similarity novelty ---------------------------------- */
+function _pickPeaks(nov, minDist, thresh) {
+  const out = [];
+  for (let i = 1; i < nov.length - 1; i++) {
+    if (nov[i] < thresh) continue;
+    if (nov[i] < nov[i - 1] || nov[i] < nov[i + 1]) continue;
+    out.push(i);
+  }
+  out.sort(function (a, b) { return nov[b] - nov[a] || a - b; });
+  const kept = [];
+  out.forEach(function (i) {
+    for (let k = 0; k < kept.length; k++) if (Math.abs(kept[k] - i) < minDist) return;
+    kept.push(i);
+  });
+  kept.sort(function (a, b) { return a - b; });
+  return kept;
+}
+
+function _meanRange(arr, i0, i1) {
+  let s = 0, n = 0;
+  for (let i = Math.max(0, i0); i < Math.min(arr.length, i1); i++) { s += arr[i]; n++; }
+  return n ? s / n : 0;
+}
+
+function sectionFeatures(frames, onset, startMs, endMs) {
+  const fps = frames.fps, cm = frames.centerMs || 0;
+  const i0 = Math.floor((startMs - cm) / 1000 * fps), i1 = Math.max(i0 + 1, Math.ceil((endMs - cm) / 1000 * fps));
+  const third = Math.max(1, Math.round((i1 - i0) / 3));
+  return {
+    rms: _meanRange(frames.rms, i0, i1),
+    low: _meanRange(frames.low, i0, i1),
+    mid: _meanRange(frames.mid, i0, i1),
+    high: _meanRange(frames.high, i0, i1),
+    onset: _meanRange(onset, i0, i1),
+    rise: _meanRange(frames.rms, i1 - third, i1) - _meanRange(frames.rms, i0, i0 + third)
+  };
+}
+
+function _rank(values, v) {
+  let below = 0;
+  for (let i = 0; i < values.length; i++) if (values[i] < v) below++;
+  return values.length > 1 ? below / (values.length - 1) : 1;
+}
+
+/* Heuristic labels. Deliberately simple and inspectable: position + relative
+   energy + bass share + whether the section is rising. Every section keeps its
+   raw features and a confidence so the editor can show its working and Brian
+   can override any call with one tap. */
+function labelSections(secs) {
+  const rmsAll = secs.map(function (s) { return s.features.rms; });
+  const lowAll = secs.map(function (s) { return s.features.low; });
+  const maxRms = Math.max.apply(null, rmsAll.concat([1e-9]));
+  const n = secs.length;
+  secs.forEach(function (s, i) {
+    const f = s.features;
+    const eR = _rank(rmsAll, f.rms), lR = _rank(lowAll, f.low);
+    const prev = i > 0 ? secs[i - 1] : null, next = i + 1 < n ? secs[i + 1] : null;
+    const hot = eR >= 0.75;
+    const riseN = f.rise / (f.rms + 1e-9);
+    let label = "verse", conf = 0.5;
+    s.energy = Math.round(f.rms / maxRms * 1000) / 1000;
+
+    if (i === 0 && !hot) { label = "intro"; conf = 0.55 + 0.4 * (1 - eR); }
+    else if (i === n - 1 && !hot) { label = "outro"; conf = 0.55 + 0.4 * (1 - eR); }
+    else if (riseN > 0.18 && next && next.features.rms > f.rms * 1.05) { label = "build"; conf = 0.5 + Math.min(0.4, riseN); }
+    else if (eR >= 0.7 && lR >= 0.6) {
+      label = (prev && prev.label === "build") ? "drop" : "chorus";
+      conf = 0.5 + 0.45 * Math.min(1, (eR - 0.7) / 0.3);
+    } else if (prev && (prev.features.rms - f.rms) / (prev.features.rms + 1e-9) > 0.22 && lR <= 0.45) {
+      label = "breakdown"; conf = 0.5 + 0.4 * Math.min(1, (prev.features.rms - f.rms) / (prev.features.rms + 1e-9));
+    } else { label = "verse"; conf = 0.4 + 0.2 * (1 - Math.abs(eR - 0.5) * 2); }
+
+    s.label = label;
+    s.confidence = Math.round(Math.max(0.2, Math.min(0.95, conf)) * 100) / 100;
+  });
+  return secs;
+}
+
+function detectSections(frames, onset, beats, durationMs, options) {
+  const o = _anOpts(options);
+  const fps = frames.fps;
+  const cw = Math.max(1, Math.round(o.coarseMs / 1000 * fps));
+  const coarseMs = cw / fps * 1000;              // the REAL coarse step (cw whole frames)
+  const m = Math.floor(frames.count / cw);
+  const mk = function (list) {
+    return labelSections(list.map(function (b) {
+      const s = { startMs: b[0], endMs: b[1] };
+      s.features = sectionFeatures(frames, onset, s.startMs, s.endMs);
+      return s;
+    }));
+  };
+  if (m < 6 || durationMs < o.minSectionMs * 2) return mk([[0, durationMs]]);
+
+  // Coarse features = log band energies, in NATS. Deliberately NOT z-scored:
+  // z-scoring throws away absolute scale, which turns the dither on a flat
+  // track into full-contrast "structure" and invents sections that aren't
+  // there. Log energy is already a common unit across bands — a distance of
+  // 1 means "2.7x the energy" whatever the track.
+  const D = 4;
+  const F = [], E = [];
+  for (let i = 0; i < m; i++) {
+    const a = i * cw, b = a + cw;
+    const v = [
+      Math.log(1e-6 + _meanRange(frames.low, a, b)),
+      Math.log(1e-6 + _meanRange(frames.mid, a, b)),
+      Math.log(1e-6 + _meanRange(frames.high, a, b)),
+      Math.log(1e-6 + _meanRange(frames.rms, a, b))
+    ];
+    F.push(v); E.push(v[3]);
+  }
+  const d2 = function (i, j) {
+    let s = 0;
+    for (let d = 0; d < D; d++) { const x = F[i][d] - F[j][d]; s += x * x; }
+    return s;
+  };
+  // similarity width: adaptive, but floored so a uniform track stays uniform
+  let acc = 0, cnt = 0;
+  const stride = Math.max(1, Math.floor(m / 50));
+  for (let i = 0; i < m; i += stride) for (let j = 0; j < m; j += stride) { acc += d2(i, j); cnt++; }
+  const sigma2 = Math.max(o.simFloor, Math.min(o.simCeil, acc / Math.max(1, cnt)));
+  const sim = function (i, j) { return Math.exp(-d2(i, j) / (2 * sigma2)); };
+
+  // checkerboard novelty, normalised by the kernel's positive weight so the
+  // value means something absolute: "how much more alike each side is to
+  // itself than to the other", 0..1.
+  const R = Math.max(2, Math.round(o.kernelMs / coarseMs));
+  const sg = R / 2;
+  const cl = function (i) { return i < 0 ? 0 : (i >= m ? m - 1 : i); };
+  let wPos = 0;
+  for (let a = -R; a <= R; a++) {
+    if (a === 0) continue;
+    for (let b = -R; b <= R; b++) {
+      if (b === 0) continue;
+      if ((a > 0) === (b > 0)) wPos += Math.exp(-(a * a + b * b) / (2 * sg * sg));
+    }
+  }
+  const nov = new Float64Array(m);
+  for (let i = 0; i < m; i++) {
+    let s = 0;
+    for (let a = -R; a <= R; a++) {
+      if (a === 0) continue;
+      for (let b = -R; b <= R; b++) {
+        if (b === 0) continue;
+        const k = ((a > 0) === (b > 0) ? 1 : -1) * Math.exp(-(a * a + b * b) / (2 * sg * sg));
+        s += k * sim(cl(i + a), cl(i + b));
+      }
+    }
+    nov[i] = s / wPos;
+  }
+  // plus a plain energy-step term (in nats): catches a section change that is
+  // a level change rather than a timbre change — a drop after a build.
+  const comb = new Float64Array(m);
+  for (let i = 0; i < m; i++) {
+    comb[i] = nov[i] + o.stepWeight * Math.abs(_meanRange(E, i, i + R) - _meanRange(E, i - R, i));
+  }
+  for (let i = 0; i < R; i++) { comb[i] = 0; comb[m - 1 - i] = 0; }
+
+  let mx = 0;
+  for (let i = 0; i < m; i++) if (comb[i] > mx) mx = comb[i];
+  const thresh = Math.max(o.novAbsMin, o.novRelMin * mx);
+  const minDist = Math.max(1, Math.round(o.minSectionMs / coarseMs));
+  let idx = _pickPeaks(comb, minDist, thresh);
+  if (idx.length > o.maxSections - 1) {
+    idx = idx.slice().sort(function (a, b) { return comb[b] - comb[a]; }).slice(0, o.maxSections - 1).sort(function (a, b) { return a - b; });
+  }
+
+  // coarse index -> ms, snapped to the beat grid
+  const snap = function (t) {
+    if (!beats || !beats.length) return Math.round(t);
+    let bestT = beats[0].t, bestD = Math.abs(beats[0].t - t);
+    for (let i = 1; i < beats.length; i++) {
+      const d = Math.abs(beats[i].t - t);
+      if (d < bestD) { bestD = d; bestT = beats[i].t; }
+    }
+    return bestT;
+  };
+  const cm = frames.centerMs || 0;
+  const bounds = [0], novAt = [0];
+  idx.forEach(function (i) {
+    const t = snap(i * coarseMs + cm);
+    if (t - bounds[bounds.length - 1] >= o.minSectionMs && durationMs - t >= o.minSectionMs) {
+      bounds.push(t); novAt.push(Math.round(comb[i] * 100) / 100);
+    }
+  });
+  bounds.push(durationMs);
+
+  const pairs = [];
+  for (let i = 0; i + 1 < bounds.length; i++) pairs.push([bounds[i], bounds[i + 1]]);
+  const secs = mk(pairs);
+  secs.forEach(function (s, i) { s.novelty = novAt[i] || 0; });
+  return secs;
+}
+
+/* ---- silhouette for the editor's waveform strip ------------------------- */
+function waveSilhouette(rms, bins) {
+  const n = Math.max(1, bins || AN_DEFAULTS.waveBins);
+  const out = new Array(n);
+  let mx = 0;
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor(i * rms.length / n), b = Math.max(a + 1, Math.floor((i + 1) * rms.length / n));
+    let v = 0;
+    for (let j = a; j < b && j < rms.length; j++) if (rms[j] > v) v = rms[j];
+    out[i] = v;
+    if (v > mx) mx = v;
+  }
+  if (mx > 0) for (let i = 0; i < n; i++) out[i] = Math.round(out[i] / mx * 1000) / 1000;
+  return out;
+}
+
+/* ---- the whole chain ----------------------------------------------------
+   analyzePCM(pcm, sampleRate, { onProgress }) -> analysis
+   `onProgress(frac, label)` may return a promise; this code awaits it, which
+   is how the browser keeps the page responsive without any browser API in here.
+   ----------------------------------------------------------------------- */
+async function analyzePCM(pcm, sampleRate, options) {
+  const o = _anOpts(options);
+  const prog = o.onProgress || null;
+  const durationMs = Math.round(pcm.length / sampleRate * 1000);
+  const stage = async function (frac, label) { if (prog) await prog(frac, label); };
+
+  await stage(0.02, "reading");
+  const frames = await computeFrames(pcm, sampleRate, Object.assign({}, o, {
+    onProgress: prog ? function (f, l) { return prog(0.05 + 0.65 * f, l); } : null
+  }));
+  await stage(0.72, "onsets");
+  const onset = onsetEnvelope(frames.flux, frames.fps, o.onsetWinMs);
+  const onsetLow = onsetEnvelope(frames.fluxLow, frames.fps, o.onsetWinMs);
+  await stage(0.78, "tempo");
+  const tempo = estimateTempo(onset, frames.fps, o);
+  const beats = buildBeats(onset, onsetLow, frames.fps, tempo, durationMs, o);
+  const barPhase = estimateBarPhase(beats, o.beatsPerBar);
+  await stage(0.9, "sections");
+  const sections = detectSections(frames, onset, beats, durationMs, o);
+  await stage(1, "done");
+
+  return {
+    durationMs: durationMs,
+    sampleRate: sampleRate,
+    bpm: tempo.bpm,
+    beatOffsetMs: tempo.beatOffsetMs,
+    beatConfidence: tempo.confidence,
+    beatsPerBar: o.beatsPerBar,
+    barPhase: barPhase,
+    tempoCandidates: tempo.candidates,
+    beats: beats,
+    sections: sections,
+    frames: frames,
+    onset: onset,
+    onsetLow: onsetLow,
+    wave: waveSilhouette(frames.rms, o.waveBins)
+  };
+}
+
+/* A JSON-safe subset: everything the choreographer and the editor's waveform
+   strip need, small enough for localStorage (the raw frame arrays are not). */
+function analysisSummary(a) {
+  if (!a) return null;
+  return {
+    durationMs: a.durationMs, sampleRate: a.sampleRate, bpm: a.bpm,
+    beatOffsetMs: a.beatOffsetMs, beatConfidence: a.beatConfidence,
+    beatsPerBar: a.beatsPerBar, barPhase: a.barPhase,
+    beats: a.beats.map(function (b) { return { t: b.t, strength: b.strength, low: b.low }; }),
+    sections: a.sections.map(function (s) {
+      return { startMs: s.startMs, endMs: s.endMs, label: s.label, confidence: s.confidence,
+               energy: s.energy, novelty: s.novelty || 0, features: s.features };
+    }),
+    wave: a.wave
+  };
+}
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>>  AUDIO ANALYSIS (PURE DSP)  END  <<<<<<<<<<<<<<<<<<<<<
+   ######################################################################### */
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>>>  CHOREOGRAPHER (PURE)  START  <<<<<<<<<<<<<<<<<<<<<<<
+   Seam: ===== CHOREOGRAPHER (PURE) =====
+
+   choreograph(analysis, options) -> { ok, show, cues, advisories, stats }
+
+   Deterministic, dependency-free: no DOM, no clock, no randomness. Same
+   analysis + same options => byte-identical show, in the browser and in node.
+   It consumes only the JSON-safe part of an analysis (durationMs, bpm, beats,
+   sections), so a reloaded editor project with no audio file can still
+   regenerate. It emits a `glow-show/1` object and runs it through PURE CORE's
+   own validateShow() before returning it — the generator can never hand the
+   pilots something the app would reject.
+
+   SAFETY BEATS MUSICALITY. Four hard constraints are enforced at placement
+   time, re-checked at the end, and any cue that cannot satisfy them is dropped
+   with a plain-English line in `advisories` (which the editor shows):
+
+     1. maxBurnMs   — no group ever holds a burn longer than this.
+     2. minRestMs   — clear air between any two of a group's CUES. The legs
+                      inside one `alternate` cue are deliberately exempt: a
+                      ping-pong is one instruction to the pilot, and the
+                      timeline engine already treats it as one (it suppresses
+                      the get-ready between legs). Leg length is still capped
+                      by maxBurnMs.
+     3. long-burn runway — before any burn whose sustained length reaches
+                      longBurnMs, the group gets stopMs + ventLeadMs +
+                      getReadyMs of clear air, so the VENT WARNING is actually
+                      on screen (it is outranked by STOP and GET READY) before
+                      the get-ready countdown starts. No pilot ever gets a one
+                      second warning on a fourteen second burn.
+     4. burnBudgetMs — total burn per group per show (propane, not poetry).
+
+   Plus fairness: no group's total burn may fall below `fairness` (60%) of the
+   busiest group's. Repaired by adding accents to the quiet group; only if that
+   is impossible does it drop cues from the busy one.
+
+   Placement order is by musical priority, not by time: drops and the finale
+   claim their runway first, then choruses, then verses/builds, then optional
+   fillers. `intensity` is a pure density dial — it takes a longer prefix of
+   one fixed, priority-ordered filler list, which is what makes "more intensity
+   is never less show" true by construction.
+   ######################################################################### */
+
+const CH_DEFAULTS = {
+  maxBurnMs: 12000,
+  minRestMs: 8000,
+  burnBudgetMs: 90000,
+  intensity: 0.6,
+  getReadyMs: SHOW_DEFAULTS.getReadyMs,
+  ventWarnMs: SHOW_DEFAULTS.ventWarnMs,
+  longBurnMs: SHOW_DEFAULTS.longBurnMs,
+  stopMs: SHOW_DEFAULTS.stopMs,
+  ventLeadMs: 5000,        // vent warning must be visible this long before a long burn
+  criticalWarnMs: 2000,    // below this much clear air before a LONG burn, a hand
+                           //   edit is not "tight", it is dangerous -> hard stop
+  criticalRestMs: 0,       // back-to-back cues are tight, not dangerous — the
+                           //   pilot simply keeps working, so this only warns
+                           //   (raise it if a field ever proves otherwise)
+  hardBurnFactor: 1.5,     // a hand-edited burn this far over maxBurnMs is a hard
+  hardBurnPadMs: 5000,     //   stop rather than a "tighter than your settings" note
+  beatsPerBar: 4,
+  pulseDuty: 0.5,          // a pulse shows "on" half of each beat -> half the burn load
+  fairness: 0.6,
+  minCueMs: 600,
+  minPeriodMs: 400,
+  title: "",
+  audioTitle: "",
+  groups: [
+    { id: "north",  label: "NORTH ROW",      color: "#00c8ff" },
+    { id: "south",  label: "SOUTH ROW",      color: "#ff3ea5" },
+    { id: "shapes", label: "SPECIAL SHAPES", color: "#ffd400" }
+  ]
+};
+
+const CH_SECTION_LABELS = ["intro", "verse", "build", "chorus", "drop", "breakdown", "outro"];
+
+function _chNum(v, dflt, lo, hi) {
+  const n = typeof v === "number" && isFinite(v) ? v : dflt;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function chOptions(options) {
+  const i = options || {};
+  const o = Object.assign({}, CH_DEFAULTS, i);
+  o.maxBurnMs    = _chNum(i.maxBurnMs, CH_DEFAULTS.maxBurnMs, 1000, 60000);
+  o.minRestMs    = _chNum(i.minRestMs, CH_DEFAULTS.minRestMs, 0, 120000);
+  o.burnBudgetMs = _chNum(i.burnBudgetMs, CH_DEFAULTS.burnBudgetMs, 1000, 3600000);
+  o.intensity    = _chNum(i.intensity, CH_DEFAULTS.intensity, 0, 1);
+  o.getReadyMs   = _chNum(i.getReadyMs, CH_DEFAULTS.getReadyMs, 0, 60000);
+  o.ventWarnMs   = _chNum(i.ventWarnMs, CH_DEFAULTS.ventWarnMs, 0, 120000);
+  o.longBurnMs   = _chNum(i.longBurnMs, CH_DEFAULTS.longBurnMs, 500, 60000);
+  o.stopMs       = _chNum(i.stopMs, CH_DEFAULTS.stopMs, 0, 30000);
+  o.ventLeadMs   = _chNum(i.ventLeadMs, CH_DEFAULTS.ventLeadMs, 0, 60000);
+  o.criticalWarnMs = _chNum(i.criticalWarnMs, CH_DEFAULTS.criticalWarnMs, 0, 60000);
+  o.criticalRestMs = _chNum(i.criticalRestMs, CH_DEFAULTS.criticalRestMs, 0, 60000);
+  o.beatsPerBar  = Math.round(_chNum(i.beatsPerBar, 4, 2, 8));
+  o.fairness     = _chNum(i.fairness, CH_DEFAULTS.fairness, 0, 1);
+  o.pulseDuty    = _chNum(i.pulseDuty, CH_DEFAULTS.pulseDuty, 0, 1);
+  o.minCueMs     = _chNum(i.minCueMs, CH_DEFAULTS.minCueMs, 100, 10000);
+  o.minPeriodMs  = _chNum(i.minPeriodMs, CH_DEFAULTS.minPeriodMs, 100, 10000);
+
+  // groups: sanitised so a UI slip can never emit an invalid show
+  const src = Array.isArray(i.groups) && i.groups.length ? i.groups : CH_DEFAULTS.groups;
+  const used = {};
+  o.groups = src.slice(0, 12).map(function (g, k) {
+    let id = String((g && g.id) || ("g" + (k + 1))).toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!id || id === "all") id = "g" + (k + 1);
+    while (used[id]) id = id + "-" + (k + 1);
+    used[id] = 1;
+    return {
+      id: id,
+      label: String((g && g.label) || id.toUpperCase()).trim() || id.toUpperCase(),
+      color: /^#[0-9a-f]{6}$/i.test((g && g.color) || "") ? g.color : ["#00c8ff", "#ff3ea5", "#ffd400", "#3ff094", "#ff8b3d", "#b57bff"][k % 6]
+    };
+  });
+  return o;
+}
+
+/* ---- beat / bar grid ---------------------------------------------------- */
+function chGrid(A, opt) {
+  const beatMs = 60000 / A.bpm;
+  const bpb = opt.beatsPerBar;
+  const barMs = beatMs * bpb;
+  const t0 = A.beatOffsetMs;
+  const barT0 = t0 + (A.barPhase || 0) * beatMs;
+  const g = {
+    beatMs: beatMs, barMs: barMs, beatsPerBar: bpb, beatT0: t0, barT0: barT0,
+    snapBeat: function (t) { return Math.round(t0 + Math.round((t - t0) / beatMs) * beatMs); },
+    beatAtOrAfter: function (t) { return Math.round(t0 + Math.ceil((t - t0 - 0.5) / beatMs) * beatMs); },
+    snapBar: function (t) { return Math.round(barT0 + Math.round((t - barT0) / barMs) * barMs); },
+    barAtOrAfter: function (t) { return Math.round(barT0 + Math.ceil((t - barT0 - 0.5) / barMs) * barMs); },
+    barAtOrBefore: function (t) { return Math.round(barT0 + Math.floor((t - barT0 + 0.5) / barMs) * barMs); },
+    quantBeats: function (ms, minBeats) { return Math.round(Math.max(minBeats || 1, Math.round(ms / beatMs)) * beatMs); },
+    beatsOf: function (ms) { return ms / beatMs; }
+  };
+  return g;
+}
+
+/* ---- defensive view of an analysis (works on a stored summary too) ------ */
+function chAnalysis(analysis, opt) {
+  const a = analysis || {};
+  const durationMs = Math.max(1000, Math.round(_chNum(a.durationMs, 180000, 1000, 3 * 3600000)));
+  let bpm = _chNum(a.bpm, 120, 20, 300);
+  const beatOffsetMs = _chNum(a.beatOffsetMs, 0, 0, 60000) % (60000 / bpm);
+  let beats = Array.isArray(a.beats) && a.beats.length
+    ? a.beats.filter(function (b) { return b && isFinite(b.t) && b.t >= 0 && b.t <= durationMs; })
+             .map(function (b) { return { t: Math.round(b.t), strength: _chNum(b.strength, 0.5, 0, 1), low: _chNum(b.low, _chNum(b.strength, 0.5, 0, 1), 0, 1) }; })
+    : [];
+  if (!beats.length) {
+    const beatMs = 60000 / bpm;
+    for (let t = beatOffsetMs; t <= durationMs; t += beatMs) beats.push({ t: Math.round(t), strength: 0.5, low: 0.5 });
+  }
+  let sections = Array.isArray(a.sections) && a.sections.length ? a.sections.slice() : [];
+  sections = sections.map(function (s) {
+    return {
+      startMs: Math.max(0, Math.round(_chNum(s.startMs, 0, 0, durationMs))),
+      endMs: Math.min(durationMs, Math.round(_chNum(s.endMs, durationMs, 0, durationMs))),
+      label: CH_SECTION_LABELS.indexOf(s.label) !== -1 ? s.label : "verse",
+      confidence: _chNum(s.confidence, 0.5, 0, 1),
+      energy: _chNum(s.energy, 0.5, 0, 1),
+      features: s.features || { rms: 0, low: 0, mid: 0, high: 0, onset: 0, rise: 0 }
+    };
+  }).filter(function (s) { return s.endMs > s.startMs; }).sort(function (x, y) { return x.startMs - y.startMs; });
+  if (!sections.length) sections = [{ startMs: 0, endMs: durationMs, label: "verse", confidence: 0.3, energy: 0.5, features: { rms: 0, low: 0, mid: 0, high: 0, onset: 0, rise: 0 } }];
+  return {
+    durationMs: durationMs, bpm: bpm, beatOffsetMs: beatOffsetMs,
+    barPhase: Math.round(_chNum(a.barPhase, 0, 0, 7)),
+    beats: beats, sections: sections
+  };
+}
+
+/* ---- the constraint engine ---------------------------------------------- */
+function _chIsAll(gs) { return (gs || []).some(function (g) { return String(g).toLowerCase() === "all"; }); }
+
+function chScheduler(opt, audioMs) {
+  const groupIds = opt.groups.map(function (g) { return g.id; });
+  const spans = {}, load = {};
+  groupIds.forEach(function (g) { spans[g] = []; load[g] = 0; });
+  const cues = [];
+  let nextId = 1;
+
+  const resolve = function (gs) { return _chIsAll(gs) ? groupIds.slice() : (gs || []).filter(function (g) { return groupIds.indexOf(g) !== -1; }); };
+
+  /* per-group footprint of one cue: the whole cue is treated as occupied for
+     every group it touches (legs of an alternate are internal to the cue), with
+     `sustained` = the longest continuous burn that group actually holds. */
+  function footprint(cue) {
+    const gs = resolve(cue.groups);
+    const t = Math.round(cue.t), end = Math.round(cue.t + cue.dur);
+    const out = [];
+    if (cue.type === "alternate" && gs.length >= 2) {
+      const p = Math.max(1, cue.periodMs || 0);
+      const legLoad = {}, legMax = {};
+      gs.forEach(function (g) { legLoad[g] = 0; legMax[g] = 0; });
+      let k = 0;
+      while (true) {
+        const s = cue.t + k * p;
+        if (s >= cue.t + cue.dur - 0.5) break;
+        const e = Math.min(s + p, cue.t + cue.dur);
+        const g = gs[k % gs.length];
+        legLoad[g] += (e - s); legMax[g] = Math.max(legMax[g], e - s);
+        k++;
+        if (k > 100000) break;
+      }
+      gs.forEach(function (g) { out.push({ gid: g, t: t, end: end, sustained: legMax[g], load: legLoad[g] }); });
+    } else {
+      const sustained = cue.type === "pulse" ? 0 : cue.dur;
+      const ld = cue.type === "pulse" ? cue.dur * opt.pulseDuty : cue.dur;
+      gs.forEach(function (g) { out.push({ gid: g, t: t, end: end, sustained: sustained, load: ld }); });
+    }
+    return out;
+  }
+
+  const runway = function (sustained) { return chRestNeed(opt, sustained); };
+  const secs = function (ms) { return (Math.round(ms / 100) / 10) + "s"; };
+
+  function issuesFor(cue, ignoreId) {
+    const out = [];
+    const push = function (code, sev, text) { out.push({ code: code, severity: sev, text: text }); };
+    // per-group problems are recorded as (who, body) so that the same problem
+    // hitting every group collapses into one readable line instead of N
+    const pushG = function (code, sev, who, body) { out.push({ code: code, severity: sev, who: who, body: body, text: who + " " + body }); };
+    if (!cue || !isFinite(cue.t) || !isFinite(cue.dur) || cue.dur <= 0) { push("shape", "block", "cue has no valid start/duration"); return out; }
+    if (cue.t < 0) push("bounds", "block", "starts before the show");
+    if (cue.t + cue.dur > audioMs) push("bounds", "block", "runs " + secs(cue.t + cue.dur - audioMs) + " past the end of the audio");
+    const gs = resolve(cue.groups);
+    if (!gs.length) push("groups", "block", "no known group");
+    if (cue.type === "alternate" && gs.length < 2) push("groups", "block", "an alternate needs at least two groups");
+    if (cue.type === "alternate" && !(cue.periodMs > 0)) push("shape", "block", "alternate needs a periodMs");
+    if (cue.type === "alternate" && cue.periodMs > cue.dur) push("shape", "block", "periodMs is longer than the cue");
+    if (cue.type === "pulse" && !(cue.bpm >= 20 && cue.bpm <= 300)) push("shape", "block", "pulse needs a bpm between 20 and 300");
+
+    footprint(cue).forEach(function (f) {
+      const lbl = (opt.groups.filter(function (g) { return g.id === f.gid; })[0] || {}).label || f.gid;
+      if (f.sustained > opt.maxBurnMs + 0.5) {
+        const hard = f.sustained > Math.max(opt.maxBurnMs * opt.hardBurnFactor, opt.maxBurnMs + opt.hardBurnPadMs);
+        pushG("maxburn", hard ? "block" : "warn", lbl, "would hold " + secs(f.sustained) + " of burn — over the " + secs(opt.maxBurnMs) + " limit");
+      }
+      const list = spans[f.gid];
+      let prev = null, next = null;
+      for (let i = 0; i < list.length; i++) {
+        const s = list[i];
+        if (ignoreId != null && s.cueId === ignoreId) continue;
+        if (f.t < s.end && s.t < f.end) { pushG("overlap", "block", lbl, "is already busy with “" + s.label + "”"); continue; }
+        if (s.end <= f.t && (!prev || s.end > prev.end)) prev = s;
+        if (s.t >= f.end && (!next || s.t < next.t)) next = s;
+      }
+      if (prev) {
+        const need = runway(f.sustained), gap = f.t - prev.end;
+        if (gap < need - 0.5) {
+          const long = f.sustained >= opt.longBurnMs;
+          const hard = long ? gap < opt.stopMs + opt.criticalWarnMs : gap < opt.criticalRestMs;
+          pushG(long ? "runway" : "rest", hard ? "block" : "warn", lbl,
+            "gets only " + secs(gap) + " after “" + prev.label + "” — needs " + secs(need) +
+            (long ? " to vent and get ready before a long burn" : " of rest"));
+        }
+      }
+      if (next) {
+        const need = runway(next.sustained), gap = next.t - f.end;
+        if (gap < need - 0.5) {
+          const long = next.sustained >= opt.longBurnMs;
+          const hard = long ? gap < opt.stopMs + opt.criticalWarnMs : gap < opt.criticalRestMs;
+          pushG(long ? "runway" : "rest", hard ? "block" : "warn", lbl,
+            "would get only " + secs(gap) + " before “" + next.label + "” — needs " + secs(need));
+        }
+      }
+      let used = 0;
+      for (let i = 0; i < list.length; i++) if (ignoreId == null || list[i].cueId !== ignoreId) used += list[i].load;
+      if (used + f.load > opt.burnBudgetMs + 0.5) {
+        pushG("budget", "warn", lbl, "would burn " + secs(used + f.load) + " total — over the " + secs(opt.burnBudgetMs) + " budget");
+      }
+    });
+
+    const nGroups = Math.max(1, gs.length);
+    const bucket = {}, seen = {}, collapsed = [];
+    out.forEach(function (i) { if (i.who) { const k = i.code + "|" + i.body; (bucket[k] = bucket[k] || []).push(i); } });
+    out.forEach(function (i) {
+      if (!i.who) { collapsed.push({ code: i.code, severity: i.severity, text: i.text }); return; }
+      const k = i.code + "|" + i.body;
+      if (seen[k]) return;
+      seen[k] = 1;
+      const n = bucket[k].length;
+      const who = n < 2 ? i.who : (n >= nGroups ? "Every group" : n + " groups");
+      collapsed.push({ code: i.code, severity: i.severity, text: who + " " + i.body });
+    });
+    return collapsed;
+  }
+
+  function commit(cue) {
+    const id = nextId++;
+    const rec = Object.assign({}, cue, { _id: id });
+    cues.push(rec);
+    footprint(cue).forEach(function (f) {
+      spans[f.gid].push({ t: f.t, end: f.end, sustained: f.sustained, load: f.load, cueId: id, label: cue.label });
+      spans[f.gid].sort(function (a, b) { return a.t - b.t; });
+      load[f.gid] += f.load;
+    });
+    return rec;
+  }
+
+  return {
+    groupIds: groupIds,
+    cues: cues,
+    footprint: footprint,
+    issuesFor: issuesFor,
+    /* The generator holds itself to the STRICT rules: any rest / runway /
+       budget / max-burn finding refuses the cue, whether the editor would paint
+       it red or amber. Severity only grades how loudly the EDITOR complains
+       about a human's own edit — a hand-authored show that is merely tighter
+       than the current sliders is still exportable, one that would leave a
+       pilot with no warning is not. */
+    add: function (cue, allowWarn) {
+      const iss = issuesFor(cue, null);
+      const bad = iss.filter(function (x) {
+        return x.severity === "block" || x.code === "rest" || x.code === "runway" ||
+               x.code === "maxburn" || (!allowWarn && x.code === "budget");
+      });
+      if (bad.length) return { ok: false, issues: bad };
+      return { ok: true, cue: commit(cue) };
+    },
+    force: function (cue) { return commit(cue); },
+    removeById: function (id) {
+      for (let i = cues.length - 1; i >= 0; i--) if (cues[i]._id === id) cues.splice(i, 1);
+      groupIds.forEach(function (g) {
+        for (let i = spans[g].length - 1; i >= 0; i--) {
+          if (spans[g][i].cueId === id) { load[g] -= spans[g][i].load; spans[g].splice(i, 1); }
+        }
+      });
+    },
+    loads: function () { const c = {}; groupIds.forEach(function (g) { c[g] = load[g]; }); return c; },
+    groupsByLoad: function () {
+      return groupIds.slice().sort(function (a, b) { return (load[a] - load[b]) || (groupIds.indexOf(a) - groupIds.indexOf(b)); });
+    },
+    balance: function () {
+      let mn = Infinity, mx = 0, weakest = groupIds[0], strongest = groupIds[0];
+      groupIds.forEach(function (g) {
+        if (load[g] < mn) { mn = load[g]; weakest = g; }
+        if (load[g] > mx) { mx = load[g]; strongest = g; }
+      });
+      return { min: mn === Infinity ? 0 : mn, max: mx, ratio: mx > 0 ? (mn === Infinity ? 1 : mn / mx) : 1, weakest: weakest, strongest: strongest };
+    },
+    singleGroupCuesOf: function (gid) {
+      return cues.filter(function (c) { return !_chIsAll(c.groups) && resolve(c.groups).length === 1 && resolve(c.groups)[0] === gid; });
+    },
+    sorted: function () { return cues.slice().sort(function (a, b) { return (a.t - b.t) || (a._id - b._id); }); }
+  };
+}
+
+/* ---- candidates --------------------------------------------------------- */
+function _chCue(t, dur, type, groups, label, extra) {
+  const c = { t: Math.round(t), dur: Math.round(dur), type: type, groups: groups ? groups.slice() : null, label: label };
+  if (extra) Object.keys(extra).forEach(function (k) { c[k] = extra[k]; });
+  return c;
+}
+function _chCand(cue, value, section, want, flex, pickGroup) {
+  return { cue: cue, value: value, section: section, want: want, flex: flex || {}, pickGroup: !!pickGroup };
+}
+
+function _chTopBeats(A, sec, key, minGapMs, limit) {
+  const inSec = A.beats.filter(function (b) { return b.t >= sec.startMs && b.t < sec.endMs; });
+  const sorted = inSec.slice().sort(function (a, b) { return (b[key] - a[key]) || (a.t - b.t); });
+  const kept = [];
+  for (let i = 0; i < sorted.length && kept.length < limit; i++) {
+    let ok = true;
+    for (let k = 0; k < kept.length; k++) if (Math.abs(kept[k].t - sorted[i].t) < minGapMs) { ok = false; break; }
+    if (ok) kept.push(sorted[i]);
+  }
+  return kept.sort(function (a, b) { return a.t - b.t; });
+}
+
+function chRestNeed(opt, sustained) {
+  return sustained >= opt.longBurnMs ? Math.max(opt.minRestMs, opt.stopMs + opt.ventLeadMs + opt.getReadyMs) : opt.minRestMs;
+}
+
+/* The section -> pattern map. Tier 0 = drops and the finale (they claim their
+   runway first), tier 1 = choruses, tier 2 = verses/builds; `fillers` are the
+   optional extras the intensity dial unlocks, ordered by musical value.
+
+   Patterns TILE across a section: a 90-second chorus gets pulse after pulse
+   with the required rest between, not one lonely cue at the top. The first
+   tile of each pattern is the anchor; the repeats are fillers, so the density
+   dial thins the repeats before it ever touches the skeleton of the show. */
+function chPlan(A, opt, grid, onlySections) {
+  const t0 = [], t1 = [], t2 = [], fillers = [];
+  const beatMs = grid.beatMs, barMs = grid.barMs;
+  const canAlt = opt.groups.length >= 2;
+  const pulseBpm = Math.round(Math.max(20, Math.min(300, A.bpm)));
+  const allIds = opt.groups.map(function (g) { return g.id; });
+  const wanted = function (i) { return !onlySections || onlySections.indexOf(i) !== -1; };
+  const onsetOf = function (s) { return (s.features && s.features.onset) || 0; };
+  const meanOnset = A.sections.reduce(function (m, s) { return m + onsetOf(s); }, 0) / A.sections.length;
+  const at = function (t) { return fmtMMSS(t); };
+  const cap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+
+  /* pull a tile start onto the strongest bass beat within a bar of it */
+  const bassPull = function (t, windowMs) {
+    let best = null;
+    for (let i = 0; i < A.beats.length; i++) {
+      const b = A.beats[i];
+      if (Math.abs(b.t - t) > windowMs) continue;
+      if (!best || b.low > best.low + 0.02) best = b;
+    }
+    return best && best.low > 0.35 ? best.t : t;
+  };
+
+  /* lay one pattern down repeatedly across [from, to) */
+  const tileAcross = function (from, to, blockMs, minBlockMs, make, anchors, tier, baseValue, si, wantText, maxTiles) {
+    let t = from, k = 0;
+    const out = [];
+    while (k < (maxTiles || 6) && t + minBlockMs <= to + 0.5) {
+      const dur = Math.min(blockMs, to - t);
+      if (dur < minBlockMs) break;
+      const cand = make(k, Math.round(t), Math.round(dur), to);
+      if (!cand) break;
+      cand.section = si;
+      cand.want = wantText(k, Math.round(t));
+      cand.value = baseValue - 0.03 * k;
+      (k === 0 ? anchors : out).push(cand);
+      const gap = chRestNeed(opt, cand.cue.type === "pulse" ? 0 : (cand.cue.type === "alternate" ? cand.cue.periodMs : dur));
+      t = grid.beatAtOrAfter(t + dur + gap);
+      k++;
+    }
+    out.forEach(function (c) { fillers.push(c); });
+    return out.length + 1;
+  };
+
+  A.sections.forEach(function (sec, si) {
+    if (!wanted(si)) return;
+    const s0 = Math.max(0, grid.barAtOrAfter(sec.startMs));
+    const endLimit = Math.min(sec.endMs, A.durationMs);
+    const room = endLimit - s0;
+    if (room < beatMs * 2) return;
+    const lab = sec.label;
+    const tag = cap(lab) + " " + (si + 1);
+
+    if (lab === "drop") {
+      const block = Math.min(opt.maxBurnMs, grid.quantBeats(Math.max(4 * beatMs, Math.min(room * 0.35, 4 * barMs)), 2));
+      tileAcross(s0, endLimit, block, Math.min(block, grid.quantBeats(2 * beatMs, 2)), function (k, t, dur, to) {
+        const tt = k === 0 ? t : Math.min(bassPull(t, barMs), to - dur);
+        return _chCand(_chCue(tt, dur, "burn", ["all"], tag + " — ALL burn" + (k ? " " + (k + 1) : "")), 0.95,
+          si, "", { shrinkToMs: 2 * beatMs, snapUnit: beatMs, shiftMaxMs: 2 * barMs, maxEndMs: to });
+      }, t0, 0, 0.95, si, function (k, t) { return "an ALL burn on the drop at " + at(t); }, 5);
+
+    } else if (lab === "chorus") {
+      const block = grid.quantBeats(Math.min(room, 8 * barMs), opt.beatsPerBar);
+      tileAcross(s0, endLimit, block, grid.quantBeats(2 * barMs, 2), function (k, t, dur, to) {
+        return _chCand(_chCue(t, dur, "pulse", ["all"], tag + " — ALL pulse" + (k ? " " + (k + 1) : ""), { bpm: pulseBpm }), 0.8,
+          si, "", { shrinkToMs: grid.quantBeats(2 * barMs, 2), snapUnit: barMs, shiftMaxMs: 2 * barMs, maxEndMs: to });
+      }, t1, 1, 0.8, si, function (k, t) { return "an ALL pulse across the chorus at " + at(t); }, 5);
+      const punchT = grid.barAtOrBefore(endLimit - 2 * beatMs);
+      if (punchT > s0) {
+        fillers.push(_chCand(_chCue(punchT, grid.quantBeats(2 * beatMs, 1), "burn", ["all"], tag + " — ALL punch"),
+          0.62, si, "an ALL punch closing the chorus at " + at(punchT),
+          { shrinkToMs: opt.minCueMs, snapUnit: beatMs, maxEndMs: endLimit }));
+      }
+
+    } else if (lab === "verse") {
+      if (canAlt) {
+        const beatsPerLeg = onsetOf(sec) >= meanOnset ? 1 : 2;
+        const period = Math.max(opt.minPeriodMs, Math.min(opt.maxBurnMs, grid.quantBeats(beatsPerLeg * beatMs, 1)));
+        const block = Math.min(8 * barMs, Math.max(4 * period, Math.floor(room / period) * period));
+        tileAcross(s0, endLimit, block, 2 * period, function (k, t, dur, to) {
+          const legs = Math.max(2, Math.floor(dur / period));
+          return _chCand(_chCue(t, legs * period, "alternate", allIds, tag + " — ping-pong" + (k ? " " + (k + 1) : ""), { periodMs: Math.round(period) }), 0.6,
+            si, "", { shrinkToMs: 2 * period, snapUnit: period, shiftMaxMs: 2 * barMs, maxEndMs: to });
+        }, t2, 2, 0.6, si, function (k, t) { return "a ping-pong across the verse at " + at(t); }, 5);
+      }
+      _chTopBeats(A, sec, "strength", Math.max(opt.minRestMs, 4 * barMs), 3).forEach(function (b) {
+        fillers.push(_chCand(_chCue(b.t, grid.quantBeats(2 * beatMs, 1), "burn", null, tag + " — accent"),
+          0.42 + 0.1 * b.strength, si, "a single-group accent at " + at(b.t),
+          { shrinkToMs: opt.minCueMs, snapUnit: beatMs, maxEndMs: endLimit }, true));
+      });
+
+    } else if (lab === "build") {
+      // accelerating wave: the tightest one lands at the end of the build (the
+      // musical point of a build), the looser earlier ones are optional.
+      const periods = [2 * beatMs, beatMs, beatMs / 2]
+        .map(function (p) { return Math.max(opt.minPeriodMs, Math.round(p)); })
+        .filter(function (p, i, arr) { return arr.indexOf(p) === i && p <= opt.maxBurnMs; });
+      const fast = periods[periods.length - 1];
+      if (canAlt) {
+        const wDur = Math.min(room, Math.max(4 * fast, grid.quantBeats(2 * barMs, 2)));
+        const wStart = Math.max(s0, grid.barAtOrBefore(endLimit - wDur));
+        t2.push(_chCand(_chCue(wStart, Math.min(wDur, endLimit - wStart), "alternate", allIds, tag + " — closing wave", { periodMs: fast }),
+          0.65, si, "the closing wave of the build at " + at(wStart),
+          { shrinkToMs: 2 * fast, snapUnit: fast, shiftMaxMs: barMs, maxEndMs: endLimit }));
+        let wt = s0;
+        for (let k = 0; k < periods.length - 1 && wt < wStart; k++) {
+          const p = periods[k];
+          const du = Math.min(2 * barMs, wStart - wt);
+          if (du >= 2 * p) {
+            fillers.push(_chCand(_chCue(wt, du, "alternate", allIds, tag + " — wave " + (k + 1), { periodMs: p }),
+              0.58 - 0.02 * k, si, "an earlier wave in the build at " + at(wt),
+              { shrinkToMs: 2 * p, snapUnit: p, maxEndMs: wStart }));
+          }
+          wt = grid.beatAtOrAfter(wt + du + chRestNeed(opt, p));
+        }
+      } else {
+        _chTopBeats(A, sec, "strength", Math.max(opt.minRestMs, 2 * barMs), 4).forEach(function (b) {
+          fillers.push(_chCand(_chCue(b.t, grid.quantBeats(beatMs, 1), "burn", null, tag + " — accent"),
+            0.55, si, "a build accent at " + at(b.t), { shrinkToMs: opt.minCueMs, snapUnit: beatMs, maxEndMs: endLimit }, true));
+        });
+      }
+
+    } else {
+      // intro / outro / breakdown: rest, or sparse single-group accents
+      const n = Math.max(1, Math.min(lab === "breakdown" ? 4 : 3, Math.floor(room / 20000) + 1));
+      _chTopBeats(A, sec, "strength", Math.max(opt.minRestMs, 4 * barMs), n).forEach(function (b) {
+        fillers.push(_chCand(_chCue(b.t, grid.quantBeats(2 * beatMs, 1), "burn", null, tag + " — accent"),
+          0.30 + 0.12 * b.strength, si, "a sparse accent at " + at(b.t),
+          { shrinkToMs: opt.minCueMs, snapUnit: beatMs, maxEndMs: endLimit }, true));
+      });
+    }
+  });
+
+  // FINALE — an all-burn to end on, when the track actually ends hot
+  const last = A.sections[A.sections.length - 1];
+  if (wanted(A.sections.length - 1) && (last.energy >= 0.5 || last.label === "drop" || last.label === "chorus")) {
+    const endT = grid.barAtOrBefore(A.durationMs - 1000);
+    const dur = Math.min(opt.maxBurnMs, grid.quantBeats(Math.min(8 * barMs, (endT - last.startMs) * 0.8), 2));
+    const st = endT - dur;
+    if (dur >= 2 * beatMs && st > last.startMs && st >= 0) {
+      t0.push(_chCand(_chCue(st, dur, "burn", ["all"], "FINALE — all burn"), 1,
+        A.sections.length - 1, "the finale all-burn at " + fmtMMSS(st),
+        { shrinkToMs: 2 * beatMs, snapUnit: beatMs, maxEndMs: A.durationMs }));
+    }
+  }
+
+  const byTime = function (a, b) { return (a.cue.t - b.cue.t) || (a.value - b.value); };
+  t0.sort(byTime); t1.sort(byTime); t2.sort(byTime);
+  fillers.sort(function (a, b) { return (b.value - a.value) || (a.cue.t - b.cue.t) || (a.cue.label < b.cue.label ? -1 : 1); });
+  return { anchors: t0.concat(t1).concat(t2), fillers: fillers };
+}
+
+/* ---- placement with a retry ladder -------------------------------------- */
+function _chVariants(cand, opt) {
+  const base = cand.cue, f = cand.flex, out = [base];
+  const unit = Math.max(50, Math.round(f.snapUnit || 250));
+  if (f.shrinkToMs != null) {
+    for (let d = base.dur - unit; d >= f.shrinkToMs - 0.5 && out.length < 24; d -= unit) {
+      out.push(Object.assign({}, base, { dur: Math.round(d) }));
+    }
+  }
+  if (f.shiftMaxMs) {
+    const floorMs = f.shrinkToMs != null ? f.shrinkToMs : opt.minCueMs;
+    const steps = Math.min(12, Math.floor(f.shiftMaxMs / unit));
+    for (let k = 1; k <= steps; k++) {
+      const t = Math.round(base.t + k * unit);
+      let dur = base.dur;
+      if (f.maxEndMs != null && t + dur > f.maxEndMs) dur = Math.round(f.maxEndMs - t);
+      if (dur >= floorMs) out.push(Object.assign({}, base, { t: t, dur: dur }));
+      // and the same slot at its shortest — a burn under longBurnMs needs a lot
+      // less clear air in front of it, so shrinking often buys a place to land
+      if (dur > floorMs) out.push(Object.assign({}, base, { t: t, dur: Math.round(floorMs) }));
+    }
+  }
+  return out.filter(function (c) { return c.dur > 0 && (cand.flex.maxEndMs == null || c.t + c.dur <= cand.flex.maxEndMs + 0.5); });
+}
+
+function _chReason(issues) {
+  if (!issues || !issues.length) return "no room left in the timeline";
+  const order = { overlap: 0, rest: 1, runway: 2, maxburn: 3, budget: 4, bounds: 5 };
+  const s = issues.slice().sort(function (a, b) { return (order[a.code] || 9) - (order[b.code] || 9); });
+  return s[0].text;
+}
+
+function _chPlace(sched, cand, opt, adv) {
+  const variants = _chVariants(cand, opt);
+  const groupSets = cand.pickGroup ? sched.groupsByLoad().map(function (g) { return [g]; }) : [null];
+  let last = null;
+  for (let gi = 0; gi < groupSets.length; gi++) {
+    for (let vi = 0; vi < variants.length; vi++) {
+      const cue = groupSets[gi] ? Object.assign({}, variants[vi], { groups: groupSets[gi] }) : variants[vi];
+      const r = sched.add(cue);
+      if (r.ok) return r.cue;
+      last = r.issues;
+    }
+  }
+  adv.push({
+    tMs: cand.cue.t, sectionIndex: cand.section, wanted: cand.want, reason: _chReason(last),
+    text: "wanted " + cand.want + " — skipped: " + _chReason(last)
+  });
+  return null;
+}
+
+/* ---- fairness ----------------------------------------------------------- */
+function _chFairness(sched, A, opt, grid, adv) {
+  if (opt.groups.length < 2 || opt.fairness <= 0) return;
+  const beatsByStrength = A.beats.slice().sort(function (a, b) { return (b.strength - a.strength) || (a.t - b.t); });
+  let guard = 0;
+  while (guard++ < 120) {
+    const bal = sched.balance();
+    if (bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9) return;
+    let added = null;
+    for (let i = 0; i < beatsByStrength.length; i++) {
+      const b = beatsByStrength[i];
+      const cue = _chCue(b.t, grid.quantBeats(2 * grid.beatMs, 1), "burn", [bal.weakest], "Balance accent");
+      if (cue.t + cue.dur > A.durationMs) continue;
+      const r = sched.add(cue);
+      if (r.ok) { added = r.cue; break; }
+    }
+    if (added) continue;
+    const victims = sched.singleGroupCuesOf(bal.strongest);
+    if (!victims.length) {
+      adv.push({ tMs: 0, sectionIndex: -1, wanted: "even burn time across groups",
+        reason: "could not balance the groups any further", text: "groups are uneven (" + Math.round(bal.ratio * 100) + "% vs the busiest) and there is no room left to even them up" });
+      return;
+    }
+    const v = victims[victims.length - 1];
+    sched.removeById(v._id);
+    adv.push({ tMs: v.t, sectionIndex: -1, wanted: "“" + v.label + "” at " + fmtMMSS(v.t),
+      reason: "dropped to keep every group within " + Math.round(opt.fairness * 100) + "% of the busiest",
+      text: "dropped “" + v.label + "” at " + fmtMMSS(v.t) + " — to keep every group within " + Math.round(opt.fairness * 100) + "% of the busiest" });
+  }
+}
+
+/* ---- show assembly ------------------------------------------------------ */
+function chStripCue(c) {
+  const o = { t: Math.round(c.t), dur: Math.round(c.dur), type: c.type, groups: c.groups.slice(), label: c.label };
+  if (c.type === "pulse") o.bpm = Math.round(c.bpm);
+  if (c.type === "alternate") o.periodMs = Math.round(c.periodMs);
+  if (c.vent === true) o.vent = true;
+  return o;
+}
+
+function chBuildShow(cues, opt, A) {
+  return {
+    format: SHOW_FORMAT,
+    title: opt.title || (opt.audioTitle ? opt.audioTitle + " — glow" : "Auto-choreographed glow"),
+    audio: { title: opt.audioTitle || "", durationMs: Math.round(A.durationMs) },
+    groups: opt.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; }),
+    defaults: { getReadyMs: Math.round(opt.getReadyMs), ventWarnMs: Math.round(opt.ventWarnMs), longBurnMs: Math.round(opt.longBurnMs), stopMs: Math.round(opt.stopMs) },
+    cues: cues.slice().sort(function (a, b) { return (a.t - b.t) || (a.dur - b.dur); }).map(chStripCue)
+  };
+}
+
+/* Audit an arbitrary cue list against the same constraints — this is what the
+   editor calls after every drag so a broken cue can turn red with a reason. */
+function chAudit(cues, options, durationMs) {
+  const opt = chOptions(options);
+  const sched = chScheduler(opt, durationMs);
+  const recs = cues.map(function (c) { return sched.force(c); });
+  const perCue = recs.map(function (r) { return sched.issuesFor(r, r._id); });
+  const loads = sched.loads(), bal = sched.balance();
+  let blocking = 0, warnings = 0;
+  perCue.forEach(function (list) {
+    list.forEach(function (i) { if (i.severity === "block") blocking++; else warnings++; });
+  });
+  return { perCue: perCue, loads: loads, balance: bal, blocking: blocking, warnings: warnings,
+           fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9 };
+}
+
+/* ---- the entry point ---------------------------------------------------- */
+function choreograph(analysis, options) {
+  const opt = chOptions(options);
+  const A = chAnalysis(analysis, opt);
+  const grid = chGrid(A, opt);
+  const adv = [];
+  const sched = chScheduler(opt, A.durationMs);
+
+  (options && options.keepCues ? options.keepCues : []).forEach(function (c) { sched.force(c); });
+
+  const plan = chPlan(A, opt, grid, options && options.onlySections ? options.onlySections : null);
+  plan.anchors.forEach(function (c) { _chPlace(sched, c, opt, adv); });
+
+  // intensity = how deep into the (fixed, value-ordered) filler list we go.
+  const k = Math.round(opt.intensity * plan.fillers.length);
+  for (let i = 0; i < k; i++) _chPlace(sched, plan.fillers[i], opt, adv);
+
+  _chFairness(sched, A, opt, grid, adv);
+
+  // belt and braces: the show that leaves here always validates
+  let cues = sched.sorted();
+  let show = chBuildShow(cues, opt, A);
+  let res = validateShow(show);
+  let guard = 0;
+  while (!res.ok && guard++ < 8) {
+    const drop = {};
+    res.errors.forEach(function (e) {
+      const m = /cues\[(\d+)\]/.exec(e);
+      if (m) { drop[parseInt(m[1], 10)] = 1; return; }
+      const q = e.match(/“([^”]+)”/g) || e.match(/"([^"]+)"/g);
+      if (q && q.length) {
+        const lbl = q[q.length - 1].replace(/[“”"]/g, "");
+        show.cues.forEach(function (c, i) { if (c.label === lbl) drop[i] = 1; });
+      }
+    });
+    if (!Object.keys(drop).length) break;
+    Object.keys(drop).map(Number).sort(function (a, b) { return b - a; }).forEach(function (i) {
+      const c = show.cues[i];
+      if (!c) return;
+      adv.push({ tMs: c.t, sectionIndex: -1, wanted: "“" + c.label + "” at " + fmtMMSS(c.t),
+        reason: "removed by the final validation pass", text: "dropped “" + c.label + "” at " + fmtMMSS(c.t) + " — the validator rejected it (this is a bug worth reporting)" });
+      cues = cues.filter(function (x) { return !(x.t === c.t && x.label === c.label); });
+    });
+    show = chBuildShow(cues, opt, A);
+    res = validateShow(show);
+  }
+
+  const loads = sched.loads(), bal = sched.balance();
+  let totalCueMs = 0, totalBurnMs = 0;
+  show.cues.forEach(function (c) { totalCueMs += c.dur; });
+  Object.keys(loads).forEach(function (g) { totalBurnMs += loads[g]; });
+
+  return {
+    ok: res.ok, show: res.ok ? res.show : show, raw: show, errors: res.errors || [], warnings: res.warnings || [],
+    cues: show.cues, advisories: adv,
+    analysis: A, grid: { beatMs: grid.beatMs, barMs: grid.barMs, beatT0: grid.beatT0, barT0: grid.barT0 },
+    stats: {
+      placed: show.cues.length, dropped: adv.length, totalCueMs: totalCueMs, totalBurnMs: totalBurnMs,
+      perGroupBurnMs: loads, fairnessRatio: Math.round(bal.ratio * 1000) / 1000,
+      fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9,
+      intensity: opt.intensity, fillersOffered: plan.fillers.length, fillersTried: k
+    }
+  };
+}
+
+/* ############################################################################
+   >>>>>>>>>>>>>>>>>>>>>>>  CHOREOGRAPHER (PURE)  END  <<<<<<<<<<<<<<<<<<<<<<<<
+   ######################################################################### */
+
 
 
 /* ===== INLINE DEMO SHOW ====================================================
@@ -1523,7 +3042,7 @@ async function requestWakeLock() {
 /* ============================================================================
    ===== UI SHELL =====
    ========================================================================= */
-const SCREENS = ["role", "pilot-setup", "pilot-run", "cond-setup", "cond-run", "settings", "debug"];
+const SCREENS = ["role", "pilot-setup", "pilot-run", "cond-setup", "cond-run", "editor", "editor-work", "settings", "debug"];
 function screenNode(name) { return $("screen-" + name); }
 
 function go(name) {
@@ -1543,6 +3062,8 @@ function renderAll() {
   switch (APP.screen) {
     case "pilot-setup": renderPilotSetup(); break;
     case "cond-setup": renderCondSetup(); break;
+    case "editor": renderEditorSetup(); break;
+    case "editor-work": renderEditorWork(); break;
     case "settings": renderSettings(); break;
     case "debug": renderDebug(); break;
   }
@@ -2316,14 +3837,1316 @@ function renderDebug() {
 }
 
 /* ============================================================================
-   ===== EDITOR (stub — v2 seam) =====
-   A later agent adds the auto-choreographer + tweak editor here. It should
-   consume PURE CORE unchanged: generate a show object, run it through
-   validateShow(), then compileShow() and preview it with stateAt() — exactly
-   the path the pilot renderer uses, so what the editor previews is what the
-   pilots will see. Nothing above this line needs to change.
+   ===== AUDIO ANALYSIS (BROWSER) =====
+   The only browser-shaped half of the analysis: turn a File into mono PCM at
+   the analysis rate and hand it to the pure DSP above, with a progress
+   callback that yields to the event loop between chunks so the page never
+   freezes. No maths happens here — all of that is in the pure block, where
+   node can test it.
    ========================================================================= */
-const EDITOR = { available: false };
+/* Yield to the event loop between analysis chunks. setTimeout(0) is clamped to
+   4 ms in a foreground tab and to a full SECOND in a background one, which
+   turned a 3-second analysis into a 17-second one when the tab was not on top;
+   a MessageChannel task is neither clamped nor throttled and still lets the
+   browser paint the progress bar. */
+let _edChan = null;
+function edYield() {
+  if (typeof MessageChannel === "function") {
+    return new Promise(function (r) {
+      if (!_edChan) _edChan = new MessageChannel();
+      _edChan.port1.onmessage = function () { r(); };
+      _edChan.port2.postMessage(0);
+    });
+  }
+  return new Promise(function (r) { setTimeout(r, 0); });
+}
+
+async function edDecodeFile(file, onStage) {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error("This browser has no Web Audio support.");
+  if (!ED.audio.ctx) ED.audio.ctx = new AC();
+  const bytes = await file.arrayBuffer();
+  await onStage(0.04, "decoding " + file.name);
+  const playBuf = await new Promise(function (res, rej) {
+    let p;
+    try { p = ED.audio.ctx.decodeAudioData(bytes.slice(0), res, rej); } catch (e) { rej(e); return; }
+    if (p && p.then) p.then(res, rej);
+  });
+  await onStage(0.14, "mixing down for analysis");
+  const mono = await edMixToMono(playBuf, AN_DEFAULTS.targetRate);
+  return { playBuf: playBuf, pcm: mono.pcm, rate: mono.rate };
+}
+
+/* Mono + resampled to the analysis rate. Rendering through an
+   OfflineAudioContext uses the browser's real resampler; if the browser will
+   not build one at that rate we fall back to a plain channel average at the
+   file's own rate (everything downstream works off `fps`, so it adapts). */
+async function edMixToMono(buf, rate) {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (OAC) {
+    try {
+      const len = Math.max(1, Math.ceil(buf.duration * rate));
+      const ctx = new OAC(1, len, rate);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      const out = await new Promise(function (res, rej) {
+        let p;
+        try { p = ctx.startRendering(); } catch (e) { rej(e); return; }
+        if (p && p.then) p.then(res, rej);
+        else ctx.oncomplete = function (e) { res(e.renderedBuffer); };
+      });
+      return { pcm: out.getChannelData(0), rate: rate };
+    } catch (e) { /* fall through */ }
+  }
+  const n = buf.length, ch = Math.max(1, buf.numberOfChannels), pcm = new Float32Array(n);
+  for (let c = 0; c < ch; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < n; i++) pcm[i] += d[i] / ch;
+  }
+  return { pcm: pcm, rate: buf.sampleRate };
+}
+
+/* ============================================================================
+   ===== UI: EDITOR =====
+   Song in -> analysis -> auto-choreography -> tweak -> export. The editor only
+   ever produces a `glow-show/1` object that goes through the same
+   validateShow() / compileShow() / stateAt() path the pilots run, so what the
+   preview shows is literally what the phones will show.
+   ========================================================================= */
+const EDITOR = { available: true };
+
+const ED_SECTION_COLORS = {
+  intro: "#243044", verse: "#1d4ed8", build: "#a35a00", chorus: "#8a1e5c",
+  drop: "#b3261e", breakdown: "#0f4b53", outro: "#3a2a55"
+};
+const ED_GROUP_COLORS = ["#00c8ff", "#ff3ea5", "#ffd400", "#3ff094", "#ff8b3d", "#b57bff", "#7dd3fc", "#f472b6"];
+const ED_SLIDERS = [
+  { k: "intensity",    label: "Density",                 min: 0,     max: 1,      step: 0.05, pct: true },
+  { k: "maxBurnMs",    label: "Longest single burn",     min: 2000,  max: 20000,  step: 500 },
+  { k: "minRestMs",    label: "Rest between a group's cues", min: 0, max: 20000,  step: 500 },
+  { k: "burnBudgetMs", label: "Burn budget per group",   min: 10000, max: 300000, step: 5000 },
+  { k: "longBurnMs",   label: "Counts as a LONG burn",   min: 1000,  max: 20000,  step: 500 },
+  { k: "ventLeadMs",   label: "Clear air before a long burn", min: 0, max: 20000, step: 500 },
+  { k: "getReadyMs",   label: "GET READY countdown",     min: 0,     max: 15000,  step: 500 },
+  { k: "ventWarnMs",   label: "VENT warning lead",       min: 0,     max: 60000,  step: 1000 },
+  { k: "stopMs",       label: "STOP window after a cue", min: 0,     max: 10000,  step: 500 }
+];
+const EDG = { secH: 22, rulerH: 16, waveH: 60, laneH: 30, laneGap: 4, pad: 6, edge: 10 };
+
+const ED = {
+  ready: false,          // a project (generated or imported) exists
+  fileName: "",
+  title: "",
+  audioTitle: "",
+  durationMs: 0,
+  summary: null,         // analysisSummary — JSON-safe, persisted
+  options: null,
+  groups: null,
+  cues: [],
+  advisories: [],
+  audit: null,           // chAudit() result: per-cue issues + group loads
+  valid: null,           // last validateShow() result for the edited cue list
+  tl: null,              // compiled timeline for the preview (null when invalid)
+  sel: null,             // { kind: "cue"|"section", i }
+  view: { t0: 0, msPerPx: 60 },
+  playheadMs: 0,
+  busy: false,
+  drag: null,
+  hits: [],
+  fitted: false,         // has the view been fitted to this project yet
+  play: { on: false, anchorMs: 0, anchorCtx: 0, anchorPerf: 0, withAudio: false },
+  audio: { ctx: null, buf: null, src: null, name: "" },
+  mirrorSig: ""
+};
+
+function edDefaultOptions() {
+  const o = {};
+  ["maxBurnMs", "minRestMs", "burnBudgetMs", "intensity", "getReadyMs", "ventWarnMs",
+   "longBurnMs", "stopMs", "ventLeadMs", "beatsPerBar"].forEach(function (k) { o[k] = CH_DEFAULTS[k]; });
+  return o;
+}
+function edOpt(extra) {
+  return Object.assign({}, ED.options || edDefaultOptions(), {
+    groups: ED.groups || CH_DEFAULTS.groups.slice(),
+    title: ED.title, audioTitle: ED.audioTitle
+  }, extra || {});
+}
+function edMs(v) {
+  if (v >= 10000) return (Math.round(v / 100) / 10) + "s";
+  if (v >= 1000) return (Math.round(v / 100) / 10) + "s";
+  return Math.round(v) + "ms";
+}
+function edBeatMs() { return 60000 / ((ED.summary && ED.summary.bpm) || 120); }
+function edBeatT0() { return (ED.summary && ED.summary.beatOffsetMs) || 0; }
+function edHasGrid() { return !!(ED.summary && ED.summary.bpm); }
+function edSnap(t) {
+  if (!edHasGrid()) return Math.round(t / 50) * 50;
+  const b = edBeatMs(), t0 = edBeatT0();
+  return Math.round(t0 + Math.round((t - t0) / b) * b);
+}
+function edSections() { return (ED.summary && ED.summary.sections) || []; }
+
+/* ---- setup screen -------------------------------------------------------- */
+function edEnter() {
+  if (!ED.options) ED.options = edDefaultOptions();
+  if (!ED.groups) ED.groups = CH_DEFAULTS.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; });
+  go("editor");
+}
+
+function edSetProgress(frac, label) {
+  const w = $("e-progwrap");
+  if (w) w.classList.remove("hidden");
+  const bar = $("e-prog");
+  if (bar) bar.style.width = Math.max(0, Math.min(100, frac * 100)) + "%";
+  setTxt($("e-progtext"), label || "");
+}
+
+function renderEditorSetup() {
+  // audio state
+  const as = $("e-audiostate");
+  clear(as);
+  if (ED.audio.buf) {
+    as.appendChild(el("div", null, ED.fileName + " — " + fmtMMSS(ED.audio.buf.duration * 1000)));
+    as.appendChild(el("span", "badge green", "SONG LOADED"));
+  } else if (ED.summary) {
+    as.appendChild(el("span", "badge yellow", "ANALYSIS RESTORED — reload the song file to hear it"));
+  } else {
+    as.appendChild(el("span", "badge grey", "No song yet"));
+  }
+
+  // analysis summary
+  const an = $("e-analysis");
+  clear(an);
+  if (!ED.summary) {
+    an.appendChild(el("div", null, "No song analysed yet. Pick an audio file above."));
+  } else {
+    const s = ED.summary;
+    const row = el("div", "row");
+    row.appendChild(el("span", "badge grey", Math.round(s.bpm) + " BPM"));
+    row.appendChild(el("span", "badge " + (s.beatConfidence > 0.4 ? "green" : "yellow"), "beat confidence " + Math.round(s.beatConfidence * 100) + "%"));
+    row.appendChild(el("span", "badge grey", fmtMMSS(s.durationMs)));
+    row.appendChild(el("span", "badge grey", s.sections.length + " sections"));
+    an.appendChild(row);
+    const half = el("div", "row");
+    half.style.marginTop = "8px";
+    [["HALVE TEMPO", 0.5], ["DOUBLE TEMPO", 2]].forEach(function (p) {
+      const b = el("button", null, p[0]);
+      b.onclick = function () { edRetempo(p[1]); };
+      half.appendChild(b);
+    });
+    half.appendChild(el("span", "tiny", "Tempo is octave-ambiguous by nature — if the pulse feels half or double speed, fix it here."));
+    an.appendChild(half);
+    const list = el("div", "stack");
+    list.style.marginTop = "10px";
+    s.sections.forEach(function (sec, i) {
+      const r = el("div", "mrow");
+      const dot = el("span", "dot");
+      dot.style.setProperty("--g", ED_SECTION_COLORS[sec.label] || "#666");
+      r.appendChild(dot);
+      r.appendChild(el("span", "mname", fmtMMSS(sec.startMs) + "  " + sec.label.toUpperCase()));
+      r.appendChild(el("span", "tiny", "energy " + Math.round(sec.energy * 100) + "% · confidence " + Math.round(sec.confidence * 100) + "%"));
+      list.appendChild(r);
+    });
+    an.appendChild(list);
+  }
+
+  // groups
+  const gb = $("e-groups");
+  clear(gb);
+  ED.groups.forEach(function (g, i) {
+    const row = el("div", "edrow");
+    const col = el("input");
+    col.type = "color"; col.className = "edcolor"; col.value = g.color;
+    col.oninput = function () { g.color = col.value; edSave(); };
+    const lab = el("input");
+    lab.type = "text"; lab.className = "grow"; lab.value = g.label;
+    lab.oninput = function () { g.label = lab.value || ("GROUP " + (i + 1)); edSave(); };
+    row.appendChild(col); row.appendChild(lab);
+    if (ED.groups.length > 1) {
+      const rm = el("button", null, "✕");
+      rm.onclick = function () { ED.groups.splice(i, 1); edFixCueGroups(); renderEditorSetup(); edSave(); };
+      row.appendChild(rm);
+    }
+    gb.appendChild(row);
+  });
+  if (ED.groups.length < 8) {
+    const add = el("button", "wide", "+ ADD A GROUP");
+    add.onclick = function () {
+      const n = ED.groups.length + 1;
+      ED.groups.push({ id: "g" + n, label: "GROUP " + n, color: ED_GROUP_COLORS[(n - 1) % ED_GROUP_COLORS.length] });
+      renderEditorSetup(); edSave();
+    };
+    gb.appendChild(add);
+  }
+  gb.appendChild(el("div", "tiny", "Groups are the rows of balloons on the field. The briefing tells each pilot which one they are in."));
+
+  // sliders
+  const ob = $("e-options");
+  clear(ob);
+  ED_SLIDERS.forEach(function (sp) {
+    const wrap = el("label", "edfld");
+    const head = el("span", null, sp.label);
+    const val = el("b", null, "");
+    head.appendChild(val);
+    const inp = el("input");
+    inp.type = "range"; inp.min = String(sp.min); inp.max = String(sp.max); inp.step = String(sp.step);
+    inp.value = String(ED.options[sp.k]);
+    const show = function () { val.textContent = sp.pct ? Math.round(ED.options[sp.k] * 100) + "%" : edMs(ED.options[sp.k]); };
+    inp.oninput = function () {
+      ED.options[sp.k] = parseFloat(inp.value);
+      show();
+      if (ED.ready) { edRevalidate(); edSave(); }
+    };
+    show();
+    wrap.appendChild(head); wrap.appendChild(inp);
+    ob.appendChild(wrap);
+  });
+
+  const gs = $("e-genstate");
+  clear(gs);
+  if (ED.ready) {
+    gs.appendChild(el("span", "badge green", ED.cues.length + " cues · " + fmtMMSS(ED.durationMs)));
+    if (ED.advisories.length) gs.appendChild(el("div", "tiny", ED.advisories.length + " thing(s) it wanted to do but couldn't — listed in the editor."));
+  } else if (ED.summary) {
+    gs.appendChild(el("span", "badge yellow", "Analysed — press generate."));
+  }
+}
+
+async function edPickAudio(file) {
+  if (!file || ED.busy) return;
+  ED.busy = true;
+  edSetProgress(0.01, "reading the file");
+  try {
+    const dec = await edDecodeFile(file, async function (f, l) { edSetProgress(f, l); await edYield(); });
+    ED.audio.buf = dec.playBuf;
+    ED.fileName = file.name;
+    ED.audio.name = file.name;
+    if (!ED.title) ED.title = file.name.replace(/\.[a-z0-9]+$/i, "") + " — glow";
+    ED.audioTitle = file.name;
+    const analysis = await analyzePCM(dec.pcm, dec.rate, {
+      onProgress: async function (frac, label) {
+        edSetProgress(0.18 + 0.8 * frac, "analysing — " + label);
+        await edYield();
+      }
+    });
+    ED.summary = analysisSummary(analysis);
+    ED.durationMs = ED.summary.durationMs;
+    edSetProgress(1, "done — " + Math.round(ED.summary.bpm) + " BPM, " + ED.summary.sections.length + " sections");
+    edGenerate();
+  } catch (e) {
+    edSetProgress(0, "");
+    $("e-progwrap").classList.add("hidden");
+    showFatal("COULD NOT ANALYSE THAT FILE", file.name, [String((e && e.message) || e), "Try a plain .mp3, .m4a or .wav."]);
+  }
+  ED.busy = false;
+  renderEditorSetup();
+}
+
+function edRetempo(mult) {
+  if (!ED.summary) return;
+  const s = ED.summary;
+  const bpm = Math.max(20, Math.min(300, s.bpm * mult));
+  if (bpm === s.bpm) return;
+  s.bpm = Math.round(bpm * 100) / 100;
+  const beatMs = 60000 / s.bpm;
+  s.beatOffsetMs = s.beatOffsetMs % beatMs;
+  const beats = [];
+  for (let t = s.beatOffsetMs, k = 0; t <= s.durationMs && k < 40000; t += beatMs, k++) {
+    beats.push({ t: Math.round(t), strength: 0.6, low: 0.6 });
+  }
+  s.beats = beats;
+  renderEditorSetup();
+  edSave();
+}
+
+function edGenerate(onlySections) {
+  if (!ED.summary) { showFatal("NO SONG ANALYSED", "", ["Pick an audio file first, or import an existing show."]); return; }
+  const opts = edOpt();
+  if (onlySections && onlySections.length) {
+    const sec = edSections()[onlySections[0]];
+    opts.onlySections = onlySections;
+    opts.keepCues = ED.cues.filter(function (c) { return !(c.t >= sec.startMs && c.t < sec.endMs); });
+  }
+  const r = choreograph(ED.summary, opts);
+  ED.cues = r.cues.map(function (c) { return Object.assign({}, c); });
+  ED.advisories = r.advisories;
+  ED.durationMs = r.show.audio.durationMs;
+  ED.title = r.show.title;
+  ED.ready = true;
+  ED.sel = null;
+  edRevalidate();
+  edFit();
+  edSave();
+  if (APP.screen === "editor") renderEditorSetup();
+  if (APP.screen === "editor-work") renderEditorWork();
+}
+
+function edFixCueGroups() {
+  const ids = ED.groups.map(function (g) { return g.id; });
+  ED.cues = ED.cues.filter(function (c) {
+    if (c.groups.some(function (g) { return String(g).toLowerCase() === "all"; })) return true;
+    c.groups = c.groups.filter(function (g) { return ids.indexOf(g) !== -1; });
+    if (c.type === "alternate" && c.groups.length < 2) c.type = "burn";
+    return c.groups.length > 0;
+  });
+  edRevalidate();
+}
+
+/* ---- show assembly / validation ----------------------------------------- */
+function edShowObject() {
+  const o = chOptions(edOpt());
+  const A = { durationMs: ED.durationMs || 1000 };
+  return chBuildShow(ED.cues, o, A);
+}
+function edRevalidate() {
+  const show = edShowObject();
+  const v = validateShow(show);
+  ED.audit = chAudit(ED.cues, edOpt(), ED.durationMs || 1000);
+  ED.tl = v.ok ? compileShow(v.show) : null;
+  ED.valid = v;
+  return v;
+}
+
+/* ---- workspace ----------------------------------------------------------- */
+function edOpenWork() {
+  if (!ED.ready) { showFatal("NOTHING TO EDIT YET", "", ["Analyse a song and generate a show, or import one."]); return; }
+  go("editor-work");
+}
+
+function edLanes() {
+  return [{ id: "all", label: "ALL", color: "#ffffff" }].concat(ED.groups || []);
+}
+function edGeom() {
+  const wrap = $("ew-canvaswrap");
+  const w = Math.max(300, (wrap && wrap.clientWidth) || 640);
+  const lanes = edLanes();
+  const laneTop = EDG.secH + EDG.rulerH + EDG.waveH;
+  return {
+    w: w, lanes: lanes, laneTop: laneTop,
+    h: laneTop + lanes.length * (EDG.laneH + EDG.laneGap) + EDG.pad,
+    laneY: function (i) { return laneTop + i * (EDG.laneH + EDG.laneGap); }
+  };
+}
+function edX(t) { return (t - ED.view.t0) / ED.view.msPerPx; }
+function edT(x) { return ED.view.t0 + x * ED.view.msPerPx; }
+function edFit() {
+  const g = edGeom();
+  ED.view.msPerPx = Math.max(1, (ED.durationMs || 1000) / g.w);
+  ED.view.t0 = 0;
+  ED.fitted = true;
+}
+function edClampView() {
+  const g = edGeom();
+  const span = g.w * ED.view.msPerPx;
+  ED.view.msPerPx = Math.max(2, Math.min((ED.durationMs || 1000) / g.w, ED.view.msPerPx));
+  ED.view.t0 = Math.max(0, Math.min(Math.max(0, (ED.durationMs || 1000) - span), ED.view.t0));
+}
+function edZoom(factor, aroundT) {
+  const at = aroundT === undefined ? edT(edGeom().w / 2) : aroundT;
+  const before = edX(at);
+  ED.view.msPerPx = Math.max(2, ED.view.msPerPx * factor);
+  ED.view.t0 = at - before * ED.view.msPerPx;
+  edClampView();
+  edDraw();
+}
+
+function renderEditorWork() {
+  if (!ED.ready) { go("editor"); return; }
+  if (!ED.fitted) edFit();      // a project restored from storage opens fitted
+  setTxt($("ew-title"), ED.title);
+  edRevalidate();
+  edDraw();
+  edRenderInspector();
+  edRenderProblems();
+  edRenderAdvisories();
+  edRenderMirror(true);
+  setTxt($("ew-hint"), "Tap a cue to edit it · drag it to move · drag an edge to stretch · tap empty lane space to add a burn · tap a coloured section band to relabel or regenerate it · drag the waveform to scrub, drag the ruler strip to pan.");
+}
+
+function edStateBadge() {
+  const b = $("ew-state");
+  if (!b) return;
+  const bad = ED.audit ? ED.audit.blocking : 0;
+  const warn = ED.audit ? ED.audit.warnings : 0;
+  b.className = "badge " + (bad ? "red" : warn ? "yellow" : "green");
+  b.textContent = bad ? bad + " PROBLEM" + (bad > 1 ? "S" : "") : (warn ? warn + " WARNING" + (warn > 1 ? "S" : "") : "READY TO EXPORT");
+}
+
+/* ---- drawing ------------------------------------------------------------- */
+function edDraw() {
+  const g = edGeom();
+  const cv = $("ew-canvas"), cur = $("ew-cursor");
+  if (!cv) return;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  [cv, cur].forEach(function (c) {
+    if (c.width !== Math.round(g.w * dpr) || c.height !== Math.round(g.h * dpr)) {
+      c.width = Math.round(g.w * dpr); c.height = Math.round(g.h * dpr);
+    }
+    c.style.height = g.h + "px";
+  });
+  const c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, g.w, g.h);
+  c.font = "600 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+  c.textBaseline = "middle";
+
+  edClampView();
+  const t0 = ED.view.t0, t1 = edT(g.w);
+
+  // --- section bands ---
+  const secs = edSections();
+  if (!secs.length) {
+    c.fillStyle = "#11151f";
+    c.fillRect(0, 0, g.w, EDG.secH);
+  }
+  secs.forEach(function (s, i) {
+    const x0 = Math.max(-2, edX(s.startMs)), x1 = Math.min(g.w + 2, edX(s.endMs));
+    if (x1 < 0 || x0 > g.w) return;
+    c.fillStyle = ED_SECTION_COLORS[s.label] || "#243044";
+    c.globalAlpha = (ED.sel && ED.sel.kind === "section" && ED.sel.i === i) ? 1 : 0.72;
+    c.fillRect(x0, 0, Math.max(1, x1 - x0), EDG.secH);
+    c.globalAlpha = 1;
+    c.fillStyle = "rgba(0,0,0,.45)";
+    c.fillRect(x1 - 1, 0, 1, EDG.secH);
+    if (x1 - x0 > 46) {
+      c.fillStyle = "#ffffff";
+      c.fillText(s.label.toUpperCase(), x0 + 6, EDG.secH / 2);
+    }
+    if (ED.sel && ED.sel.kind === "section" && ED.sel.i === i) {
+      c.strokeStyle = "#fff"; c.lineWidth = 2;
+      c.strokeRect(x0 + 1, 1, Math.max(2, x1 - x0 - 2), EDG.secH - 2);
+    }
+  });
+
+  // --- time ruler ---
+  c.fillStyle = "#0a0e16";
+  c.fillRect(0, EDG.secH, g.w, EDG.rulerH);
+  const steps = [1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000];
+  let step = steps[steps.length - 1];
+  for (let i = 0; i < steps.length; i++) { if (steps[i] / ED.view.msPerPx >= 64) { step = steps[i]; break; } }
+  c.fillStyle = "#7b869c";
+  for (let t = Math.floor(t0 / step) * step; t <= t1; t += step) {
+    const x = edX(t);
+    if (x < -30 || x > g.w) continue;
+    c.fillRect(x, EDG.secH, 1, EDG.rulerH);
+    c.fillText(fmtMMSS(t), x + 4, EDG.secH + EDG.rulerH / 2);
+  }
+
+  // --- waveform + beat grid ---
+  const wy = EDG.secH + EDG.rulerH, wh = EDG.waveH;
+  c.fillStyle = "#070a12";
+  c.fillRect(0, wy, g.w, wh);
+  const wave = ED.summary && ED.summary.wave;
+  if (wave && wave.length) {
+    c.fillStyle = "#2a5f8a";
+    for (let x = 0; x < g.w; x++) {
+      const t = edT(x);
+      if (t < 0 || t > ED.durationMs) continue;
+      const v = wave[Math.min(wave.length - 1, Math.max(0, Math.floor(t / ED.durationMs * wave.length)))] || 0;
+      const hh = Math.max(1, v * (wh - 6));
+      c.fillRect(x, wy + wh / 2 - hh / 2, 1, hh);
+    }
+  } else {
+    c.fillStyle = "#1c2434";
+    c.fillRect(0, wy + wh / 2, g.w, 1);
+    c.fillStyle = "#5b6479";
+    c.fillText("no song loaded — cues snap to a plain grid", 8, wy + wh / 2 - 12);
+  }
+  if (edHasGrid()) {
+    const beat = edBeatMs(), bt0 = edBeatT0(), bar = beat * (ED.options.beatsPerBar || 4);
+    if (beat / ED.view.msPerPx >= 5) {
+      c.fillStyle = "rgba(255,255,255,.13)";
+      for (let t = bt0 + Math.floor((t0 - bt0) / beat) * beat; t <= t1; t += beat) {
+        const x = edX(t);
+        if (x >= 0 && x <= g.w) c.fillRect(x, wy + wh - 12, 1, 12);
+      }
+    }
+    if (bar / ED.view.msPerPx >= 10) {
+      c.fillStyle = "rgba(255,255,255,.32)";
+      for (let t = bt0 + Math.floor((t0 - bt0) / bar) * bar; t <= t1; t += bar) {
+        const x = edX(t);
+        if (x >= 0 && x <= g.w) c.fillRect(x, wy, 1, wh);
+      }
+    }
+  }
+
+  // --- lanes ---
+  ED.hits = [];
+  const lanes = g.lanes;
+  lanes.forEach(function (ln, i) {
+    const y = g.laneY(i);
+    c.fillStyle = i === 0 ? "#12161f" : "#0d1119";
+    c.fillRect(0, y, g.w, EDG.laneH);
+    c.fillStyle = "rgba(255,255,255,.06)";
+    c.fillRect(0, y + EDG.laneH, g.w, 1);
+  });
+
+  const laneIndexOf = function (gid) {
+    for (let i = 0; i < ED.groups.length; i++) if (ED.groups[i].id === gid) return i + 1;
+    return -1;
+  };
+  ED.cues.forEach(function (cue, ci) {
+    const issues = (ED.audit && ED.audit.perCue[ci]) || [];
+    const bad = issues.some(function (x) { return x.severity === "block"; });
+    const warn = !bad && issues.length > 0;
+    const isAll = cue.groups.some(function (x) { return String(x).toLowerCase() === "all"; });
+    const gids = isAll ? ED.groups.map(function (x) { return x.id; }) : cue.groups.slice();
+    const sel = ED.sel && ED.sel.kind === "cue" && ED.sel.i === ci;
+    const x0 = edX(cue.t), x1 = edX(cue.t + cue.dur);
+    if (x1 < -4 || x0 > g.w + 4) {
+      if (!isAll) return;
+    }
+
+    const paint = function (lane, a, b, color, alpha, striped) {
+      const y = g.laneY(lane) + 3, h = EDG.laneH - 6;
+      const xa = Math.max(-3, a), xb = Math.min(g.w + 3, b);
+      if (xb - xa < 0.5) return;
+      c.globalAlpha = alpha;
+      c.fillStyle = color;
+      c.fillRect(xa, y, Math.max(2, xb - xa), h);
+      c.globalAlpha = 1;
+      if (striped && edHasGrid()) {
+        const step = 60000 / (cue.bpm || ED.summary.bpm);
+        if (step / ED.view.msPerPx >= 3) {
+          c.fillStyle = "rgba(0,0,0,.55)";
+          for (let t = cue.t; t < cue.t + cue.dur; t += step) {
+            const x = edX(t + step / 2);
+            if (x > xa && x < xb) c.fillRect(x, y, Math.max(1, step / 2 / ED.view.msPerPx), h);
+          }
+        }
+      }
+      if (bad || warn) {
+        c.fillStyle = bad ? "#ff3b30" : "#ffc400";
+        c.fillRect(xa, y, Math.max(2, xb - xa), 3);
+      }
+      if (sel) {
+        c.strokeStyle = "#ffffff"; c.lineWidth = 2;
+        c.strokeRect(xa + 1, y + 1, Math.max(2, xb - xa - 2), h - 2);
+      } else if (bad) {
+        c.strokeStyle = "#ff3b30"; c.lineWidth = 1.5;
+        c.strokeRect(xa + 0.5, y + 0.5, Math.max(2, xb - xa - 1), h - 1);
+      }
+    };
+
+    if (isAll) {
+      paint(0, x0, x1, "#e8ecf4", 0.92, cue.type === "pulse");
+      ED.hits.push({ i: ci, x0: x0, x1: x1, y0: g.laneY(0), y1: g.laneY(0) + EDG.laneH });
+      ED.groups.forEach(function (gr, k) { paint(k + 1, x0, x1, gr.color, 0.22, false); });
+    } else if (cue.type === "alternate") {
+      const p = Math.max(1, cue.periodMs || 1);
+      let k = 0;
+      while (cue.t + k * p < cue.t + cue.dur && k < 4000) {
+        const s = cue.t + k * p, e = Math.min(s + p, cue.t + cue.dur);
+        const gid = gids[k % gids.length], lane = laneIndexOf(gid);
+        if (lane > 0) paint(lane, edX(s), edX(e), (ED.groups[lane - 1] || {}).color || "#888", 0.92, false);
+        k++;
+      }
+      gids.forEach(function (gid) {
+        const lane = laneIndexOf(gid);
+        if (lane < 0) return;
+        ED.hits.push({ i: ci, x0: x0, x1: x1, y0: g.laneY(lane), y1: g.laneY(lane) + EDG.laneH });
+      });
+    } else {
+      gids.forEach(function (gid) {
+        const lane = laneIndexOf(gid);
+        if (lane < 0) return;
+        paint(lane, x0, x1, (ED.groups[lane - 1] || {}).color || "#888", cue.type === "pulse" ? 0.55 : 0.92, cue.type === "pulse");
+        ED.hits.push({ i: ci, x0: x0, x1: x1, y0: g.laneY(lane), y1: g.laneY(lane) + EDG.laneH });
+      });
+    }
+
+    if (x1 - x0 > 54) {
+      c.fillStyle = "rgba(0,0,0,.8)";
+      const lane = isAll ? 0 : Math.max(0, laneIndexOf(gids[0]));
+      c.fillText(cue.label.slice(0, Math.floor((x1 - x0) / 6.4)), Math.max(2, x0) + 5, g.laneY(lane) + EDG.laneH / 2);
+    }
+  });
+
+  // lane names last, with a dark halo — a cue block must never swallow them
+  lanes.forEach(function (ln, i) {
+    const y = g.laneY(i) + EDG.laneH / 2;
+    const name = ln.label.split(" ")[0];
+    c.lineWidth = 3;
+    c.strokeStyle = "rgba(0,0,0,.85)";
+    c.strokeText(name, 6, y);
+    c.fillStyle = i === 0 ? "#e8ecf4" : ln.color;
+    c.fillText(name, 6, y);
+  });
+
+  edDrawCursor();
+  edStateBadge();
+}
+
+function edDrawCursor() {
+  const cur = $("ew-cursor");
+  if (!cur) return;
+  const g = edGeom();
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const c = cur.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, g.w, g.h);
+  const x = edX(ED.playheadMs);
+  if (x < -2 || x > g.w + 2) return;
+  c.fillStyle = "#ffffff";
+  c.fillRect(x - 0.5, 0, 1.5, g.h);
+  c.beginPath();
+  c.moveTo(x - 5, 0); c.lineTo(x + 5, 0); c.lineTo(x, 7); c.closePath();
+  c.fill();
+}
+
+/* ---- pointer interaction -------------------------------------------------- */
+function edLocal(ev) {
+  const cv = $("ew-canvas");
+  const r = cv.getBoundingClientRect();
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+function edHitCue(x, y) {
+  for (let i = ED.hits.length - 1; i >= 0; i--) {
+    const h = ED.hits[i];
+    if (x >= h.x0 - 3 && x <= h.x1 + 3 && y >= h.y0 && y <= h.y1) return h;
+  }
+  return null;
+}
+function edSectionAt(t) {
+  const secs = edSections();
+  for (let i = 0; i < secs.length; i++) if (t >= secs[i].startMs && t < secs[i].endMs) return i;
+  return -1;
+}
+
+function edPointerDown(ev) {
+  if (!ED.ready) return;
+  const p = edLocal(ev), g = edGeom();
+  ev.preventDefault();
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  ED.drag = { mode: "none", x: p.x, y: p.y, startX: p.x, startT: edT(p.x), t0: ED.view.t0, moved: false };
+
+  if (p.y < EDG.secH) {
+    ED.drag.mode = "section";
+    return;
+  }
+  if (p.y < EDG.secH + EDG.rulerH) { ED.drag.mode = "pan"; return; }
+  if (p.y < g.laneTop) { ED.drag.mode = "scrub"; edScrubTo(edT(p.x)); return; }
+
+  const hit = edHitCue(p.x, p.y);
+  if (hit) {
+    const cue = ED.cues[hit.i];
+    edSelect({ kind: "cue", i: hit.i });
+    const near = Math.abs(p.x - hit.x0) < EDG.edge ? "left" : (Math.abs(p.x - hit.x1) < EDG.edge ? "right" : "move");
+    ED.drag.mode = near;
+    ED.drag.cue = hit.i;
+    ED.drag.origT = cue.t;
+    ED.drag.origDur = cue.dur;
+  } else {
+    ED.drag.mode = "add";
+    ED.drag.lane = Math.floor((p.y - g.laneTop) / (EDG.laneH + EDG.laneGap));
+  }
+  edDraw();
+}
+
+function edPointerMove(ev) {
+  if (!ED.drag) return;
+  const p = edLocal(ev);
+  const dx = p.x - ED.drag.startX;
+  if (Math.abs(dx) > 4 || Math.abs(p.y - ED.drag.y) > 4) ED.drag.moved = true;
+  const d = ED.drag;
+  if (d.mode === "pan") {
+    ED.view.t0 = d.t0 - dx * ED.view.msPerPx;
+    edClampView(); edDraw();
+  } else if (d.mode === "scrub") {
+    edScrubTo(edT(p.x));
+  } else if (d.mode === "move" || d.mode === "left" || d.mode === "right") {
+    const cue = ED.cues[d.cue];
+    if (!cue) return;
+    const dt = dx * ED.view.msPerPx;
+    const minDur = edHasGrid() ? Math.max(200, edBeatMs() / 2) : 200;
+    if (d.mode === "move") {
+      cue.t = Math.max(0, Math.min(ED.durationMs - cue.dur, edSnap(d.origT + dt)));
+    } else if (d.mode === "right") {
+      const end = Math.min(ED.durationMs, edSnap(d.origT + d.origDur + dt));
+      cue.dur = Math.max(minDur, end - cue.t);
+      if (cue.t + cue.dur > ED.durationMs) cue.dur = ED.durationMs - cue.t;
+    } else {
+      const nt = Math.max(0, Math.min(d.origT + d.origDur - minDur, edSnap(d.origT + dt)));
+      cue.dur = d.origT + d.origDur - nt;
+      cue.t = nt;
+    }
+    if (cue.type === "alternate" && cue.periodMs > cue.dur) cue.periodMs = Math.max(100, Math.floor(cue.dur / 2));
+    edRevalidate();
+    edDraw();
+  }
+}
+
+function edPointerUp(ev) {
+  const d = ED.drag;
+  ED.drag = null;
+  if (!d) return;
+  try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (e) {}
+  if (d.mode === "section" && !d.moved) {
+    const i = edSectionAt(d.startT);
+    edSelect(i >= 0 ? { kind: "section", i: i } : null);
+  } else if (d.mode === "add" && !d.moved) {
+    edAddCue(d.lane, d.startT);
+  } else if (d.mode === "move" || d.mode === "left" || d.mode === "right") {
+    edSave();
+    edRenderInspector();
+    edRenderProblems();
+  }
+  edDraw();
+}
+
+function edScrubTo(t) {
+  ED.playheadMs = Math.max(0, Math.min(ED.durationMs, t));
+  if (ED.play.on) { edStopAudio(); edStartAudio(); }
+  edDrawCursor();
+  edRenderMirror();
+  edUpdateTransport();
+}
+
+function edAddCue(lane, t) {
+  const lanes = edLanes();
+  if (lane < 0 || lane >= lanes.length) return;
+  const beat = edHasGrid() ? edBeatMs() : 500;
+  const dur = Math.round(beat * 2);
+  const start = Math.max(0, Math.min(ED.durationMs - dur, edSnap(t)));
+  const cue = { t: start, dur: dur, type: "burn",
+                groups: lane === 0 ? ["all"] : [lanes[lane].id],
+                label: (lane === 0 ? "ALL burn" : lanes[lane].label + " burn") + " " + (ED.cues.length + 1) };
+  ED.cues.push(cue);
+  ED.cues.sort(function (a, b) { return a.t - b.t; });
+  const idx = ED.cues.indexOf(cue);
+  edSelect({ kind: "cue", i: idx });
+  edRevalidate();
+  edSave();
+  edDraw();
+  edRenderProblems();
+}
+
+function edSelect(sel) {
+  ED.sel = sel;
+  edRenderInspector();
+  edDraw();
+}
+
+/* ---- inspector ------------------------------------------------------------ */
+function edRenderInspector() {
+  const box = $("ew-inspector");
+  if (!box) return;
+  clear(box);
+  if (!ED.sel) {
+    box.appendChild(el("h3", null, "Nothing selected"));
+    box.appendChild(el("p", "small", "Tap a cue block to edit it, or a coloured section band to relabel that section and regenerate just that part of the show."));
+    return;
+  }
+  if (ED.sel.kind === "section") return edRenderSectionInspector(box);
+  const i = ED.sel.i, cue = ED.cues[i];
+  if (!cue) { ED.sel = null; return edRenderInspector(); }
+  const beat = edHasGrid() ? edBeatMs() : 500;
+
+  box.appendChild(el("h3", null, "Cue " + (i + 1) + " of " + ED.cues.length));
+
+  const lab = el("input");
+  lab.type = "text"; lab.value = cue.label;
+  lab.oninput = function () { cue.label = lab.value || "Cue"; edDraw(); edSave(); };
+  const labW = el("label", "edfld");
+  labW.appendChild(el("span", null, "Label — the pilots read this"));
+  labW.appendChild(lab);
+  box.appendChild(labW);
+
+  // type
+  const typeRow = el("div", "edchips");
+  typeRow.appendChild(el("span", "edchip lab", "TYPE"));
+  ["burn", "pulse", "alternate"].forEach(function (ty) {
+    const b = el("button", "edchip" + (cue.type === ty ? " on" : ""), ty.toUpperCase());
+    b.onclick = function () {
+      cue.type = ty;
+      if (ty === "pulse" && !cue.bpm) cue.bpm = Math.round(Math.max(20, Math.min(300, (ED.summary && ED.summary.bpm) || 120)));
+      if (ty === "alternate") {
+        if (!cue.periodMs) cue.periodMs = Math.round(beat);
+        if (cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; })) cue.groups = ED.groups.map(function (g) { return g.id; });
+        if (cue.groups.length < 2) cue.groups = ED.groups.map(function (g) { return g.id; });
+      }
+      edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+    };
+    typeRow.appendChild(b);
+  });
+  box.appendChild(typeRow);
+
+  // groups
+  const gRow = el("div", "edchips");
+  gRow.style.marginTop = "8px";
+  gRow.appendChild(el("span", "edchip lab", "GROUPS"));
+  const isAll = cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; });
+  const allChip = el("button", "edchip" + (isAll ? " on" : ""), "ALL");
+  allChip.onclick = function () {
+    cue.groups = isAll ? [ED.groups[0].id] : ["all"];
+    if (cue.type === "alternate" && cue.groups.length < 2) cue.type = "burn";
+    edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+  };
+  gRow.appendChild(allChip);
+  ED.groups.forEach(function (gr) {
+    const on = !isAll && cue.groups.indexOf(gr.id) !== -1;
+    const b = el("button", "edchip" + (on ? " on" : ""), gr.label);
+    b.onclick = function () {
+      let list = isAll ? [] : cue.groups.slice();
+      if (on) list = list.filter(function (x) { return x !== gr.id; });
+      else list.push(gr.id);
+      if (!list.length) list = [gr.id];
+      cue.groups = list;
+      if (cue.type === "alternate" && list.length < 2) cue.type = "burn";
+      edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+    };
+    gRow.appendChild(b);
+  });
+  box.appendChild(gRow);
+
+  // timing
+  const timing = el("div", "edgrid");
+  timing.style.marginTop = "10px";
+  const numField = function (label, get, set, step) {
+    const w = el("label", "edfld");
+    const head = el("span", null, label);
+    w.appendChild(head);
+    const row = el("div", "ednum");
+    const minus = el("button", null, "−");
+    const inp = el("input");
+    inp.type = "number"; inp.className = "grow"; inp.step = String(step); inp.value = String(Math.round(get()));
+    const plus = el("button", null, "+");
+    const apply = function (v) {
+      set(v);
+      inp.value = String(Math.round(get()));
+      edRevalidate(); edDraw(); edRenderProblems(); edSave();
+    };
+    minus.onclick = function () { apply(get() - step); };
+    plus.onclick = function () { apply(get() + step); };
+    inp.onchange = function () { apply(parseFloat(inp.value) || 0); };
+    row.appendChild(minus); row.appendChild(inp); row.appendChild(plus);
+    w.appendChild(row);
+    return w;
+  };
+  timing.appendChild(numField("Start (ms) — " + fmtMMSS(cue.t),
+    function () { return cue.t; },
+    function (v) { cue.t = Math.max(0, Math.min(ED.durationMs - cue.dur, edSnap(v))); ED.cues.sort(function (a, b) { return a.t - b.t; }); ED.sel = { kind: "cue", i: ED.cues.indexOf(cue) }; },
+    Math.round(beat)));
+  timing.appendChild(numField("Length (ms) — " + (Math.round(cue.dur / beat * 10) / 10) + " beats",
+    function () { return cue.dur; },
+    function (v) { cue.dur = Math.max(100, Math.min(ED.durationMs - cue.t, Math.round(v))); },
+    Math.round(beat)));
+  if (cue.type === "pulse") {
+    timing.appendChild(numField("Pulse BPM", function () { return cue.bpm || 120; },
+      function (v) { cue.bpm = Math.max(20, Math.min(300, Math.round(v))); }, 1));
+  }
+  if (cue.type === "alternate") {
+    timing.appendChild(numField("Leg length (ms) — " + (Math.round((cue.periodMs || beat) / beat * 100) / 100) + " beats",
+      function () { return cue.periodMs || beat; },
+      function (v) { cue.periodMs = Math.max(100, Math.min(cue.dur, Math.round(v))); }, Math.round(beat / 2)));
+  }
+  box.appendChild(timing);
+
+  // vent + delete
+  const foot = el("div", "row");
+  foot.style.marginTop = "10px";
+  const vent = el("button", "edchip" + (cue.vent ? " on" : ""), "FORCE VENT WARNING");
+  vent.onclick = function () {
+    if (cue.vent) delete cue.vent; else cue.vent = true;
+    edRevalidate(); edRenderInspector(); edDraw(); edSave();
+  };
+  foot.appendChild(vent);
+  const dup = el("button", null, "DUPLICATE");
+  dup.onclick = function () {
+    const copy = Object.assign({}, cue, { t: Math.min(ED.durationMs - cue.dur, edSnap(cue.t + cue.dur + (ED.options.minRestMs || 0))), groups: cue.groups.slice() });
+    ED.cues.push(copy);
+    ED.cues.sort(function (a, b) { return a.t - b.t; });
+    edSelect({ kind: "cue", i: ED.cues.indexOf(copy) });
+    edRevalidate(); edRenderProblems(); edDraw(); edSave();
+  };
+  foot.appendChild(dup);
+  const del = el("button", "danger", "DELETE");
+  del.onclick = function () { edDeleteSelected(); };
+  foot.appendChild(del);
+  box.appendChild(foot);
+
+  // per-cue issues
+  const issues = (ED.audit && ED.audit.perCue[i]) || [];
+  if (issues.length) {
+    const list = el("div");
+    list.style.marginTop = "10px";
+    issues.forEach(function (x) { list.appendChild(el("div", "edissue" + (x.severity === "warn" ? " warn" : ""), x.text)); });
+    box.appendChild(list);
+  } else {
+    box.appendChild(el("div", "small edok", "✓ this cue is legal"));
+  }
+}
+
+function edRenderSectionInspector(box) {
+  const i = ED.sel.i, secs = edSections(), sec = secs[i];
+  if (!sec) { ED.sel = null; return edRenderInspector(); }
+  box.appendChild(el("h3", null, "Section " + (i + 1) + " — " + fmtMMSS(sec.startMs) + " to " + fmtMMSS(sec.endMs)));
+  const stat = el("div", "edstat");
+  [["energy", Math.round(sec.energy * 100) + "%"], ["label confidence", Math.round(sec.confidence * 100) + "%"],
+   ["boundary strength", (sec.novelty || 0)], ["length", fmtMMSS(sec.endMs - sec.startMs)]].forEach(function (p) {
+    const s = el("span", null, p[0] + ": ");
+    s.appendChild(el("b", null, String(p[1])));
+    stat.appendChild(s);
+  });
+  box.appendChild(stat);
+
+  const chips = el("div", "edchips");
+  chips.style.marginTop = "10px";
+  chips.appendChild(el("span", "edchip lab", "IT SOUNDS LIKE"));
+  CH_SECTION_LABELS.forEach(function (l) {
+    const b = el("button", "edchip" + (sec.label === l ? " on" : ""), l.toUpperCase());
+    b.onclick = function () {
+      sec.label = l;
+      edRenderInspector(); edDraw(); edSave();
+    };
+    chips.appendChild(b);
+  });
+  box.appendChild(chips);
+
+  const row = el("div", "row");
+  row.style.marginTop = "10px";
+  const rb = el("button", "primary grow", "REGENERATE THIS SECTION");
+  rb.onclick = function () { edGenerate([i]); edSelect({ kind: "section", i: i }); };
+  row.appendChild(rb);
+  const cb = el("button", "grow", "CLEAR THIS SECTION");
+  cb.onclick = function () {
+    ED.cues = ED.cues.filter(function (c) { return !(c.t >= sec.startMs && c.t < sec.endMs); });
+    edRevalidate(); edRenderProblems(); edDraw(); edSave();
+  };
+  row.appendChild(cb);
+  box.appendChild(row);
+  box.appendChild(el("div", "tiny", "Relabelling changes what the choreographer writes here — set it, then regenerate this section."));
+}
+
+function edDeleteSelected() {
+  if (!ED.sel || ED.sel.kind !== "cue") return;
+  ED.cues.splice(ED.sel.i, 1);
+  ED.sel = null;
+  edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+}
+
+/* ---- problems / advisories / preview -------------------------------------- */
+function edRenderProblems() {
+  const box = $("ew-problems");
+  if (!box) return;
+  clear(box);
+  edStateBadge();
+  const v = ED.valid || validateShow(edShowObject());
+  const rows = [];
+  if (!v.ok) v.errors.forEach(function (e) { rows.push(["block", e]); });
+  (ED.audit ? ED.audit.perCue : []).forEach(function (list, i) {
+    list.forEach(function (x) { rows.push([x.severity, "“" + (ED.cues[i] ? ED.cues[i].label : "cue " + i) + "” — " + x.text]); });
+  });
+  if (ED.audit && !ED.audit.fair) {
+    rows.push(["warn", "Groups are uneven: the quietest group burns " + Math.round(ED.audit.balance.ratio * 100) + "% of what the busiest does."]);
+  }
+  if (!rows.length) {
+    box.appendChild(el("div", "edok", "✓ No problems. This show will load in PILOT and CONDUCTOR exactly as it is."));
+  } else {
+    rows.slice(0, 40).forEach(function (r) { box.appendChild(el("div", "edissue" + (r[0] === "warn" ? " warn" : ""), r[1])); });
+    if (rows.length > 40) box.appendChild(el("div", "tiny", "…and " + (rows.length - 40) + " more."));
+    box.appendChild(el("div", "tiny",
+      rows.some(function (r) { return r[0] === "block"; })
+        ? "RED blocks export: the app itself would reject this show, or a pilot would be handed a long burn with no time to vent. AMBER is advice — the show is tighter than your current settings but it will still load and run."
+        : "AMBER is advice, not a veto: the show is tighter than your current settings but it will still load and run. Loosen the sliders on the setup screen if that is what you meant."));
+  }
+  const loads = (ED.audit && ED.audit.loads) || {};
+  const st = el("div", "edstat");
+  st.style.marginTop = "8px";
+  ED.groups.forEach(function (g) {
+    const s = el("span", null, g.label + ": ");
+    s.appendChild(el("b", null, fmtMMSS(loads[g.id] || 0) + " burn"));
+    st.appendChild(s);
+  });
+  box.appendChild(st);
+}
+
+function edRenderAdvisories() {
+  const box = $("ew-advisories");
+  if (!box) return;
+  clear(box);
+  if (!ED.advisories.length) {
+    box.appendChild(el("div", "small", "Nothing was dropped — everything the choreographer wanted, it got."));
+    return;
+  }
+  ED.advisories.slice(0, 60).forEach(function (a) { box.appendChild(el("div", "edadv", a.text)); });
+  box.appendChild(el("div", "tiny", "These are musical wishes the safety rules refused. Loosen the rest window or the burn budget on the setup screen and regenerate to buy some of them back."));
+}
+
+function edRenderMirror(force) {
+  const box = $("ew-mirror");
+  if (!box) return;
+  if (box.dataset.built !== String(ED.groups.length) || force) {
+    box.dataset.built = String(ED.groups.length);
+    clear(box);
+    ED.groups.forEach(function (g) {
+      const row = el("div", "mrow");
+      const dot = el("span", "dot");
+      dot.style.setProperty("--g", g.color);
+      row.appendChild(dot);
+      row.appendChild(el("span", "mname", g.label));
+      const s = el("span", "mstate ms-IDLE", "IDLE");
+      s.dataset.g = g.id;
+      row.appendChild(s);
+      box.appendChild(row);
+    });
+  }
+  const t = ED.playheadMs;
+  const sig = ED.tl ? String(Math.round(t / 50)) : "invalid";
+  if (sig === ED.mirrorSig) return;
+  ED.mirrorSig = sig;
+  box.querySelectorAll(".mstate").forEach(function (n) {
+    if (!ED.tl) { n.className = "mstate ms-IDLE"; setTxt(n, "—"); return; }
+    const s = stateAt(ED.tl, [n.dataset.g], t);
+    const cls = "mstate ms-" + s.phase;
+    if (n.className !== cls) n.className = cls;
+    let txt = s.phase;
+    if (s.phase === "BURN") txt = "BURN " + fmtSecs(s.remainMs) + "s";
+    else if (s.phase === "GETREADY") txt = "READY " + fmtSecs(s.countdownMs);
+    else if (s.phase === "PULSE") txt = "PULSE " + (s.pulse.beatIndex + 1);
+    else if (s.phase === "VENT") txt = "VENT in " + fmtMMSS(s.vent.msUntil);
+    setTxt(n, txt);
+  });
+}
+
+/* ---- transport ------------------------------------------------------------ */
+function edUpdateTransport() {
+  setTxt($("ew-time"), fmtMMSS(ED.playheadMs) + " / " + fmtMMSS(ED.durationMs));
+  const b = $("ew-playbtn");
+  if (b) setTxt(b, ED.play.on ? "❚❚ PAUSE" : "▶ PLAY");
+}
+function edStartAudio() {
+  if (!ED.audio.buf || !ED.audio.ctx) return false;
+  const ctx = ED.audio.ctx;
+  if (ctx.state === "suspended") ctx.resume();
+  const src = ctx.createBufferSource();
+  src.buffer = ED.audio.buf;
+  src.connect(ctx.destination);
+  const into = Math.max(0, Math.min(ED.audio.buf.duration - 0.05, ED.playheadMs / 1000));
+  src.start(0, into);
+  ED.audio.src = src;
+  ED.play.anchorCtx = ctx.currentTime;
+  ED.play.anchorMs = ED.playheadMs;
+  ED.play.withAudio = true;
+  return true;
+}
+function edStopAudio() {
+  if (ED.audio.src) {
+    try { ED.audio.src.stop(); } catch (e) {}
+    try { ED.audio.src.disconnect(); } catch (e) {}
+  }
+  ED.audio.src = null;
+}
+function edPlayPause() {
+  if (ED.play.on) {
+    ED.play.on = false;
+    edStopAudio();
+  } else {
+    if (ED.playheadMs >= ED.durationMs - 30) ED.playheadMs = 0;
+    ED.play.on = true;
+    if (!edStartAudio()) {
+      ED.play.withAudio = false;
+      ED.play.anchorPerf = performance.now();
+      ED.play.anchorMs = ED.playheadMs;
+    }
+  }
+  edUpdateTransport();
+}
+function edFrame() {
+  if (!ED.ready) return;
+  if (ED.play.on) {
+    ED.playheadMs = ED.play.withAudio
+      ? ED.play.anchorMs + (ED.audio.ctx.currentTime - ED.play.anchorCtx) * 1000
+      : ED.play.anchorMs + (performance.now() - ED.play.anchorPerf);
+    if (ED.playheadMs >= ED.durationMs) { ED.playheadMs = ED.durationMs; ED.play.on = false; edStopAudio(); }
+    const g = edGeom();
+    const x = edX(ED.playheadMs);
+    if (x > g.w * 0.82 || x < 0) { ED.view.t0 = ED.playheadMs - g.w * ED.view.msPerPx * 0.15; edClampView(); edDraw(); }
+  }
+  edDrawCursor();
+  edUpdateTransport();
+  edRenderMirror();
+}
+
+/* ---- export / import / persistence ---------------------------------------- */
+function edExportShow() {
+  const v = edRevalidate();
+  if (!v.ok) { showFatal("SHOW NOT READY TO EXPORT", "Fix these first — the app would refuse to play it:", v.errors); return null; }
+  if (ED.audit && ED.audit.blocking) {
+    showFatal("SAFETY PROBLEMS IN THE SHOW", "Fix the red problems first:",
+      ED.audit.perCue.reduce(function (acc, list, i) {
+        list.forEach(function (x) { if (x.severity === "block") acc.push("“" + ED.cues[i].label + "” — " + x.text); });
+        return acc;
+      }, []));
+    return null;
+  }
+  return v.show;
+}
+function edDownload() {
+  const show = edExportShow();
+  if (!show) return;
+  const json = JSON.stringify(show, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = slugify(show.title) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+  const st = $("ew-exportstate");
+  clear(st);
+  st.appendChild(el("span", "badge green", "DOWNLOADED " + a.download));
+  st.appendChild(el("div", "tiny", "Put this file where the phones can reach it (GitHub Pages, Dropbox link) and paste that URL into the pilots' setup screen — or paste the JSON itself."));
+}
+async function edCopyShow() {
+  const show = edExportShow();
+  if (!show) return;
+  const json = JSON.stringify(show, null, 2);
+  const st = $("ew-exportstate");
+  clear(st);
+  let done = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(json); done = true; }
+  } catch (e) { done = false; }
+  if (!done) {
+    const ta = document.createElement("textarea");
+    ta.value = json;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { done = document.execCommand("copy"); } catch (e) { done = false; }
+    ta.remove();
+  }
+  st.appendChild(el("span", "badge " + (done ? "green" : "red"), done ? "COPIED TO CLIPBOARD" : "COULD NOT COPY — use DOWNLOAD"));
+}
+function edUseShow() {
+  const show = edExportShow();
+  if (!show) return;
+  if (applyShow(validateShow(show), "")) {
+    const st = $("ew-exportstate");
+    clear(st);
+    st.appendChild(el("span", "badge green", "LOADED — switch role to PILOT or CONDUCTOR to run it"));
+  }
+}
+function edImportText(text) {
+  const parsed = parseShowText(text);
+  if (!parsed.ok) { showFatal("SHOW FILE REJECTED", "This show cannot be edited until it validates:", parsed.errors); return; }
+  const show = parsed.show;
+  ED.groups = show.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; });
+  ED.cues = show.cues.map(function (c) { return Object.assign({}, c, { groups: c.groups.slice() }); });
+  ED.title = show.title;
+  ED.audioTitle = show.audio.title || "";
+  ED.durationMs = show.audio.durationMs;
+  ED.options = Object.assign(edDefaultOptions(), show.defaults || {});
+  if (ED.summary && Math.abs(ED.summary.durationMs - ED.durationMs) > 4000) ED.summary = null;
+  ED.advisories = [];
+  ED.ready = true;
+  ED.sel = null;
+  edRevalidate();
+  edFit();
+  edSave();
+  renderEditorSetup();
+  edOpenWork();
+}
+function edSave() {
+  if (!ED.ready && !ED.summary) return;
+  store(LS.editor, {
+    v: 1, title: ED.title, audioTitle: ED.audioTitle, fileName: ED.fileName,
+    durationMs: ED.durationMs, options: ED.options, groups: ED.groups,
+    cues: ED.cues, advisories: ED.advisories, summary: ED.summary, ready: ED.ready
+  });
+}
+function edRestore() {
+  if (!ED.options) ED.options = edDefaultOptions();
+  if (!ED.groups) ED.groups = CH_DEFAULTS.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; });
+  const p = load(LS.editor, true);
+  if (!p || p.v !== 1) return;
+  try {
+    ED.title = p.title || "";
+    ED.audioTitle = p.audioTitle || "";
+    ED.fileName = p.fileName || "";
+    ED.durationMs = p.durationMs || 0;
+    ED.options = Object.assign(edDefaultOptions(), p.options || {});
+    if (Array.isArray(p.groups) && p.groups.length) ED.groups = p.groups;
+    ED.cues = Array.isArray(p.cues) ? p.cues : [];
+    ED.advisories = Array.isArray(p.advisories) ? p.advisories : [];
+    ED.summary = p.summary || null;
+    ED.ready = !!p.ready && ED.cues.length > 0;
+    ED.fitted = false;
+    if (ED.ready) edRevalidate();
+  } catch (e) { drop(LS.editor); }
+}
+function edForget() {
+  drop(LS.editor);
+  ED.ready = false; ED.cues = []; ED.advisories = []; ED.summary = null;
+  ED.title = ""; ED.audioTitle = ""; ED.fileName = ""; ED.durationMs = 0;
+  ED.audio.buf = null; ED.sel = null; ED.tl = null; ED.audit = null;
+  ED.options = edDefaultOptions();
+  renderEditorSetup();
+}
+
+/* ---- events --------------------------------------------------------------- */
+function edWireEvents() {
+  const af = $("e-audiofile");
+  if (af) af.addEventListener("change", function (e) { edPickAudio(e.target.files && e.target.files[0]); });
+  const sf = $("e-showfile");
+  if (sf) sf.addEventListener("change", function (e) {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    f.text().then(edImportText).catch(function (err) { showFatal("COULD NOT READ THAT FILE", f.name, [String(err)]); });
+  });
+  const cv = $("ew-canvas");
+  if (cv) {
+    cv.addEventListener("pointerdown", edPointerDown);
+    cv.addEventListener("pointermove", edPointerMove);
+    cv.addEventListener("pointerup", edPointerUp);
+    cv.addEventListener("pointercancel", edPointerUp);
+    cv.addEventListener("wheel", function (ev) {
+      if (APP.screen !== "editor-work") return;
+      ev.preventDefault();
+      if (ev.ctrlKey || ev.shiftKey || Math.abs(ev.deltaY) > Math.abs(ev.deltaX) * 2) {
+        edZoom(ev.deltaY > 0 ? 1.18 : 0.85, edT(edLocal(ev).x));
+      } else {
+        ED.view.t0 += ev.deltaX * ED.view.msPerPx;
+        edClampView(); edDraw();
+      }
+    }, { passive: false });
+  }
+  window.addEventListener("resize", function () { if (APP.screen === "editor-work") edDraw(); });
+  document.addEventListener("keydown", function (ev) {
+    if (APP.screen !== "editor-work") return;
+    const tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (ev.key === "Delete" || ev.key === "Backspace") { ev.preventDefault(); edDeleteSelected(); }
+    else if (ev.key === " ") { ev.preventDefault(); edPlayPause(); }
+    else if (ev.key === "ArrowLeft") { edScrubTo(ED.playheadMs - (edHasGrid() ? edBeatMs() : 500)); }
+    else if (ev.key === "ArrowRight") { edScrubTo(ED.playheadMs + (edHasGrid() ? edBeatMs() : 500)); }
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target.closest("[data-act]");
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act.indexOf("ed-") !== 0) return;
+    switch (act) {
+      case "ed-generate": edGenerate(); break;
+      case "ed-open": edOpenWork(); break;
+      case "ed-setup": ED.play.on = false; edStopAudio(); go("editor"); break;
+      case "ed-import": edImportText($("e-showjson").value); break;
+      case "ed-forget": edForget(); break;
+      case "ed-play": edPlayPause(); break;
+      case "ed-rewind": edScrubTo(0); break;
+      case "ed-zoomin": edZoom(0.7); break;
+      case "ed-zoomout": edZoom(1.4); break;
+      case "ed-fit": edFit(); edDraw(); break;
+      case "ed-export": edDownload(); break;
+      case "ed-copy": edCopyShow(); break;
+      case "ed-use": edUseShow(); break;
+    }
+  });
+}
 
 /* ============================================================================
    ===== RENDER LOOP =====
@@ -2338,6 +5161,7 @@ function loop() {
   const now = syncedNow();
   if (APP.screen === "pilot-run") renderPilot(now);
   else if (APP.screen === "cond-run") renderConductor(now);
+  else if (APP.screen === "editor-work") edFrame();
   else if (APP.screen === "debug") setTxt($("d-clock"), fmtClock(now, true));
 
   // live countdown under the arm panels
@@ -2476,6 +5300,7 @@ async function doHold() {
 }
 
 $("c-audiofile").addEventListener("change", function (e) { pickAudio(e.target.files && e.target.files[0]); });
+edWireEvents();
 $("c-pa").addEventListener("input", function (e) {
   APP.paLatencyMs = parseInt(e.target.value, 10) || 0;
   store(LS.pa, String(APP.paLatencyMs));
@@ -2498,6 +5323,7 @@ function setRole(role) {
   APP.role = role;
   store(LS.role, role);
   if (role === "pilot") { startT0Poll(); go("pilot-setup"); }
+  else if (role === "editor") { stopT0Poll(); edEnter(); }
   else { stopT0Poll(); go("cond-setup"); }
 }
 
@@ -2521,7 +5347,9 @@ function setRole(role) {
     restoreArmed();
     if (qT0 && /^\d+$/.test(qT0)) armT0(parseInt(qT0, 10), "url");
     const role = load(LS.role);
+    edRestore();
     if (role === "pilot" || role === "conductor") { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
+    else if (role === "editor") { APP.role = role; go("editor"); }
     else go("role");
     if (APP.workerUrl) runSync({ silent: true }).then(renderAll);
     if (reanchored) SYNC.lastError = null;
