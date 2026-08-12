@@ -1,0 +1,11 @@
+# Glow Show time/T0 Worker. First deploy (see project CLAUDE.md to-do 2):
+#   npx wrangler login
+#   npx wrangler kv namespace create GLOW   <- paste the printed id below
+#   npx wrangler deploy
+name = "glow-show"
+main = "time.js"
+compatibility_date = "2026-08-01"
+
+[[kv_namespaces]]
+binding = "GLOW"
+id = "FILL_ME_AT_FIRST_DEPLOY"
