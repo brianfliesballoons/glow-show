@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Watched for deployment drift by com.bcl.deploy-drift (2026-08-30). It
+     compares the bytes GitHub Pages is serving against this committed file, and
+     if they differ with a clean tree it pushes HEAD — restoring reviewed code,
+     never writing a change. The failure it exists for: the Unravel cron Worker
+     ran on schedule for 16 days doing one of its four jobs, because six commits
+     had never been deployed. Nothing was down. Everything looked fine. -->
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="color-scheme" content="dark">
