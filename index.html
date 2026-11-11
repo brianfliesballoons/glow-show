@@ -302,6 +302,9 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
 #ew-canvas,#ew-cursor{display:block;width:100%;touch-action:none}
 #ew-cursor{position:absolute;left:0;top:0;pointer-events:none}
 .edhint{margin:6px 0 12px}
+.maplegend{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.maplegend span{font-weight:900;font-size:11px;letter-spacing:.06em;padding:3px 8px;border-radius:7px}
+#ew-mapscrub{width:100%;margin:0 0 6px}
 .edgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .edfld{display:block;margin:0 0 4px}
 .edfld > span{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 2px}
@@ -655,6 +658,17 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <div class="tiny" style="margin-top:8px">Setting a count creates balloons 1&hellip;N split into contiguous blocks per group (&ldquo;1&ndash;8 are NORTH ROW&rdquo;) and lays them out in rows. Then drag any balloon to where it actually parks.</div>
       </div>
 
+      <!-- Play the show on the map: each balloon lights in its group's cue state
+           at the playhead (same stateAt() the pilots' phones run). -->
+      <div class="row edtrans">
+        <button id="ew-mapplay" data-act="ed-play">&#9654; PLAY</button>
+        <button data-act="ed-maprewind">&#9198;</button>
+        <span class="mono" id="ew-maptime">0:00</span>
+      </div>
+      <input type="range" id="ew-mapscrub" min="0" max="1000" step="1" value="0" aria-label="Scrub through the show">
+      <div class="maplegend">
+        <span class="ms-BURN">BURN</span><span class="ms-PULSE">PULSE</span><span class="ms-GETREADY">GET READY</span><span class="ms-VENT">VENT</span><span class="ms-IDLE">OFF</span>
+      </div>
       <div id="ew-mapwrap"><canvas id="ew-mapcanvas"></canvas></div>
       <div class="tiny edhint" id="ew-maphint"></div>
 
@@ -4058,12 +4072,43 @@ function drawFieldMap(canvas, o) {
   // balloons
   const hits = [];
   const pulse = 0.5 + 0.5 * Math.sin((o.nowMs || 0) / 1000 * Math.PI * 2 * 0.9);
+
+  // Cue animation: o.stateOf maps group id -> stateAt() result. Lit = BURN, or
+  // a PULSE on its "on" half-beat. Everything else is drawn unlit, with a ring
+  // for GET READY (amber), VENT (violet) and the off half of a PULSE (white).
+  const lookOf = function (b, col) {
+    if (!o.stateOf) return null;
+    const st = o.stateOf[b.group] || { phase: "IDLE" };
+    const ph = st.phase;
+    if (ph === "BURN") return { lit: true, fill: "#ff6a10", alpha: 1, ring: null, text: "#1a0500" };
+    if (ph === "PULSE" && st.pulse && st.pulse.on) return { lit: true, fill: "#fff3d6", alpha: 1, ring: null, text: "#000" };
+    if (ph === "PULSE") return { lit: false, fill: col, alpha: 0.4, ring: "#ffffff", text: "#e8ecf4" };
+    if (ph === "GETREADY") return { lit: false, fill: col, alpha: 0.5, ring: "#ffb020", text: "#e8ecf4" };
+    if (ph === "VENT") return { lit: false, fill: col, alpha: 0.4, ring: "#b06bff", text: "#e8ecf4" };
+    return { lit: false, fill: col, alpha: 0.26, ring: null, text: "rgba(232,236,244,.8)" };
+  };
+  if (o.stateOf) {
+    balloons.forEach(function (b) {
+      const lk = lookOf(b, "#000");
+      if (!lk || !lk.lit) return;
+      const x = g.px(b.x), y = g.py(b.y);
+      const flick = 0.88 + 0.12 * Math.sin((o.nowMs || 0) / 41 + b.n * 1.7);
+      const R = g.r * 2.7 * flick;
+      const grd = c.createRadialGradient(x, y, g.r * 0.5, x, y, R);
+      grd.addColorStop(0, "rgba(255,150,50,.85)");
+      grd.addColorStop(1, "rgba(255,90,0,0)");
+      c.fillStyle = grd;
+      c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
+    });
+  }
+
   balloons.forEach(function (b) {
     const x = g.px(b.x), y = g.py(b.y);
     const mine = o.highlight != null && b.n === o.highlight;
     const sel = o.selected != null && b.n === o.selected;
     const col = (o.colorOf && o.colorOf[b.group]) || "#8b96ad";
     const r = mine ? g.r * 1.18 : g.r;
+    const lk = lookOf(b, col);
     if (mine) {
       c.beginPath();
       c.arc(x, y, r + 5 + 7 * pulse, 0, Math.PI * 2);
@@ -4073,14 +4118,24 @@ function drawFieldMap(canvas, o) {
     }
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
-    c.fillStyle = col;
-    c.globalAlpha = mine ? 1 : 0.88;
+    c.fillStyle = lk ? lk.fill : col;
+    c.globalAlpha = lk ? lk.alpha : (mine ? 1 : 0.88);
     c.fill();
     c.globalAlpha = 1;
-    c.lineWidth = mine ? 3 : (sel ? 2.5 : 1);
-    c.strokeStyle = mine ? "#ffffff" : (sel ? "#ffffff" : "rgba(0,0,0,.55)");
+    if (lk && lk.lit) {
+      c.lineWidth = 2.5; c.strokeStyle = col;          // keep the group's identity on a lit balloon
+    } else {
+      c.lineWidth = mine ? 3 : (sel ? 2.5 : 1);
+      c.strokeStyle = mine ? "#ffffff" : (sel ? "#ffffff" : (lk ? col : "rgba(0,0,0,.55)"));
+    }
     c.stroke();
-    c.fillStyle = "#0a0d14";
+    if (lk && lk.ring) {
+      c.beginPath();
+      c.arc(x, y, r + 4, 0, Math.PI * 2);
+      c.lineWidth = 3.5; c.strokeStyle = lk.ring;
+      c.stroke();
+    }
+    c.fillStyle = lk ? lk.text : "#0a0d14";
     c.font = "900 " + Math.round(r * 1.02) + "px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
     c.textAlign = "center"; c.textBaseline = "middle";
     c.fillText(String(b.n), x, y + 0.5);
@@ -4145,11 +4200,23 @@ function closeFieldMap() {
 }
 function drawMapOverlay() {
   if (!APP.mapOpen || !APP.tl) return;
+  // Conductor only: while an armed show is running, light every balloon in its
+  // group's live cue state, off the synced clock.
+  let stateOf = null;
+  if (APP.role === "conductor" && APP.armed && !APP.hold) {
+    const t = syncedNow() - APP.armed.t0;
+    if (t >= 0 && t < APP.tl.endMs) stateOf = mapStatesAt(APP.tl, t);
+  }
   drawFieldMap($("map-canvas"), {
     balloons: APP.tl.balloons, colorOf: APP.tl.colorOf,
     highlight: APP.role === "pilot" ? APP.myBalloon : null,
-    nowMs: Date.now()
+    nowMs: Date.now(), stateOf: stateOf
   });
+}
+function mapStatesAt(tl, tMs) {
+  const m = {};
+  Object.keys(tl.perGroup || {}).forEach(function (gid) { m[gid] = stateAt(tl, [gid], tMs); });
+  return m;
 }
 
 /* ============================================================================
@@ -4944,7 +5011,7 @@ function edSetTab(name, force) {
   const t = name === "map" ? "map" : "timeline";
   if (ED.tab === t && !force) return;
   ED.tab = t;
-  if (t === "map") { ED.play.on = false; edStopAudio(); edUpdateTransport(); }
+  edUpdateTransport();
   $("ew-tab-timeline").classList.toggle("hidden", t !== "timeline");
   $("ew-tab-map").classList.toggle("hidden", t !== "map");
   $("ew-tabbtn-timeline").classList.toggle("on", t === "timeline");
@@ -4962,9 +5029,12 @@ function edColorOf() {
   return m;
 }
 function edDrawMap() {
+  const live = !!ED.tl && (ED.play.on || ED.playheadMs > 0);
+  ED.mapDrawnAt = ED.playheadMs;
   const res = drawFieldMap($("ew-mapcanvas"), {
     balloons: ED.balloons, colorOf: edColorOf(),
-    selected: ED.selBalloon, nowMs: 0
+    selected: ED.selBalloon, nowMs: ED.playheadMs,
+    stateOf: live ? mapStatesAt(ED.tl, ED.playheadMs) : null
   });
   ED.mapHits = res ? res.hits : [];
   ED.mapGeom = res ? res.geom : null;
@@ -5465,6 +5535,12 @@ function edPointerUp(ev) {
   edDraw();
 }
 
+function edMapScrub(t) {
+  ED.playheadMs = Math.max(0, Math.min(ED.durationMs, t));
+  if (ED.play.on) { edStopAudio(); edStartAudio(); if (!ED.play.withAudio) { ED.play.anchorPerf = performance.now(); ED.play.anchorMs = ED.playheadMs; } }
+  edDrawMap();
+  edUpdateTransport();
+}
 function edScrubTo(t) {
   ED.playheadMs = Math.max(0, Math.min(ED.durationMs, t));
   if (ED.play.on) { edStopAudio(); edStartAudio(); }
@@ -5791,9 +5867,19 @@ function edRenderMirror(force) {
 
 /* ---- transport ------------------------------------------------------------ */
 function edUpdateTransport() {
-  setTxt($("ew-time"), fmtMMSS(ED.playheadMs) + " / " + fmtMMSS(ED.durationMs));
+  const tt = fmtMMSS(ED.playheadMs) + " / " + fmtMMSS(ED.durationMs);
+  setTxt($("ew-time"), tt);
+  setTxt($("ew-maptime"), tt);
+  const lab = ED.play.on ? "❚❚ PAUSE" : "▶ PLAY";
   const b = $("ew-playbtn");
-  if (b) setTxt(b, ED.play.on ? "❚❚ PAUSE" : "▶ PLAY");
+  if (b) setTxt(b, lab);
+  const mb = $("ew-mapplay");
+  if (mb) setTxt(mb, lab);
+  const sc = $("ew-mapscrub");
+  if (sc && !ED.mapScrubbing) {
+    const v = String(ED.durationMs ? Math.round(1000 * ED.playheadMs / ED.durationMs) : 0);
+    if (sc.value !== v) sc.value = v;
+  }
 }
 function edStartAudio() {
   if (!ED.audio.buf || !ED.audio.ctx) return false;
@@ -5833,7 +5919,18 @@ function edPlayPause() {
   edUpdateTransport();
 }
 function edFrame() {
-  if (!ED.ready || ED.tab === "map") return;
+  if (!ED.ready) return;
+  if (ED.tab === "map") {
+    if (ED.play.on) {
+      ED.playheadMs = ED.play.withAudio
+        ? ED.play.anchorMs + (ED.audio.ctx.currentTime - ED.play.anchorCtx) * 1000
+        : ED.play.anchorMs + (performance.now() - ED.play.anchorPerf);
+      if (ED.playheadMs >= ED.durationMs) { ED.playheadMs = ED.durationMs; ED.play.on = false; edStopAudio(); }
+    }
+    if (ED.play.on || ED.mapDrawnAt !== ED.playheadMs) edDrawMap();
+    edUpdateTransport();
+    return;
+  }
   if (ED.play.on) {
     ED.playheadMs = ED.play.withAudio
       ? ED.play.anchorMs + (ED.audio.ctx.currentTime - ED.play.anchorCtx) * 1000
@@ -6014,6 +6111,11 @@ function edWireEvents() {
     mv.addEventListener("pointerup", edMapUp);
     mv.addEventListener("pointercancel", edMapUp);
   }
+  const ms = $("ew-mapscrub");
+  if (ms) {
+    ms.addEventListener("input", function () { ED.mapScrubbing = true; edMapScrub(ED.durationMs * Number(ms.value) / 1000); });
+    ms.addEventListener("change", function () { ED.mapScrubbing = false; });
+  }
   const bc = $("ew-bcount");
   if (bc) bc.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edSetBalloonCount(bc.value); } });
   window.addEventListener("resize", function () {
@@ -6055,6 +6157,7 @@ function edWireEvents() {
       case "ed-barrange": ED.balloons = arrangeBalloons(ED.balloons, edGroupIds()); edMapChanged(); break;
       case "ed-badd": edAddBalloon(); break;
       case "ed-bclear": ED.balloons = []; ED.selBalloon = null; edMapChanged(); break;
+      case "ed-maprewind": edMapScrub(0); break;
     }
   });
 }
