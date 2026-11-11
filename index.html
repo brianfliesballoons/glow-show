@@ -462,7 +462,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     <div class="card">
       <h3>2 &middot; Music</h3>
       <div class="stack">
-        <input type="file" id="c-audiofile" accept="audio/*">
+        <input type="file" id="c-audiofile">
         <div id="c-audiostate" class="small"></div>
         <label class="fld"><span>PA latency compensation &mdash; audio starts this much EARLY</span>
           <input type="range" id="c-pa" min="0" max="500" step="5">
@@ -541,7 +541,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     <div class="card">
       <h3>1 &middot; The song</h3>
       <div class="stack">
-        <input type="file" id="e-audiofile" accept="audio/*">
+        <input type="file" id="e-audiofile">
         <div id="e-progwrap" class="hidden">
           <div class="edbar"><i id="e-prog"></i></div>
           <div class="tiny" id="e-progtext"></div>
@@ -5981,7 +5981,9 @@ function edForget() {
 /* ---- events --------------------------------------------------------------- */
 function edWireEvents() {
   const af = $("e-audiofile");
-  if (af) af.addEventListener("change", function (e) { edPickAudio(e.target.files && e.target.files[0]); });
+  // No accept="audio/*": iOS greys out real song files under it. The decoder rejects non-audio loudly.
+  // Clearing the value lets the same file be picked again.
+  if (af) af.addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; edPickAudio(f); });
   const sf = $("e-showfile");
   if (sf) sf.addEventListener("change", function (e) {
     const f = e.target.files && e.target.files[0];
@@ -6211,7 +6213,7 @@ async function doHold() {
   if (d) setTxt(d, res.ok ? "HOLD pushed to the Worker." : "HOLD NOT pushed (" + res.error + ") — CALL IT OVER THE PA.");
 }
 
-$("c-audiofile").addEventListener("change", function (e) { pickAudio(e.target.files && e.target.files[0]); });
+$("c-audiofile").addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; pickAudio(f); });
 edWireEvents();
 $("c-pa").addEventListener("input", function (e) {
   APP.paLatencyMs = parseInt(e.target.value, 10) || 0;
