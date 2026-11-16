@@ -2,16 +2,35 @@
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
   <name>Havasu glow field (Windsor 4 ramp lot)</name>
-  <description>Night-glow field at Lake Havasu State Park: the boat-ramp parking lot by the Windsor 4 ramp, north of the carnival lot. Only the lot east of the driving access lane; the lane stays clear. Traced 2026-11-16 from OpenStreetMap lot aisles and Esri World Imagery; location confirmed by Brian.</description>
+  <description>Night-glow field at Lake Havasu State Park: the boat-ramp parking lot by the Windsor 4 ramp, north of the carnival lot. Balloons only inside FIELD. The access lane stays clear; the east column is no-balloon (power lines just east) and holds the pilot tent; the PA and local radio sit on the south edge. The crowd gathers mostly on the west side by the access lane and also walks between the balloons. Traced 2026-11-16 on Esri World Imagery against OpenStreetMap lot aisles; location and zones from Brian.</description>
   <Style id="field"><LineStyle><color>ff0078ff</color><width>3</width></LineStyle><PolyStyle><color>460078ff</color></PolyStyle></Style>
+  <Style id="nob"><LineStyle><color>ffe600c8</color><width>3</width></LineStyle><PolyStyle><color>50c800aa</color></PolyStyle></Style>
+  <Style id="tent"><LineStyle><color>ff00e6ff</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+  <Style id="pa"><LineStyle><color>ff000000</color><width>3</width></LineStyle><PolyStyle><color>78000000</color></PolyStyle></Style>
   <Style id="lane"><LineStyle><color>ffffc800</color><width>5</width></LineStyle></Style>
   <Placemark>
     <name>FIELD</name>
     <styleUrl>#field</styleUrl>
-    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.353417,34.478852,0 -114.351934,34.479505,0 -114.351760,34.479498,0 -114.351679,34.479416,0 -114.351679,34.478123,0 -114.351773,34.478057,0 -114.353060,34.477990,0 -114.353127,34.478222,0 -114.353417,34.478278,0 -114.353417,34.478852,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.353417,34.478852,0 -114.352095,34.479434,0 -114.352095,34.478171,0 -114.352875,34.478171,0 -114.352875,34.477999,0 -114.353060,34.477990,0 -114.353127,34.478222,0 -114.353417,34.478278,0 -114.353417,34.478852,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>NO BALLOONS - power lines to the east</name>
+    <styleUrl>#nob</styleUrl>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.352095,34.479434,0 -114.351934,34.479505,0 -114.351760,34.479498,0 -114.351679,34.479416,0 -114.351679,34.478123,0 -114.351773,34.478057,0 -114.352095,34.478039,0 -114.352095,34.479434,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>PILOT TENT</name>
+    <styleUrl>#tent</styleUrl>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.352049,34.478709,0 -114.351684,34.478709,0 -114.351684,34.478068,0 -114.352049,34.478052,0 -114.352049,34.478709,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>PA + LOCAL RADIO</name>
+    <styleUrl>#pa</styleUrl>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.352875,34.478163,0 -114.352095,34.478163,0 -114.352095,34.478034,0 -114.352875,34.477999,0 -114.352875,34.478163,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark>
     <name>ACCESS LANE - KEEP CLEAR</name>
+    <description>Crowd gathers along here (show front).</description>
     <styleUrl>#lane</styleUrl>
     <LineString><coordinates>-114.353825,34.479228,0 -114.353704,34.478897,0 -114.353685,34.478410,0 -114.353659,34.477747,0</coordinates></LineString>
   </Placemark>
