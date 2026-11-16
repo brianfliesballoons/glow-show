@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Havasu glow field (Windsor 4 ramp lot)</name>
+  <description>Night-glow field at Lake Havasu State Park: the boat-ramp parking lot by the Windsor 4 ramp, north of the carnival lot. Only the lot east of the driving access lane; the lane stays clear. Traced 2026-11-16 from OpenStreetMap lot aisles and Esri World Imagery; location confirmed by Brian.</description>
+  <Style id="field"><LineStyle><color>ff0078ff</color><width>3</width></LineStyle><PolyStyle><color>460078ff</color></PolyStyle></Style>
+  <Style id="lane"><LineStyle><color>ffffc800</color><width>5</width></LineStyle></Style>
+  <Placemark>
+    <name>FIELD</name>
+    <styleUrl>#field</styleUrl>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.353417,34.478852,0 -114.351934,34.479505,0 -114.351760,34.479498,0 -114.351679,34.479416,0 -114.351679,34.478123,0 -114.351773,34.478057,0 -114.353060,34.477990,0 -114.353127,34.478222,0 -114.353417,34.478278,0 -114.353417,34.478852,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>ACCESS LANE - KEEP CLEAR</name>
+    <styleUrl>#lane</styleUrl>
+    <LineString><coordinates>-114.353825,34.479228,0 -114.353704,34.478897,0 -114.353685,34.478410,0 -114.353659,34.477747,0</coordinates></LineString>
+  </Placemark>
+</Document>
+</kml>
