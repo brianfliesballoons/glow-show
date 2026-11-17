@@ -29,6 +29,12 @@
     <Polygon><outerBoundaryIs><LinearRing><coordinates>-114.352875,34.478163,0 -114.352095,34.478163,0 -114.352095,34.478034,0 -114.352875,34.477999,0 -114.352875,34.478163,0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark>
+    <name>CROWD</name>
+    <description>Show front: most of the crowd gathers along the west edge, by the access lane (Brian, 2026-11-16). People also walk between the balloons.</description>
+    <styleUrl>#lane</styleUrl>
+    <LineString><coordinates>-114.353417,34.478852,0 -114.353417,34.478278,0</coordinates></LineString>
+  </Placemark>
+  <Placemark>
     <name>ACCESS LANE - KEEP CLEAR</name>
     <description>Crowd gathers along here (show front).</description>
     <styleUrl>#lane</styleUrl>
