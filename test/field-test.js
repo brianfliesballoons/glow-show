@@ -605,5 +605,18 @@ for (let t = 0; t < tlE.endMs; t += 100) {
 ok('every pilot\'s state through the whole show is a known phase (' + nSt + ' states)', badPh === null, badPh);
 ok('no balloon ever sees a continuous BURN longer than maxBurnMs  [' + maxRun + ' ms]', maxRun <= C.CH_DEFAULTS.maxBurnMs + 100, maxRun);
 
+section('THE HAVASU DEMO SHOWS (made by the app in headless Chrome from Brian\'s two songs)');
+['havasu-lightning-storm.json', 'havasu-forest-for-the-trees.json'].forEach(fn => {
+  const fp = path.join(__dirname, '..', 'shows', fn);
+  if (!fs.existsSync(fp)) { ok(fn + ' exists', false); return; }
+  const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
+  const tlD = verifyPerBalloon(raw, C.chOptions({ intensity: 1 }), fn);
+  if (!tlD) return;
+  eq(fn + ': on the Havasu field, 21 balloons, cues per balloon', [!!raw.field && /Havasu/.test(raw.field.name), raw.balloons.length, tlD.hasBalloonCues], [true, 21, true]);
+  eq(fn + ': its own audit is clean, per balloon', C.chAudit(raw.cues, { groups: raw.groups, balloons: raw.balloons, sets: raw.sets, intensity: 1 }, raw.audio.durationMs).blocking, 0);
+  eq(fn + ': no consecutive pattern repeats a pattern + direction', variety(raw.cues), null);
+  ok(fn + ': no audio inside (the conductor loads the song locally)', !JSON.stringify(raw).match(/base64|data:audio/) && fs.statSync(fp).size < 200000);
+});
+
 console.log('\n================  ' + pass + ' passed, ' + fail + ' failed  ================');
 process.exit(fail ? 1 : 0);

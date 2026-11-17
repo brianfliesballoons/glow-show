@@ -1,0 +1,979 @@
+{
+  "format": "glow-show/1",
+  "title": "Forest for the Trees [freestyle] — glow",
+  "audio": {
+    "title": "Forest for the Trees [freestyle].m4a",
+    "durationMs": 142000,
+    "bpm": 163.96,
+    "beatOffsetMs": 113
+  },
+  "groups": [
+    {
+      "id": "north",
+      "label": "FRONT",
+      "color": "#00c8ff"
+    },
+    {
+      "id": "south",
+      "label": "MIDDLE",
+      "color": "#ff3ea5"
+    },
+    {
+      "id": "shapes",
+      "label": "BACK",
+      "color": "#ffd400"
+    }
+  ],
+  "defaults": {
+    "getReadyMs": 5000,
+    "ventWarnMs": 20000,
+    "longBurnMs": 6000,
+    "stopMs": 2000
+  },
+  "cues": [
+    {
+      "t": 1211,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "all": true
+      },
+      "label": "Chorus 1 — ripple out",
+      "pattern": "ripple",
+      "dir": "out",
+      "bandCount": 6,
+      "bands": [
+        [
+          9,
+          10,
+          14
+        ],
+        [
+          5,
+          6,
+          11,
+          13,
+          15
+        ],
+        [
+          4,
+          8,
+          19,
+          20
+        ],
+        [
+          1,
+          2,
+          3,
+          7,
+          12,
+          16,
+          18,
+          21
+        ],
+        [
+          17
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 17679,
+      "dur": 5490,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          4,
+          8,
+          9,
+          12,
+          13,
+          17,
+          18,
+          19
+        ]
+      },
+      "label": "Chorus 1 — mirror in · left half",
+      "pattern": "mirror",
+      "dir": "in",
+      "bandCount": 6,
+      "bands": [
+        [
+          1,
+          9,
+          17,
+          19
+        ],
+        [
+          4,
+          12,
+          13
+        ],
+        [
+          8,
+          18
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 19508,
+      "dur": 9882,
+      "type": "pattern",
+      "target": {
+        "n": [
+          2,
+          3,
+          5,
+          6,
+          7,
+          10,
+          11,
+          14,
+          15,
+          16,
+          20,
+          21
+        ]
+      },
+      "label": "Chorus 1 — radial clockwise · right half",
+      "pattern": "radial",
+      "dir": "cw",
+      "bandCount": 6,
+      "bands": [
+        [
+          14
+        ],
+        [
+          15,
+          20,
+          21
+        ],
+        [
+          16
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          2,
+          3,
+          6
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 28291,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          4,
+          8,
+          9,
+          12,
+          13,
+          17,
+          18,
+          19
+        ]
+      },
+      "label": "Chorus 1 — ripple in · left half",
+      "pattern": "ripple",
+      "dir": "in",
+      "bandCount": 6,
+      "bands": [
+        [
+          1
+        ],
+        [
+          17
+        ],
+        [
+          4,
+          18,
+          19
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          8,
+          13
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 35975,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "label": "Chorus 1 — mirror out · front half",
+      "pattern": "mirror",
+      "dir": "out",
+      "bandCount": 6,
+      "bands": [
+        [
+          2
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          3
+        ],
+        [
+          1
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 44758,
+      "dur": 9882,
+      "type": "pattern",
+      "target": {
+        "n": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      },
+      "label": "Chorus 1 — radial counter-clockwise · back half",
+      "pattern": "radial",
+      "dir": "ccw",
+      "bandCount": 6,
+      "bands": [
+        [
+          8,
+          12,
+          13
+        ],
+        [
+          9
+        ],
+        [
+          10,
+          11,
+          14,
+          15,
+          16
+        ],
+        [
+          20,
+          21
+        ],
+        [
+          19
+        ],
+        [
+          17,
+          18
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 52443,
+      "dur": 11712,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "label": "Chorus 1 — checkerboard · front half",
+      "pattern": "alternate",
+      "bandCount": 6,
+      "bands": [
+        [
+          1,
+          3,
+          5,
+          7
+        ],
+        [
+          2,
+          4,
+          6
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 59762,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "n": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      },
+      "label": "Chorus 1 — ripple out · back half",
+      "pattern": "ripple",
+      "dir": "out",
+      "bandCount": 6,
+      "bands": [
+        [
+          14
+        ],
+        [
+          9,
+          10,
+          13,
+          15,
+          19,
+          20
+        ],
+        [
+          8,
+          18
+        ],
+        [
+          11,
+          12,
+          21
+        ],
+        [
+          16,
+          17
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 76229,
+      "dur": 6954,
+      "type": "pattern",
+      "target": {
+        "n": [
+          2,
+          3,
+          5,
+          6,
+          7,
+          10,
+          11,
+          14,
+          15,
+          16,
+          20,
+          21
+        ]
+      },
+      "label": "Chorus 1 — mirror in · right half",
+      "pattern": "mirror",
+      "dir": "in",
+      "bandCount": 6,
+      "bands": [
+        [
+          5,
+          7,
+          14,
+          16
+        ],
+        [
+          2,
+          10,
+          20
+        ],
+        [
+          3,
+          11,
+          21
+        ],
+        [
+          6,
+          15
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 77693,
+      "dur": 6954,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          4,
+          8,
+          9,
+          12,
+          13,
+          17,
+          18,
+          19
+        ]
+      },
+      "label": "Chorus 1 — radial clockwise · left half",
+      "pattern": "radial",
+      "dir": "cw",
+      "bandCount": 6,
+      "bands": [
+        [
+          12,
+          17
+        ],
+        [
+          13,
+          18,
+          19
+        ],
+        [
+          9
+        ],
+        [
+          1,
+          4,
+          8
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 92697,
+      "dur": 6954,
+      "type": "pattern",
+      "target": {
+        "n": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "label": "Chorus 1 — ripple in · front half",
+      "pattern": "ripple",
+      "dir": "in",
+      "bandCount": 6,
+      "bands": [
+        [
+          4,
+          7
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          2
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 94160,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "n": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      },
+      "label": "Chorus 1 — mirror out · back half",
+      "pattern": "mirror",
+      "dir": "out",
+      "bandCount": 6,
+      "bands": [
+        [
+          9,
+          14,
+          19
+        ],
+        [
+          10,
+          13,
+          20
+        ],
+        [
+          8,
+          15,
+          18
+        ],
+        [
+          11,
+          12,
+          21
+        ],
+        [
+          16,
+          17
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 108066,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "all": true
+      },
+      "label": "Verse 2 — sweep front→back",
+      "pattern": "sweep",
+      "dir": "fb",
+      "bandCount": 5,
+      "bands": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          8,
+          9,
+          10,
+          11
+        ],
+        [
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        [
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    },
+    {
+      "t": 124534,
+      "dur": 8418,
+      "type": "pattern",
+      "target": {
+        "all": true
+      },
+      "label": "Outro 3 — radial clockwise",
+      "pattern": "radial",
+      "dir": "cw",
+      "bandCount": 5,
+      "bands": [
+        [
+          12,
+          13,
+          17,
+          18,
+          19
+        ],
+        [
+          14,
+          20,
+          21
+        ],
+        [
+          7,
+          10,
+          11,
+          15,
+          16
+        ],
+        [
+          1,
+          2,
+          3,
+          5,
+          6
+        ],
+        [
+          4,
+          8,
+          9
+        ]
+      ],
+      "stepMs": 1464,
+      "burnMs": 2562
+    }
+  ],
+  "balloons": [
+    {
+      "n": 1,
+      "group": "north",
+      "x": 0.42991,
+      "y": 0.15406
+    },
+    {
+      "n": 2,
+      "group": "north",
+      "x": 0.57816,
+      "y": 0.15406
+    },
+    {
+      "n": 3,
+      "group": "north",
+      "x": 0.7264,
+      "y": 0.15406
+    },
+    {
+      "n": 4,
+      "group": "north",
+      "x": 0.35579,
+      "y": 0.28245
+    },
+    {
+      "n": 5,
+      "group": "north",
+      "x": 0.50404,
+      "y": 0.28245
+    },
+    {
+      "n": 6,
+      "group": "north",
+      "x": 0.65228,
+      "y": 0.28245
+    },
+    {
+      "n": 7,
+      "group": "north",
+      "x": 0.80053,
+      "y": 0.28245
+    },
+    {
+      "n": 8,
+      "group": "south",
+      "x": 0.28167,
+      "y": 0.41083
+    },
+    {
+      "n": 9,
+      "group": "south",
+      "x": 0.42991,
+      "y": 0.41083
+    },
+    {
+      "n": 10,
+      "group": "south",
+      "x": 0.57816,
+      "y": 0.41083
+    },
+    {
+      "n": 11,
+      "group": "south",
+      "x": 0.7264,
+      "y": 0.41083
+    },
+    {
+      "n": 12,
+      "group": "south",
+      "x": 0.20754,
+      "y": 0.53922
+    },
+    {
+      "n": 13,
+      "group": "south",
+      "x": 0.35579,
+      "y": 0.53922
+    },
+    {
+      "n": 14,
+      "group": "south",
+      "x": 0.50404,
+      "y": 0.53922
+    },
+    {
+      "n": 15,
+      "group": "shapes",
+      "x": 0.65228,
+      "y": 0.53922
+    },
+    {
+      "n": 16,
+      "group": "shapes",
+      "x": 0.80053,
+      "y": 0.53922
+    },
+    {
+      "n": 17,
+      "group": "shapes",
+      "x": 0.13342,
+      "y": 0.6676
+    },
+    {
+      "n": 18,
+      "group": "shapes",
+      "x": 0.28167,
+      "y": 0.6676
+    },
+    {
+      "n": 19,
+      "group": "shapes",
+      "x": 0.42991,
+      "y": 0.6676
+    },
+    {
+      "n": 20,
+      "group": "shapes",
+      "x": 0.57816,
+      "y": 0.6676
+    },
+    {
+      "n": 21,
+      "group": "shapes",
+      "x": 0.7264,
+      "y": 0.6676
+    }
+  ],
+  "field": {
+    "name": "Havasu glow field (Windsor 4 ramp lot)",
+    "w": 1,
+    "h": 0.75469,
+    "mPerUnit": 160.567,
+    "areaM2": 13241,
+    "outline": [
+      [
+        0.40305,
+        0
+      ],
+      [
+        0,
+        0.75469
+      ],
+      [
+        0.87465,
+        0.75469
+      ],
+      [
+        0.87465,
+        0.30941
+      ],
+      [
+        0.99376,
+        0.30941
+      ],
+      [
+        1,
+        0.2038
+      ],
+      [
+        0.83933,
+        0.16555
+      ],
+      [
+        0.80055,
+        0
+      ]
+    ],
+    "zones": [
+      {
+        "name": "NO BALLOONS - power lines to the east",
+        "kind": "nob",
+        "poly": [
+          [
+            0,
+            0.75469
+          ],
+          [
+            -0.04916,
+            0.8466
+          ],
+          [
+            -0.04432,
+            0.94593
+          ],
+          [
+            0.01247,
+            0.99217
+          ],
+          [
+            0.90789,
+            0.99217
+          ],
+          [
+            0.9536,
+            0.93851
+          ],
+          [
+            0.96606,
+            0.75469
+          ]
+        ]
+      },
+      {
+        "name": "PILOT TENT",
+        "kind": "tent",
+        "poly": [
+          [
+            0.50208,
+            0.78095
+          ],
+          [
+            0.50208,
+            0.98931
+          ],
+          [
+            0.94598,
+            0.98931
+          ],
+          [
+            0.95706,
+            0.78095
+          ]
+        ]
+      },
+      {
+        "name": "PA + LOCAL RADIO",
+        "kind": "pa",
+        "poly": [
+          [
+            0.88019,
+            0.30941
+          ],
+          [
+            0.88019,
+            0.75469
+          ],
+          [
+            0.96953,
+            0.75469
+          ],
+          [
+            0.99376,
+            0.30941
+          ]
+        ]
+      }
+    ],
+    "lines": [
+      {
+        "name": "ACCESS LANE - KEEP CLEAR",
+        "kind": "keepclear",
+        "pts": [
+          [
+            0.14266,
+            -0.23291
+          ],
+          [
+            0.37188,
+            -0.16384
+          ],
+          [
+            0.70914,
+            -0.15299
+          ],
+          [
+            1.16828,
+            -0.13815
+          ]
+        ]
+      }
+    ],
+    "crowd": [
+      [
+        0.40305,
+        0
+      ],
+      [
+        0.80055,
+        0
+      ]
+    ],
+    "crowdFrom": "file",
+    "geo": {
+      "rotDeg": -90,
+      "x0": -116.13,
+      "y0": -50.128,
+      "lat0": 34.4783896,
+      "lon0": -114.3528701
+    }
+  }
+}
