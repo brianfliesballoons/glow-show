@@ -724,6 +724,9 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <button data-act="ed-maprewind">&#9198;</button>
         <span class="mono" id="ew-maptime">0:00</span>
       </div>
+      <button class="wide primary" id="ew-mapsong" data-act="ed-mapsong" style="margin-top:8px">&#9835; ADD THE SONG<small style="display:block;font-weight:600;opacity:.8">pick the same song file, then PLAY hears it in sync</small></button>
+      <input type="file" id="ew-mapsongfile" class="hidden">
+      <div class="tiny" id="ew-mapsongstate"></div>
       <input type="range" id="ew-mapscrub" min="0" max="1000" step="1" value="0" aria-label="Scrub through the show">
       <div class="maplegend">
         <span class="ms-BURN">BURN</span><span class="ms-PULSE">PULSE</span><span class="ms-GETREADY">GET READY</span><span class="ms-VENT">VENT</span><span class="ms-IDLE">OFF</span>
@@ -7236,6 +7239,37 @@ async function edReadFieldFile(file) {
   }
   return new TextDecoder().decode(buf);
 }
+/* Attach the song to an already-built show so PLAY on the map is heard in
+   sync. Decode only: no re-analysis and no regenerate, so the cues stay
+   exactly as they are. T=0 is the start of the file, the same as at showtime. */
+async function edAttachSong(file) {
+  if (!file || ED.busy) return;
+  const st = $("ew-mapsongstate");
+  ED.busy = true;
+  setTxt(st, "loading " + file.name + " …");
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw new Error("This browser has no Web Audio support.");
+    if (!ED.audio.ctx) ED.audio.ctx = new AC();
+    const bytes = await file.arrayBuffer();
+    const buf = await new Promise(function (res, rej) {
+      let pr;
+      try { pr = ED.audio.ctx.decodeAudioData(bytes.slice(0), res, rej); } catch (e) { rej(e); return; }
+      if (pr && pr.then) pr.then(res, rej);
+    });
+    if (ED.play.on) { ED.play.on = false; edStopAudio(); }
+    ED.audio.buf = buf; ED.audio.name = file.name;
+    const offS = Math.abs(buf.duration * 1000 - ED.durationMs) / 1000;
+    setTxt(st, offS > 4
+      ? "⚠ " + file.name + " is " + fmtMMSS(buf.duration * 1000) + " but the show is " + fmtMMSS(ED.durationMs) + " — is it the right song?"
+      : "♪ " + file.name + " loaded — press PLAY.");
+  } catch (e) {
+    setTxt(st, "");
+    showFatal("COULD NOT PLAY THAT FILE", file.name, [String((e && e.message) || e), "Try a plain .mp3, .m4a or .wav."]);
+  }
+  ED.busy = false;
+  edUpdateTransport();
+}
 /* Built-in field: fetch the KML that ships beside the page, so a phone with no
    field file can still put the real field on the map. */
 async function edUseBuiltInField(url) {
@@ -7255,6 +7289,10 @@ async function edOpenShowOnMap(url, text) {
       text = await res.text();
     }
   } catch (e) { showFatal("COULD NOT LOAD SHOW", url, [String((e && e.message) || e)]); return; }
+  // a different show: drop any song from before, so PLAY never runs the wrong one
+  if (ED.play.on) { ED.play.on = false; edStopAudio(); }
+  ED.audio.buf = null; ED.playheadMs = 0;
+  setTxt($("ew-mapsongstate"), "");
   edImportText(text);
   if (!ED.ready) return;
   edSetTab("map", true);
@@ -8716,6 +8754,8 @@ function edUpdateTransport() {
   if (b) setTxt(b, lab);
   const mb = $("ew-mapplay");
   if (mb) setTxt(mb, lab);
+  const ms = $("ew-mapsong");
+  if (ms) ms.classList.toggle("hidden", !!ED.audio.buf);
   const sc = $("ew-mapscrub");
   if (sc && !ED.mapScrubbing) {
     const v = String(ED.durationMs ? Math.round(1000 * ED.playheadMs / ED.durationMs) : 0);
@@ -8968,6 +9008,9 @@ function edWireEvents() {
   }
   const bc = $("ew-bcount");
   if (bc) bc.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edAutoFill(bc.value); } });
+  const msf = $("ew-mapsongfile");
+  // no accept filter (iOS greys out real song files under one)
+  if (msf) msf.addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; edAttachSong(f); });
   const ff = $("ew-ffile");
   // no accept filter (iOS greys out .kmz/.kml under one); the parser rejects anything else loudly
   if (ff) ff.addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; edImportField(f); });
@@ -9019,6 +9062,7 @@ function edWireEvents() {
       case "ed-bclear": ED.balloons = []; ED.selBalloon = null; ED.selSet = []; ED.fillReport = null; edMapChanged(); break;
       case "ed-maprewind": edMapScrub(0); break;
       case "ed-fimport": $("ew-ffile").click(); break;
+      case "ed-mapsong": $("ew-mapsongfile").click(); break;
       case "ed-fhavasu": edUseBuiltInField("fields/havasu-windsor4-glow.kml"); break;
       case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json"); break;
       case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json"); break;
@@ -9228,6 +9272,8 @@ function setRole(role) {
    ===== BOOT =====
    ========================================================================= */
 (function boot() {
+  // iPhone: without this, Web Audio is muted whenever the ring/silent switch is on
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
   APP.workerUrl = load(LS.worker) || WORKER_URL_DEFAULT;
   APP.paLatencyMs = parseInt(load(LS.pa) || "0", 10) || 0;
   APP.myGroup = load(LS.group);
