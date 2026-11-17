@@ -7243,7 +7243,12 @@ async function edReadFieldFile(file) {
    sync. Decode only: no re-analysis and no regenerate, so the cues stay
    exactly as they are. T=0 is the start of the file, the same as at showtime. */
 async function edAttachSong(file) {
-  if (!file || ED.busy) return;
+  if (!file) return;
+  return edAttachSongBytes(await file.arrayBuffer(), file.name);
+}
+async function edAttachSongBytes(bytes, name) {
+  if (!bytes || ED.busy) return;
+  const file = { name: name };
   const st = $("ew-mapsongstate");
   ED.busy = true;
   setTxt(st, "loading " + file.name + " …");
@@ -7251,7 +7256,6 @@ async function edAttachSong(file) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) throw new Error("This browser has no Web Audio support.");
     if (!ED.audio.ctx) ED.audio.ctx = new AC();
-    const bytes = await file.arrayBuffer();
     const buf = await new Promise(function (res, rej) {
       let pr;
       try { pr = ED.audio.ctx.decodeAudioData(bytes.slice(0), res, rej); } catch (e) { rej(e); return; }
@@ -7281,7 +7285,7 @@ async function edUseBuiltInField(url) {
   } catch (e) { showFatal("COULD NOT LOAD THE FIELD", url, [String((e && e.message) || e), "If you are offline, import the KML file instead."]); }
 }
 /* Open a show file in the editor, straight onto the MAP tab. */
-async function edOpenShowOnMap(url, text) {
+async function edOpenShowOnMap(url, text, songUrl) {
   try {
     if (text == null) {
       const res = await fetch(url, { cache: "no-store" });
@@ -7296,6 +7300,13 @@ async function edOpenShowOnMap(url, text) {
   edImportText(text);
   if (!ED.ready) return;
   edSetTab("map", true);
+  // a copy of the app that carries the song beside the show attaches it straight away
+  if (songUrl) {
+    try {
+      const sr = await fetch(songUrl, { cache: "no-store" });
+      if (sr.ok) await edAttachSongBytes(await sr.arrayBuffer(), songUrl.split("/").pop());
+    } catch (e) { /* no song beside the show (the public site): ADD THE SONG stays */ }
+  }
   // land on the play button + field, not on the setup cards above it
   requestAnimationFrame(function () {
     const pb = $("ew-mapplay");
@@ -9064,8 +9075,8 @@ function edWireEvents() {
       case "ed-fimport": $("ew-ffile").click(); break;
       case "ed-mapsong": $("ew-mapsongfile").click(); break;
       case "ed-fhavasu": edUseBuiltInField("fields/havasu-windsor4-glow.kml"); break;
-      case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json"); break;
-      case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json"); break;
+      case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json", null, window.GLOW_DEMO ? "songs/lightning-storm.m4a" : null); break;
+      case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json", null, window.GLOW_DEMO ? "songs/forest-for-the-trees.m4a" : null); break;
       case "ed-fdraw": ED.drawPts = []; ED.mapMode = "draw"; edRenderMap(); break;
       case "ed-fdone": edFinishDraw(); break;
       case "ed-fundo": if (ED.drawPts && ED.drawPts.length) ED.drawPts.pop(); edRenderMap(); break;
@@ -9304,7 +9315,12 @@ function setRole(role) {
     requestAnimationFrame(loop);
   };
 
-  if (qShow) loadShowFromUrl(qShow).then(finish);
+  if (window.GLOW_DEMO && !qShow) {
+    // private demo copy (songs beside the page): open straight on the field map with the song
+    APP.role = "editor"; edRestore(); go("editor");
+    edOpenShowOnMap(window.GLOW_DEMO.show, null, window.GLOW_DEMO.song);
+    requestAnimationFrame(loop);
+  } else if (qShow) loadShowFromUrl(qShow).then(finish);
   else finish();
 })();
 </script>
