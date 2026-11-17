@@ -19,5 +19,6 @@ const to   = html.lastIndexOf('/*', b);
 const core = html.slice(from, to);
 fs.writeFileSync(OUT + '/pure-core.js',
   core + '\nmodule.exports={parseShowText,validateShow,compileShow,stateAt,expandSegments,fmtMMSS,fmtSecs,slugify,SHOW_DEFAULTS,' +
-  'beatAt,beatGridOf,groupOfBalloon,normalizeBalloons,arrangeBalloons,makeBalloons,BEATS_PER_BAR,BPM_MIN,BPM_MAX};\n');
+  'beatAt,beatGridOf,groupOfBalloon,normalizeBalloons,arrangeBalloons,makeBalloons,BEATS_PER_BAR,BPM_MIN,BPM_MAX,' +
+  'stateAtBalloon,stateForPilot,isBalloonCue,copyTarget,resolveTargetNums,patternSegs,expandBalloonSegments,patternBands,patternDur,fmtNums,parseNumberList,normalizeSets,normalizeField,pointInPoly,polyEdgeDist,polyArea,parseKml,classifyKml,kmlZoneKind,zipFindKml,projectField,fieldPtToMetres,metresToFieldPt,fieldPtToLonLat,lonLatToFieldPt,rotateField,crowdFromEdge,fieldEdgeAt,carryBalloons,gridRefOf,autofillField,PATTERNS,PATTERN_DIRS,PATTERN_DEFAULT_DIR,EARTH_R};\n');
 console.log('pure core bytes:', core.length);

@@ -835,9 +835,22 @@ const DRIFT_WARN_MS    = 60;
      - OPTIONAL balloons[] — { n, group, x, y, label? }: unique positive
        integer assignment numbers, a defined group, normalized field coords.
        Absent => the app behaves exactly as it did before balloons existed.
+     - OPTIONAL field — the real field outline, keep-out zones, keep-clear
+       lines and crowd edge, in the same crowd-relative units as balloons.
+       Display + authoring only: nothing a pilot burns depends on it, so a
+       malformed field is dropped with a warning rather than rejecting the show.
+     - OPTIONAL sets[] — { id, name, members:[n...] }: named lists of balloon
+       numbers a cue can target. Needs balloons.
+     - BALLOON-ADDRESSED CUES (need balloons): a burn/pulse may carry
+       `target` instead of `groups` — { all:true } | { group } | { set } |
+       { n:[...] } — and the new `pattern` type carries explicit `bands`
+       (lists of balloon numbers, band 0 first) plus stepMs / burnMs, so every
+       phone expands it identically without re-running any geometry.
+     - no balloon is ever given two cues at once (checked per balloon, after
+       expanding patterns, whenever the show has balloon-addressed cues)
    ========================================================================= */
 const SHOW_FORMAT = "glow-show/1";
-const CUE_TYPES = ["burn", "pulse", "alternate"];
+const CUE_TYPES = ["burn", "pulse", "alternate", "pattern"];
 const SHOW_DEFAULTS = { getReadyMs: 5000, ventWarnMs: 20000, longBurnMs: 6000, stopMs: 2000 };
 const BPM_MIN = 40, BPM_MAX = 250;
 const BEATS_PER_BAR = 4;
@@ -934,7 +947,11 @@ function validateShow(raw) {
       if (!_isStr(c.label)) errors.push(where + ".label must be a non-empty string.");
       if (c.vent !== undefined && typeof c.vent !== "boolean") errors.push(where + ".vent must be true/false if present.");
 
-      if (!Array.isArray(c.groups) || c.groups.length === 0) {
+      // balloon-addressed cues are checked after balloons + sets (they need both)
+      if (isBalloonCue(c)) {
+        if (c.groups !== undefined) errors.push(where + " has both groups[] and target — a cue is addressed to groups OR to balloons, not both.");
+        if (c.type === "alternate") errors.push(where + " is an alternate with a balloon target — alternate trades between groups; for balloons use a pattern cue with pattern \"alternate\".");
+      } else if (!Array.isArray(c.groups) || c.groups.length === 0) {
         errors.push(where + ".groups[] must list at least one group id (or \"all\").");
       } else {
         c.groups.forEach(function (gid) {
@@ -1001,6 +1018,103 @@ function validateShow(raw) {
       });
     }
   }
+  const balloonNs = {};
+  balloons.forEach(function (b) { if (_isInt(b.n) && b.n >= 1) balloonNs[b.n] = (typeof b.group === "string" ? b.group.trim() : ""); });
+
+  // --- sets (optional) ----------------------------------------------------
+  const sets = [];
+  if (raw.sets !== undefined && raw.sets !== null) {
+    if (!Array.isArray(raw.sets)) errors.push("sets must be an array of { id, name, members } objects (or left out entirely).");
+    else {
+      if (raw.sets.length && !balloons.length) errors.push("sets[] lists balloon numbers, but the show has no balloons[] for them to refer to.");
+      const seenId = {};
+      raw.sets.forEach(function (s, i) {
+        const where = "sets[" + i + "]";
+        if (!s || typeof s !== "object" || Array.isArray(s)) { errors.push(where + " must be an object."); return; }
+        if (!_isStr(s.id) || !/^[a-z0-9_-]+$/i.test(s.id.trim())) errors.push(where + ".id must be letters, numbers, - and _.");
+        else if (s.id.trim().toLowerCase() === "all") errors.push(where + '.id cannot be "all" — ALL is the built-in set of every balloon.');
+        else if (seenId[s.id.trim()]) errors.push(where + '.id "' + s.id + '" is duplicated.');
+        else seenId[s.id.trim()] = 1;
+        if (!_isStr(s.name)) errors.push(where + ".name must be a non-empty string.");
+        if (!Array.isArray(s.members)) { errors.push(where + ".members must be a list of balloon numbers."); return; }
+        s.members.forEach(function (n) {
+          if (!_isInt(n) || n < 1) errors.push(where + ".members has " + JSON.stringify(n) + " — members are whole balloon numbers.");
+          else if (balloons.length && balloonNs[n] === undefined) errors.push(where + " (" + s.name + ") lists #" + n + ", but no balloon has that number.");
+        });
+        sets.push(s);
+      });
+    }
+  }
+  const setIds = {};
+  sets.forEach(function (s) { if (_isStr(s.id)) setIds[s.id.trim()] = s; });
+
+  // --- balloon-addressed cues: targets, pattern bands -------------------
+  if (Array.isArray(raw.cues)) {
+    raw.cues.forEach(function (c, i) {
+      if (!c || typeof c !== "object" || !isBalloonCue(c)) return;
+      const where = "cues[" + i + "]" + (c.label ? ' ("' + c.label + '")' : "");
+      if (!balloons.length) { errors.push(where + " is addressed to balloons, but the show has no balloons[]."); return; }
+      const kind = _targetKind(c.target);
+      if (!kind) { errors.push(where + '.target must be exactly one of {"all":true}, {"group":"id"}, {"set":"id"} or {"n":[numbers]}.'); return; }
+      if (kind === "group" && groupIds.indexOf(c.target.group) === -1) errors.push(where + ' targets unknown group "' + c.target.group + '".');
+      if (kind === "set" && !setIds[c.target.set]) errors.push(where + ' targets unknown set "' + c.target.set + '". Known: ' + (Object.keys(setIds).join(", ") || "none") + ".");
+      if (kind === "n") {
+        if (!c.target.n.length) errors.push(where + ".target.n is empty — list at least one balloon number.");
+        c.target.n.forEach(function (n) {
+          if (!_isInt(n) || balloonNs[n] === undefined) errors.push(where + ".target.n has " + JSON.stringify(n) + " — no balloon has that number.");
+        });
+      }
+      if (c.type !== "pattern") return;
+      if (PATTERNS.indexOf(c.pattern) === -1) errors.push(where + ".pattern must be one of " + PATTERNS.join(" / ") + " (got " + JSON.stringify(c.pattern) + ").");
+      else if (c.dir !== undefined && (PATTERN_DIRS[c.pattern] || []).indexOf(c.dir) === -1) {
+        errors.push(where + ".dir " + JSON.stringify(c.dir) + " does not apply to a " + c.pattern + (PATTERN_DIRS[c.pattern].length ? " (use " + PATTERN_DIRS[c.pattern].join(" / ") + ")" : " (it has no direction)") + ".");
+      }
+      if (c.center !== undefined && !(Array.isArray(c.center) && c.center.length === 2 && _isNum(c.center[0]) && _isNum(c.center[1]))) errors.push(where + ".center must be [x, y] if present.");
+      if (c.seed !== undefined && !_isInt(c.seed)) errors.push(where + ".seed must be a whole number if present.");
+      if (c.bandCount !== undefined && !(_isInt(c.bandCount) && c.bandCount >= 1 && c.bandCount <= 32)) errors.push(where + ".bandCount must be a whole number from 1 to 32 if present.");
+      if (!Array.isArray(c.bands) || !c.bands.length) { errors.push(where + ".bands must list at least one band of balloon numbers."); return; }
+      const inTarget = {};
+      if (kind === "all") Object.keys(balloonNs).forEach(function (n) { inTarget[n] = 1; });
+      else if (kind === "group") Object.keys(balloonNs).forEach(function (n) { if (balloonNs[n] === c.target.group) inTarget[n] = 1; });
+      else if (kind === "set" && setIds[c.target.set] && Array.isArray(setIds[c.target.set].members)) setIds[c.target.set].members.forEach(function (n) { inTarget[n] = 1; });
+      else if (kind === "n") c.target.n.forEach(function (n) { inTarget[n] = 1; });
+      const seenB = {};
+      c.bands.forEach(function (band, k) {
+        if (!Array.isArray(band) || !band.length) { errors.push(where + ".bands[" + k + "] must be a non-empty list of balloon numbers."); return; }
+        band.forEach(function (n) {
+          if (!_isInt(n) || balloonNs[n] === undefined) errors.push(where + ".bands[" + k + "] has " + JSON.stringify(n) + " — no balloon has that number.");
+          else if (seenB[n] !== undefined) errors.push(where + " puts #" + n + " in band " + (seenB[n] + 1) + " and band " + (k + 1) + " — a balloon is in exactly one band.");
+          else if (!inTarget[n]) errors.push(where + " puts #" + n + " in a band, but #" + n + " is not in the cue's target.");
+          else seenB[n] = k;
+        });
+      });
+      const missing = Object.keys(inTarget).filter(function (n) { return seenB[n] === undefined && balloonNs[n] !== undefined; });
+      if (missing.length) warnings.push(where + " leaves " + fmtNums(missing.map(Number)) + " out of every band — they will not burn on this cue.");
+      const B = c.bands.length;
+      if (c.pattern === "alternate") {
+        if (B < 2) errors.push(where + " is an alternate pattern with one band — it needs two to trade between.");
+        if (!_isNum(c.stepMs) || c.stepMs <= 0) errors.push(where + ".stepMs (the length of each leg) must be a positive number of ms.");
+        else if (_isNum(c.dur) && c.stepMs > c.dur) errors.push(where + ".stepMs is longer than the cue itself — nothing would alternate.");
+      } else {
+        if (B > 1 && (!_isNum(c.stepMs) || c.stepMs <= 0)) errors.push(where + ".stepMs (time between bands) must be a positive number of ms.");
+        else if (c.stepMs !== undefined && (!_isNum(c.stepMs) || c.stepMs < 0)) errors.push(where + ".stepMs must be a number of ms >= 0.");
+        else if (_isNum(c.dur) && B > 1 && (B - 1) * c.stepMs > c.dur - 1) errors.push(where + " starts its band " + B + " at +" + Math.round((B - 1) * c.stepMs) + "ms, after the cue ends (" + c.dur + "ms).");
+        if (c.pattern !== "fill" && (!_isNum(c.burnMs) || c.burnMs <= 0)) errors.push(where + ".burnMs (how long each band burns) must be a positive number of ms.");
+        if (c.pattern === "fill" && c.burnMs !== undefined && (!_isNum(c.burnMs) || c.burnMs < 0)) errors.push(where + ".burnMs must be a number of ms >= 0 if present.");
+      }
+    });
+  }
+
+  // --- field (optional, display + authoring only) -------------------------
+  let field = null;
+  if (raw.field !== undefined && raw.field !== null) {
+    const nf = normalizeField(raw.field);
+    if (!nf.field) warnings.push("field ignored — " + nf.problems.join("; ") + ". The show still plays; the map falls back to the plain field box.");
+    else {
+      field = nf.field;
+      nf.problems.forEach(function (p) { warnings.push("field: " + p); });
+    }
+  }
 
   if (errors.length) return { ok: false, errors: errors, warnings: warnings };
 
@@ -1014,6 +1128,7 @@ function validateShow(raw) {
                  groups: raw.groups.map(function (g) { return { id: g.id.trim(), label: g.label.trim(), color: g.color }; }),
                  defaults: defs,
                  cues: raw.cues.map(function (c) {
+                   if (isBalloonCue(c)) return _copyBalloonCue(c);
                    const o = { t: c.t, dur: c.dur, type: c.type, groups: c.groups.slice(), label: c.label.trim() };
                    if (c.bpm !== undefined) o.bpm = c.bpm;
                    if (c.periodMs !== undefined) o.periodMs = c.periodMs;
@@ -1027,6 +1142,16 @@ function validateShow(raw) {
       const o = { n: b.n, group: b.group.trim(), x: b.x, y: b.y };
       if (b.label !== undefined) o.label = b.label.trim();
       return o;
+    });
+  }
+  // same rule for the field and the sets: absent in, absent out
+  if (field) show.field = field;
+  if (sets.length) {
+    show.sets = sets.map(function (s) {
+      const seen = {}, m = [];
+      s.members.forEach(function (n) { if (!seen[n]) { seen[n] = 1; m.push(n); } });
+      m.sort(function (a, b) { return a - b; });
+      return { id: s.id.trim(), name: s.name.trim(), members: m };
     });
   }
 
@@ -1046,9 +1171,27 @@ function validateShow(raw) {
     }
   });
 
+  // --- per balloon, once any cue is addressed to balloons -----------------
+  //   A balloon gets its group's cues AND every pattern / set / number cue
+  //   that names it; those must never collide either.
+  const bSegs = expandBalloonSegments(show);
+  if (bSegs.length && show.balloons) {
+    const lanes = _balloonWindows(show, segs, bSegs);
+    show.balloons.forEach(function (b) {
+      const list = lanes[b.n];
+      for (let i = 1; i < list.length; i++) {
+        const p = list[i - 1], c = list[i];
+        if (c.t < p.end) {
+          errors.push("Balloon #" + b.n + ' has overlapping cues: "' + p.label + '" (' + p.t + "–" + p.end + "ms) overlaps \"" + c.label + '" (' + c.t + "–" + c.end + "ms). A pilot cannot be given two cues at once.");
+          break;
+        }
+      }
+    });
+  }
+
   if (errors.length) return { ok: false, errors: errors, warnings: warnings };
 
-  const lastEnd = segs.reduce(function (m, s) { return Math.max(m, s.end); }, 0);
+  const lastEnd = segs.concat(bSegs).reduce(function (m, s) { return Math.max(m, s.end); }, 0);
   if (lastEnd < show.audio.durationMs - 30000) {
     warnings.push("Last cue ends " + Math.round((show.audio.durationMs - lastEnd) / 1000) + "s before the end of the audio.");
   }
@@ -1091,6 +1234,7 @@ function expandSegments(show) {
   };
   const out = [];
   show.cues.forEach(function (cue, ci) {
+    if (isBalloonCue(cue)) return;            // per-balloon: expandBalloonSegments()
     const gs = resolve(cue.groups);
     if (cue.type === "alternate") {
       const p = cue.periodMs;
@@ -1131,6 +1275,7 @@ function compileShow(show) {
   // --- vent warnings (derived) ------------------------------------------
   const vents = [];
   show.cues.forEach(function (cue, ci) {
+    if (isBalloonCue(cue)) return;            // per balloon, below
     const sustained = cue.type === "burn" ? cue.dur
                     : cue.type === "alternate" ? cue.periodMs
                     : 0;                              // pulse = blips, never a held burn
@@ -1149,33 +1294,43 @@ function compileShow(show) {
   groupIds.forEach(function (gid) {
     const windows = segments.filter(function (s) { return s.groups.indexOf(gid) !== -1; })
                             .sort(function (a, b) { return a.t - b.t; });
-    const readies = [], stops = [];
-    windows.forEach(function (w, i) {
-      const prevEnd = i > 0 ? windows[i - 1].end : -Infinity;
-      // clamp the get-ready to the end of this group's previous cue — never
-      // warn a pilot about the next burn while they are still on this one.
-      const readyStart = Math.max(w.t - d.getReadyMs, prevEnd);
-      if (readyStart < w.t) readies.push({ t: readyStart, end: w.t, seg: w });
-      const nextStart = (i + 1 < windows.length) ? windows[i + 1].t : Infinity;
-      const stopEnd = Math.min(w.end + d.stopMs, nextStart);
-      if (stopEnd > w.end) stops.push({ t: w.end, end: stopEnd, seg: w });
-    });
+    const lane = _deriveLane(windows, d);
     perGroup[gid] = {
-      windows: windows, readies: readies, stops: stops,
+      windows: windows, readies: lane.readies, stops: lane.stops,
       vents: vents.filter(function (v) { return v.groups.indexOf(gid) !== -1; })
     };
   });
 
   // --- preview cues (source cues, not expanded legs) ---------------------
+  const balloons = Array.isArray(show.balloons) ? show.balloons.slice().sort(function (a, b) { return a.n - b.n; }) : [];
   const previewCues = show.cues.map(function (cue, ci) {
+    if (isBalloonCue(cue)) return _previewOfBalloonCue(show, cue, ci, groupIds, balloons);
     const gs = cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; }) ? groupIds.slice() : cue.groups.slice();
     return { cueIndex: ci, t: cue.t, dur: cue.dur, end: cue.t + cue.dur, type: cue.type,
              groups: gs, isAll: gs.length === groupIds.length && cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; }),
              label: cue.label, bpm: cue.bpm || null, periodMs: cue.periodMs || null };
   });
 
-  const lastEnd = segments.reduce(function (m, s) { return Math.max(m, s.end); }, 0);
-  const balloons = Array.isArray(show.balloons) ? show.balloons.slice().sort(function (a, b) { return a.n - b.n; }) : [];
+  // --- per balloon: its group's lane + every balloon-addressed cue naming it
+  //   Built with the SAME derivation as the group lanes (_deriveLane), so a
+  //   pilot who picked #23 sees exactly what a group pilot would — GET READY,
+  //   STOP, VENT and all — just from #23's own list of burns.
+  const bSegments = expandBalloonSegments(show);
+  const perBalloon = {};
+  if (balloons.length) {
+    const lanes = _balloonWindows(show, segments, bSegments);
+    const bVents = _balloonVents(show, d);
+    balloons.forEach(function (b) {
+      const windows = lanes[b.n];
+      const lane = _deriveLane(windows, d);
+      perBalloon[b.n] = {
+        windows: windows, readies: lane.readies, stops: lane.stops,
+        vents: (perGroup[b.group] ? perGroup[b.group].vents : []).concat(bVents[b.n] || [])
+      };
+    });
+  }
+
+  const lastEnd = segments.concat(bSegments).reduce(function (m, s) { return Math.max(m, s.end); }, 0);
   const balloonOf = {};
   balloons.forEach(function (b) { balloonOf[b.n] = b; });
   return {
@@ -1185,9 +1340,32 @@ function compileShow(show) {
     segments: segments, vents: vents, perGroup: perGroup, previewCues: previewCues,
     beat: beatGridOf(show),          // null when the show carries no tempo
     balloons: balloons, balloonOf: balloonOf,
+    bSegments: bSegments, perBalloon: perBalloon,
+    hasBalloonCues: show.cues.some(isBalloonCue),
+    sets: Array.isArray(show.sets) ? show.sets : [],
+    field: show.field || null,
     audioMs: show.audio.durationMs,
     endMs: Math.max(show.audio.durationMs, lastEnd + d.stopMs)
   };
+}
+
+/* GET READY + STOP windows for one lane (a group's, or one balloon's).
+     GET READY: getReadyMs before each window, clamped to the end of the
+                previous window — never warn a pilot about the next burn while
+                they are still on this one.
+     STOP:      stopMs after each window, truncated at the next window's start
+                so a STOP can never eat the following burn. */
+function _deriveLane(windows, d) {
+  const readies = [], stops = [];
+  windows.forEach(function (w, i) {
+    const prevEnd = i > 0 ? windows[i - 1].end : -Infinity;
+    const readyStart = Math.max(w.t - d.getReadyMs, prevEnd);
+    if (readyStart < w.t) readies.push({ t: readyStart, end: w.t, seg: w });
+    const nextStart = (i + 1 < windows.length) ? windows[i + 1].t : Infinity;
+    const stopEnd = Math.min(w.end + d.stopMs, nextStart);
+    if (stopEnd > w.end) stops.push({ t: w.end, end: stopEnd, seg: w });
+  });
+  return { readies: readies, stops: stops };
 }
 
 /* ===== BEAT GRID ============================================================
@@ -1296,15 +1474,949 @@ function makeBalloons(groupIds, count) {
   return arrangeBalloons(out, gids);
 }
 
+/* ===== BALLOON-ADDRESSED CUES + PATTERNS ======================================
+   A cue can be addressed to balloons instead of groups:
+     target: { all: true } | { group: "north" } | { set: "lakeside" } | { n: [1, 5, 9] }
+   and the `pattern` cue type is the dynamic one — a wave of burns across the
+   field. A pattern is an offset function over the targeted balloons'
+   positions (sweep, ripple, mirror, chase, fill, alternate, radial, sparkle),
+   QUANTISED INTO BANDS so a 0.5–1.5 s spread in pilot reaction can't scramble
+   the order. Band k starts at t + k·stepMs and burns burnMs (fill: to the end
+   of the cue; alternate: the bands trade legs of stepMs, like a ping-pong).
+
+   The show file stores each pattern's bands EXPLICITLY (lists of numbers,
+   band 0 first). patternBands() — the geometry — runs only in the editor and
+   the generator. Every phone then expands the same lists the same way, so no
+   floating-point difference between two phones' atan2() can ever put a pilot
+   in a different band from the one the conductor's map shows.
+   ========================================================================= */
+const PATTERNS = ["sweep", "ripple", "mirror", "chase", "fill", "alternate", "radial", "sparkle"];
+const PATTERN_DIRS = {
+  sweep: ["lr", "rl", "fb", "bf"], fill: ["lr", "rl", "fb", "bf"],
+  ripple: ["out", "in"], mirror: ["in", "out"], radial: ["cw", "ccw"],
+  chase: ["up", "down"], alternate: [], sparkle: []
+};
+const PATTERN_DEFAULT_DIR = { sweep: "lr", fill: "fb", ripple: "out", mirror: "in", radial: "cw", chase: "up" };
+
+function isBalloonCue(c) {
+  return !!c && typeof c === "object" && (c.type === "pattern" || (c.target !== undefined && c.target !== null));
+}
+function _targetKind(t) {
+  if (!t || typeof t !== "object" || Array.isArray(t)) return null;
+  const keys = Object.keys(t);
+  if (keys.length !== 1) return null;
+  if (keys[0] === "all" && t.all === true) return "all";
+  if (keys[0] === "group" && _isStr(t.group)) return "group";
+  if (keys[0] === "set" && _isStr(t.set)) return "set";
+  if (keys[0] === "n" && Array.isArray(t.n)) return "n";
+  return null;
+}
+function _uniqSorted(list) {
+  const seen = {}, out = [];
+  (list || []).forEach(function (n) { if (_isInt(n) && !seen[n]) { seen[n] = 1; out.push(n); } });
+  return out.sort(function (a, b) { return a - b; });
+}
+function copyTarget(t) {
+  const k = _targetKind(t);
+  if (k === "all") return { all: true };
+  if (k === "group") return { group: t.group.trim() };
+  if (k === "set") return { set: t.set.trim() };
+  if (k === "n") return { n: _uniqSorted(t.n) };
+  return null;
+}
+function _copyBalloonCue(c) {
+  const o = { t: c.t, dur: c.dur, type: c.type, target: copyTarget(c.target), label: c.label.trim() };
+  if (c.type === "pulse") o.bpm = c.bpm;
+  if (c.type === "pattern") {
+    o.pattern = c.pattern;
+    if (c.dir !== undefined) o.dir = c.dir;
+    if (c.center !== undefined) o.center = [c.center[0], c.center[1]];
+    if (c.seed !== undefined) o.seed = c.seed;
+    if (c.bandCount !== undefined) o.bandCount = c.bandCount;
+    o.bands = c.bands.map(function (b) { return _uniqSorted(b); });
+    if (c.stepMs !== undefined) o.stepMs = c.stepMs;
+    if (c.burnMs !== undefined) o.burnMs = c.burnMs;
+  }
+  if (c.vent !== undefined) o.vent = c.vent;
+  return o;
+}
+
+/* Balloon numbers a target resolves to (only numbers that exist). */
+function resolveTargetNums(target, balloons, sets) {
+  const kind = _targetKind(target);
+  const list = Array.isArray(balloons) ? balloons : [];
+  const have = {};
+  list.forEach(function (b) { have[b.n] = b; });
+  let out = [];
+  if (kind === "all") out = list.map(function (b) { return b.n; });
+  else if (kind === "group") out = list.filter(function (b) { return b.group === target.group; }).map(function (b) { return b.n; });
+  else if (kind === "set") {
+    const s = (Array.isArray(sets) ? sets : []).filter(function (x) { return x && x.id === target.set; })[0];
+    out = s && Array.isArray(s.members) ? s.members.filter(function (n) { return !!have[n]; }) : [];
+  } else if (kind === "n") out = target.n.filter(function (n) { return !!have[n]; });
+  return _uniqSorted(out);
+}
+
+/* The burn windows one pattern cue produces, band by band (alternate: leg by
+   leg). Pure timing — which balloons are in each band is cue.bands[band]. */
+function patternSegs(cue) {
+  const out = [];
+  if (!cue || !Array.isArray(cue.bands) || !cue.bands.length || !_isNum(cue.t) || !_isNum(cue.dur)) return out;
+  const B = cue.bands.length, end = cue.t + cue.dur;
+  if (cue.pattern === "alternate") {
+    const p = cue.stepMs;
+    if (!(p > 0)) return out;
+    for (let j = 0; j < 100000; j++) {
+      const s = cue.t + j * p;
+      if (s >= end) break;
+      const e = Math.min(s + p, end);
+      if (e - s < 1) break;
+      out.push({ band: j % B, leg: j, t: s, end: e });
+    }
+    return out;
+  }
+  const step = _isNum(cue.stepMs) ? cue.stepMs : 0;
+  for (let k = 0; k < B; k++) {
+    const s = cue.t + k * step;
+    if (s >= end) break;
+    const e = cue.pattern === "fill" ? end : Math.min(end, s + (_isNum(cue.burnMs) ? cue.burnMs : 0));
+    if (e - s < 1) continue;
+    out.push({ band: k, leg: 0, t: s, end: e });
+  }
+  return out;
+}
+
+/* Per-balloon burn segments for every balloon-addressed cue. Same shape as
+   expandSegments()' group segments, plus who is in it (`balloons`) and, for
+   patterns, which band this is. */
+function expandBalloonSegments(show) {
+  const balloons = Array.isArray(show.balloons) ? show.balloons : [];
+  const out = [];
+  show.cues.forEach(function (cue, ci) {
+    if (!isBalloonCue(cue)) return;
+    const isAll = !!(cue.target && cue.target.all === true);
+    if (cue.type === "pattern") {
+      const B = cue.bands.length;
+      patternSegs(cue).forEach(function (p) {
+        out.push({
+          cueIndex: ci, segIndex: 0, type: "burn", t: p.t, end: p.end, dur: p.end - p.t,
+          groups: [], label: cue.label + " · band " + (p.band + 1) + "/" + B, baseLabel: cue.label,
+          fromAlternate: false, leg: p.leg, bpm: null, allGroups: [], isAll: isAll,
+          fromPattern: true, pattern: cue.pattern, dir: cue.dir || null, band: p.band, bands: B,
+          balloons: cue.bands[p.band].slice()
+        });
+      });
+    } else {
+      out.push({
+        cueIndex: ci, segIndex: 0, type: cue.type, t: cue.t, end: cue.t + cue.dur, dur: cue.dur,
+        groups: [], label: cue.label, baseLabel: cue.label, fromAlternate: false, leg: 0,
+        bpm: cue.type === "pulse" ? cue.bpm : null, allGroups: [], isAll: isAll,
+        fromPattern: false, pattern: null, dir: null, band: null, bands: null,
+        balloons: resolveTargetNums(cue.target, balloons, show.sets)
+      });
+    }
+  });
+  out.sort(function (a, b) { return (a.t - b.t) || (a.cueIndex - b.cueIndex); });
+  out.forEach(function (s, i) { s.segIndex = i; });
+  return out;
+}
+
+/* balloon number -> its windows: its group's segments + every balloon segment naming it */
+function _balloonWindows(show, segs, bSegs) {
+  const out = {}, byGroup = {};
+  segs.forEach(function (s) { s.groups.forEach(function (g) { (byGroup[g] = byGroup[g] || []).push(s); }); });
+  (show.balloons || []).forEach(function (b) { out[b.n] = (byGroup[b.group] || []).slice(); });
+  bSegs.forEach(function (s) { s.balloons.forEach(function (n) { if (out[n]) out[n].push(s); }); });
+  Object.keys(out).forEach(function (n) {
+    out[n].sort(function (a, b) { return a.t - b.t; });
+  });
+  return out;
+}
+
+/* Vent warnings per balloon for balloon-addressed cues: before THAT balloon's
+   own burn (its band), when what it holds is long — the same rule as a
+   group's (sustained >= longBurnMs, or "vent": true on the cue). */
+function _balloonVents(show, d) {
+  const out = {};
+  const balloons = show.balloons || [];
+  show.cues.forEach(function (cue, ci) {
+    if (!isBalloonCue(cue)) return;
+    const per = {};
+    if (cue.type === "pattern") {
+      patternSegs(cue).forEach(function (p) {
+        cue.bands[p.band].forEach(function (n) {
+          const r = per[n] || (per[n] = { s: p.t, e: p.end, sustained: 0 });
+          r.s = Math.min(r.s, p.t); r.e = Math.max(r.e, p.end);
+          r.sustained = Math.max(r.sustained, p.end - p.t);
+        });
+      });
+    } else {
+      resolveTargetNums(cue.target, balloons, show.sets).forEach(function (n) {
+        per[n] = { s: cue.t, e: cue.t + cue.dur, sustained: cue.type === "pulse" ? 0 : cue.dur };
+      });
+    }
+    const kind = cue.type === "pattern" ? (cue.pattern === "alternate" ? "alternate" : "burn") : cue.type;
+    Object.keys(per).forEach(function (k) {
+      const r = per[k];
+      if (!(cue.vent === true || r.sustained >= d.longBurnMs)) return;
+      (out[k] = out[k] || []).push({
+        cueIndex: ci, t: r.s - d.ventWarnMs, end: r.s,
+        cueT: r.s, cueDur: r.e - r.s, cueType: kind, groups: [], label: cue.label,
+        explicit: cue.vent === true
+      });
+    });
+  });
+  return out;
+}
+
+function _previewOfBalloonCue(show, cue, ci, groupIds, balloons) {
+  let members = [];
+  if (cue.type === "pattern") cue.bands.forEach(function (b) { members = members.concat(b); });
+  else members = resolveTargetNums(cue.target, balloons, show.sets);
+  members = _uniqSorted(members);
+  const groupOf = {};
+  balloons.forEach(function (b) { groupOf[b.n] = b.group; });
+  const gs = groupIds.filter(function (g) { return members.some(function (n) { return groupOf[n] === g; }); });
+  return { cueIndex: ci, t: cue.t, dur: cue.dur, end: cue.t + cue.dur, type: cue.type,
+           groups: gs, isAll: !!(cue.target && cue.target.all === true),
+           label: cue.label, bpm: cue.bpm || null, periodMs: null,
+           balloons: members, pattern: cue.pattern || null, dir: cue.dir || null,
+           bands: cue.type === "pattern" ? cue.bands.length : null };
+}
+
+/* "#1–4, #9, #12" — how the safety audit names balloons */
+function fmtNums(list, maxRuns) {
+  const a = _uniqSorted((list || []).map(Number));
+  if (!a.length) return "";
+  const runs = [];
+  a.forEach(function (n) {
+    const r = runs[runs.length - 1];
+    if (r && n === r[1] + 1) r[1] = n; else runs.push([n, n]);
+  });
+  const lim = maxRuns || 6;
+  const txt = function (r) { return r[0] === r[1] ? "#" + r[0] : (r[1] === r[0] + 1 ? "#" + r[0] + ", #" + r[1] : "#" + r[0] + "–" + r[1]); };
+  if (runs.length <= lim) return runs.map(txt).join(", ");
+  let more = 0;
+  runs.slice(lim).forEach(function (r) { more += r[1] - r[0] + 1; });
+  return runs.slice(0, lim).map(txt).join(", ") + " and " + more + " more";
+}
+
+/* "1–12, 30" -> [1..12, 30]. Hyphen, en dash, em dash or "to". */
+function parseNumberList(text) {
+  const s = String(text == null ? "" : text).trim();
+  if (!s) return { ok: false, nums: [], error: "Type balloon numbers, e.g. 1–12, 30." };
+  const norm = s.replace(/\s*(?:[-‐‑‒–—]|\bto\b)\s*/gi, "-");
+  const toks = norm.split(/[\s,;]+/).filter(function (x) { return x.length > 0; });
+  const seen = {}, nums = [];
+  for (let i = 0; i < toks.length; i++) {
+    const tok = toks[i];
+    let m = /^#?(\d+)$/.exec(tok), a, b;
+    if (m) { a = b = parseInt(m[1], 10); }
+    else if ((m = /^#?(\d+)-#?(\d+)$/.exec(tok))) {
+      a = parseInt(m[1], 10); b = parseInt(m[2], 10);
+      if (a > b) { const t = a; a = b; b = t; }
+    } else return { ok: false, nums: [], error: "“" + tok + "” is not a number or a range like 1–12." };
+    if (a < 1) return { ok: false, nums: [], error: "Balloon numbers start at 1." };
+    if (b - a > 2000) return { ok: false, nums: [], error: "“" + tok + "” is too big a range." };
+    for (let n = a; n <= b; n++) if (!seen[n]) { seen[n] = 1; nums.push(n); }
+  }
+  nums.sort(function (x, y) { return x - y; });
+  return { ok: true, nums: nums, error: "" };
+}
+
+/* Sets as the editor and generator hand them over: slug ids, real members only. */
+function normalizeSets(list, balloons) {
+  const have = {};
+  (balloons || []).forEach(function (b) { have[b.n] = 1; });
+  const used = {}, out = [];
+  (Array.isArray(list) ? list : []).forEach(function (s, k) {
+    if (!s || typeof s !== "object") return;
+    const name = String(s.name == null ? "" : s.name).trim();
+    if (!name) return;
+    let id = String(s.id || name).toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || ("set" + (k + 1));
+    if (id === "all") id = "set-all";
+    while (used[id]) id = id + "-" + (k + 1);
+    used[id] = 1;
+    out.push({ id: id, name: name, members: _uniqSorted((s.members || []).map(function (n) { return Math.round(Number(n)); })).filter(function (n) { return !!have[n]; }) });
+  });
+  return out;
+}
+
+/* ---- small seeded PRNG (integer maths: identical on every engine) ------- */
+function _mulberry(seed) {
+  let a = (seed >>> 0) || 0x9e3779b9;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Rows of a layout (for the alternate checkerboard): cluster by depth. */
+function _rowsOf(pts) {
+  const M = pts.length;
+  if (!M) return [];
+  let nn = [];
+  for (let i = 0; i < M; i++) {
+    let best = Infinity;
+    for (let j = 0; j < M; j++) if (i !== j) best = Math.min(best, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
+    if (isFinite(best)) nn.push(best);
+  }
+  nn.sort(function (a, b) { return a - b; });
+  const tol = Math.max(1e-6, 0.35 * (nn.length ? nn[Math.floor(nn.length / 2)] : 0.1));
+  const byY = pts.slice().sort(function (a, b) { return (a.y - b.y) || (a.x - b.x) || (a.n - b.n); });
+  const rows = [];
+  let cur = null;
+  byY.forEach(function (p) {
+    if (!cur || p.y - cur.y0 > tol) { cur = { y0: p.y, pts: [] }; rows.push(cur); }
+    cur.pts.push(p);
+  });
+  return rows.map(function (r) { return r.pts.sort(function (a, b) { return (a.x - b.x) || (a.n - b.n); }); });
+}
+
+/* THE GEOMETRY. spec = { pattern, dir, bandCount, center?, seed?, members:[n] }
+   -> bands: [[n...], ...], band 0 first, every member in exactly one band, no
+   empty bands. Positions are the balloons' crowd-relative x/y (a field keeps
+   one scale on both axes, so distances are true). */
+function patternBands(spec, balloons) {
+  const byN = {};
+  (balloons || []).forEach(function (b) { byN[b.n] = b; });
+  const nums = _uniqSorted((spec && spec.members) || []).filter(function (n) { return !!byN[n]; });
+  const pts = nums.map(function (n) { return { n: n, x: byN[n].x, y: byN[n].y }; });
+  const M = pts.length;
+  if (!M) return [];
+  const pat = PATTERNS.indexOf(spec.pattern) !== -1 ? spec.pattern : "sweep";
+  const dir = (PATTERN_DIRS[pat] || []).indexOf(spec.dir) !== -1 ? spec.dir : (PATTERN_DEFAULT_DIR[pat] || null);
+  let B = Math.max(1, Math.min(32, Math.round(Number(spec.bandCount) || 4)));
+  if (pat === "alternate") B = 2;
+  B = Math.min(B, M);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, sx = 0, sy = 0;
+  pts.forEach(function (p) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); sx += p.x; sy += p.y; });
+  const cen = (spec.center && _isNum(spec.center[0]) && _isNum(spec.center[1])) ? spec.center : [sx / M, sy / M];
+  const band = {};
+  const bin = function (off) { return Math.max(0, Math.min(B - 1, Math.floor(off * B + 1e-9))); };
+  if (pat === "chase") {
+    const order = nums.slice();
+    if (dir === "down") order.reverse();
+    order.forEach(function (n, r) { band[n] = Math.min(B - 1, Math.floor(r * B / M)); });
+  } else if (pat === "sparkle") {
+    const rnd = _mulberry(((spec.seed | 0) * 2654435761) ^ 0x5bd1e995);
+    const order = nums.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    order.forEach(function (n, r) { band[n] = Math.min(B - 1, Math.floor(r * B / M)); });
+  } else if (pat === "alternate") {
+    _rowsOf(pts).forEach(function (row, ri) { row.forEach(function (p, ci) { band[p.n] = (ri + ci) % 2; }); });
+  } else {
+    const wx = x1 - x0 > 1e-9 ? x1 - x0 : 0, wy = y1 - y0 > 1e-9 ? y1 - y0 : 0;
+    let maxD = 0;
+    pts.forEach(function (p) { maxD = Math.max(maxD, Math.hypot(p.x - cen[0], p.y - cen[1])); });
+    pts.forEach(function (p) {
+      let off = 0;
+      if (pat === "sweep" || pat === "fill") {
+        if (dir === "lr") off = wx ? (p.x - x0) / wx : 0;
+        else if (dir === "rl") off = wx ? (x1 - p.x) / wx : 0;
+        else if (dir === "fb") off = wy ? (p.y - y0) / wy : 0;
+        else off = wy ? (y1 - p.y) / wy : 0;
+      } else if (pat === "ripple") {
+        const dd = maxD > 1e-9 ? Math.hypot(p.x - cen[0], p.y - cen[1]) / maxD : 0;
+        off = dir === "in" ? 1 - dd : dd;
+      } else if (pat === "mirror") {
+        const half = wx / 2, mm = half > 1e-9 ? Math.abs(p.x - (x0 + x1) / 2) / half : 0;
+        off = dir === "out" ? mm : 1 - mm;
+      } else if (pat === "radial") {
+        // start at the crowd's left (9 o'clock on the map); cw = left, back, right, front
+        const th = Math.atan2(p.y - cen[1], p.x - cen[0]);
+        const TAU = 2 * Math.PI;
+        const a = dir === "ccw" ? (th - Math.PI) : (Math.PI - th);
+        off = ((a % TAU) + TAU) % TAU / TAU;
+      }
+      band[p.n] = bin(off);
+    });
+  }
+  const buckets = [];
+  for (let k = 0; k < B; k++) buckets.push([]);
+  nums.forEach(function (n) { buckets[band[n]].push(n); });
+  return buckets.filter(function (b) { return b.length > 0; });
+}
+
+/* A pattern cue's length from its bands: (B-1)·step + burn (alternate keeps its own dur). */
+function patternDur(cue) {
+  const B = Array.isArray(cue.bands) ? cue.bands.length : 0;
+  if (cue.pattern === "alternate") return cue.dur;
+  return Math.round(Math.max(0, B - 1) * (cue.stepMs || 0) + (cue.burnMs || 0));
+}
+
+/* ===== FIELD GEOMETRY =========================================================
+   Polygons are [[x, y], ...] with the closing point dropped. */
+function pointInPoly(x, y, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c;
+  }
+  return c;
+}
+function _segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  let t = L2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function polyEdgeDist(x, y, poly) {
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) best = Math.min(best, _segDist(x, y, poly[j][0], poly[j][1], poly[i][0], poly[i][1]));
+  return best;
+}
+function polyArea(poly) {
+  let a = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += (poly[j][0] * poly[i][1] - poly[i][0] * poly[j][1]);
+  return Math.abs(a) / 2;
+}
+function _bbox(pts) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  pts.forEach(function (p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+  return { x0: x0, y0: y0, x1: x1, y1: y1 };
+}
+function _centroid(poly) {
+  let sx = 0, sy = 0;
+  poly.forEach(function (p) { sx += p[0]; sy += p[1]; });
+  return [sx / poly.length, sy / poly.length];
+}
+
+/* The field object as the show file carries it (validator + editor share this). */
+function _pt(p) { return Array.isArray(p) && p.length >= 2 && _isNum(p[0]) && _isNum(p[1]) ? [p[0], p[1]] : null; }
+function _pts(a, min) {
+  if (!Array.isArray(a) || a.length < min) return null;
+  const out = [];
+  for (let i = 0; i < a.length; i++) { const q = _pt(a[i]); if (!q) return null; out.push(q); }
+  return out;
+}
+function normalizeField(f) {
+  const problems = [];
+  if (!f || typeof f !== "object" || Array.isArray(f)) return { field: null, problems: ["it must be an object"] };
+  const outline = _pts(f.outline, 3);
+  if (!outline) problems.push("field.outline must be at least 3 [x, y] points");
+  if (!_isNum(f.mPerUnit) || f.mPerUnit <= 0) problems.push("field.mPerUnit must be a positive number (metres per map unit)");
+  if (problems.length) return { field: null, problems: problems };
+  const bb = _bbox(outline);
+  const out = {};
+  if (_isStr(f.name)) out.name = f.name.trim();
+  out.w = _isNum(f.w) && f.w > 0 ? f.w : Math.max(1e-6, bb.x1);
+  out.h = _isNum(f.h) && f.h > 0 ? f.h : Math.max(1e-6, bb.y1);
+  out.mPerUnit = f.mPerUnit;
+  if (_isNum(f.areaM2) && f.areaM2 >= 0) out.areaM2 = f.areaM2;
+  out.outline = outline;
+  out.zones = [];
+  (Array.isArray(f.zones) ? f.zones : []).forEach(function (z, i) {
+    const poly = z && _pts(z.poly, 3);
+    if (!poly || !_isStr(z.name)) { problems.push("zone " + (i + 1) + " dropped (it needs a name and 3+ points)"); return; }
+    out.zones.push({ name: z.name.trim(), kind: _isStr(z.kind) ? z.kind.trim() : "keepout", poly: poly });
+  });
+  out.lines = [];
+  (Array.isArray(f.lines) ? f.lines : []).forEach(function (l, i) {
+    const pts = l && _pts(l.pts, 2);
+    if (!pts || !_isStr(l.name)) { problems.push("line " + (i + 1) + " dropped (it needs a name and 2+ points)"); return; }
+    out.lines.push({ name: l.name.trim(), kind: _isStr(l.kind) ? l.kind.trim() : "keepclear", pts: pts });
+  });
+  const crowd = _pts(f.crowd, 2);
+  out.crowd = crowd && crowd.length === 2 ? crowd : [[0, 0], [out.w, 0]];
+  if (f.crowd !== undefined && !(crowd && crowd.length === 2)) problems.push("field.crowd must be two [x, y] points — using the bottom edge");
+  if (_isStr(f.crowdFrom)) out.crowdFrom = f.crowdFrom.trim();
+  const g = f.geo;
+  if (g && typeof g === "object" && _isNum(g.rotDeg) && _isNum(g.x0) && _isNum(g.y0)) {
+    out.geo = { rotDeg: g.rotDeg, x0: g.x0, y0: g.y0 };
+    if (_isNum(g.lat0) && _isNum(g.lon0) && Math.abs(g.lat0) <= 90 && Math.abs(g.lon0) <= 180) { out.geo.lat0 = g.lat0; out.geo.lon0 = g.lon0; }
+  } else if (g !== undefined) problems.push("field.geo dropped (needs rotDeg, x0, y0)");
+  return { field: out, problems: problems };
+}
+
+/* ===== KML / KMZ =============================================================
+   Only what a field needs: each Placemark's <name>, <description>, polygon
+   outer rings, line strings and points. Coordinates are lon,lat[,alt].
+   A tiny tag scanner (not DOMParser) so this runs in node for the tests. */
+function _xmlDecode(s) {
+  return String(s).replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, function (m, e) {
+    const k = e.toLowerCase();
+    if (k === "amp") return "&"; if (k === "lt") return "<"; if (k === "gt") return ">";
+    if (k === "quot") return '"'; if (k === "apos") return "'";
+    const code = k.charAt(1) === "x" ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
+    try { return String.fromCodePoint(code); } catch (err) { return m; }
+  });
+}
+function _xmlText(s) {
+  if (s == null) return "";
+  const src = String(s), re = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(src))) {
+    out += _xmlDecode(src.slice(last, m.index).replace(/<[^>]*>/g, " ")) + m[1].replace(/<[^>]*>/g, " ");
+    last = re.lastIndex;
+  }
+  out += _xmlDecode(src.slice(last).replace(/<[^>]*>/g, " "));
+  return out.replace(/\s+/g, " ").trim();
+}
+function _tagBlocks(xml, tag) {
+  const re = new RegExp("<(?:[\\w.-]+:)?" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?" + tag + "\\s*>", "g");
+  const out = [];
+  let m;
+  while ((m = re.exec(xml))) out.push(m[1]);
+  return out;
+}
+function _firstTag(xml, tag) {
+  if (xml == null) return null;
+  const b = _tagBlocks(xml, tag);
+  return b.length ? b[0] : null;
+}
+function _coordList(text) {
+  const out = [];
+  String(text || "").trim().replace(/\s*,\s*/g, ",").split(/\s+/).forEach(function (tok) {
+    if (!tok) return;
+    const p = tok.split(",");
+    const lon = parseFloat(p[0]), lat = parseFloat(p[1]);
+    if (isFinite(lon) && isFinite(lat) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) out.push([lon, lat]);
+  });
+  return out;
+}
+function _dropClosing(ring) {
+  if (ring.length > 1) {
+    const a = ring[0], b = ring[ring.length - 1];
+    if (Math.abs(a[0] - b[0]) < 1e-12 && Math.abs(a[1] - b[1]) < 1e-12) return ring.slice(0, -1);
+  }
+  return ring;
+}
+function parseKml(text) {
+  if (typeof text !== "string" || !/<(?:[\w.-]+:)?(?:kml|Placemark)\b/i.test(text)) {
+    return { ok: false, errors: ["This does not look like a KML file (there is no <kml> or <Placemark> in it)."], name: "", placemarks: [] };
+  }
+  // XML comments out. (Built from pieces: the literal comment markers must not
+  // appear in this file's script, or an HTML-comment stripper eats the code.)
+  const xml = text.replace(new RegExp("<" + "!--[\\s\\S]*?--" + ">", "g"), "");
+  const firstPm = xml.search(/<(?:[\w.-]+:)?Placemark\b/);
+  const docName = _xmlText(_firstTag(firstPm >= 0 ? xml.slice(0, firstPm) : xml, "name"));
+  const placemarks = [];
+  _tagBlocks(xml, "Placemark").forEach(function (body) {
+    const pm = { name: _xmlText(_firstTag(body, "name")), description: _xmlText(_firstTag(body, "description")), polygons: [], lines: [], points: [] };
+    _tagBlocks(body, "Polygon").forEach(function (pb) {
+      const outer = _firstTag(pb, "outerBoundaryIs");
+      const ring = _dropClosing(_coordList(_firstTag(outer != null ? outer : pb, "coordinates") || ""));
+      if (ring.length >= 3) pm.polygons.push(ring);
+    });
+    _tagBlocks(body, "LineString").forEach(function (lb) {
+      const pts = _coordList(_firstTag(lb, "coordinates") || "");
+      if (pts.length >= 2) pm.lines.push(pts);
+    });
+    _tagBlocks(body, "Point").forEach(function (pb) {
+      const pts = _coordList(_firstTag(pb, "coordinates") || "");
+      if (pts.length) pm.points.push(pts[0]);
+    });
+    placemarks.push(pm);
+  });
+  if (!placemarks.length) return { ok: false, errors: ["The file has no placemarks in it."], name: docName, placemarks: [] };
+  return { ok: true, errors: [], name: docName, placemarks: placemarks };
+}
+function kmlZoneKind(name) {
+  const s = String(name || "").trim();
+  if (/^no[\s_-]*balloons?\b/i.test(s)) return "nob";
+  if (/^pilot[\s_-]*tent\b/i.test(s)) return "tent";
+  if (/^pa\b/i.test(s)) return "pa";
+  if (/^(keep[\s_-]*out|no[\s_-]*go)\b/i.test(s)) return "keepout";
+  return null;
+}
+/* Which placemark is what. FIELD (any case) is the field, else the largest
+   polygon; NO BALLOONS… / PILOT TENT / PA… polygons are keep-out zones;
+   CROWD (a line, or two points) is the show front; KEEP CLEAR / ACCESS LANE
+   lines are drawn as keep-clear lines. Balloon spots are NOT read from the
+   file — they are placed in the app. */
+function classifyKml(parsed) {
+  const errors = [], warnings = [];
+  const polys = [];
+  parsed.placemarks.forEach(function (pm) {
+    pm.polygons.forEach(function (r) { polys.push({ name: pm.name, ring: r, kind: kmlZoneKind(pm.name) }); });
+  });
+  const areaLL = function (r) {
+    const k = Math.cos((r[0][1]) * Math.PI / 180);
+    return polyArea(r.map(function (p) { return [p[0] * k, p[1]]; }));
+  };
+  let field = polys.filter(function (p) { return /^\s*field\s*$/i.test(p.name); })[0] ||
+              polys.filter(function (p) { return /^\s*field\b/i.test(p.name) && !p.kind; })[0] || null;
+  if (!field) {
+    const cands = polys.filter(function (p) { return !p.kind; });
+    cands.forEach(function (p) { if (!field || areaLL(p.ring) > areaLL(field.ring)) field = p; });
+    if (field) warnings.push("No polygon is named FIELD, so the largest one" + (field.name ? " (“" + field.name + "”)" : "") + " is used as the field.");
+  }
+  if (!field) {
+    errors.push(polys.length ? "Every polygon in this file is a keep-out zone. Add one named FIELD for the field outline."
+                             : "There is no polygon in this file. The field outline has to be a polygon (Google Earth: Add → Polygon).");
+    return { ok: false, errors: errors, warnings: warnings };
+  }
+  const zones = polys.filter(function (p) { return p !== field && p.kind; }).map(function (p) { return { name: p.name, kind: p.kind, ring: p.ring }; });
+  polys.forEach(function (p) {
+    if (p !== field && !p.kind) warnings.push("Ignored the polygon “" + (p.name || "unnamed") + "” — name it FIELD, NO BALLOONS…, PILOT TENT or PA… to use it.");
+  });
+  let crowd = null;
+  const crowdPms = parsed.placemarks.filter(function (pm) { return /^\s*crowd\b/i.test(pm.name); });
+  crowdPms.forEach(function (pm) {
+    if (!crowd && pm.lines.length) { const l = pm.lines[0]; crowd = [l[0], l[l.length - 1]]; }
+  });
+  if (!crowd) {
+    const pts = [];
+    crowdPms.forEach(function (pm) { pm.points.forEach(function (p) { pts.push(p); }); });
+    if (pts.length >= 2) crowd = [pts[0], pts[1]];
+  }
+  const lines = [];
+  parsed.placemarks.forEach(function (pm) {
+    if (/^\s*crowd\b/i.test(pm.name)) return;
+    if (!/keep[\s_-]*clear|^\s*access[\s_-]*lane/i.test(pm.name)) return;
+    pm.lines.forEach(function (l) { lines.push({ name: pm.name, kind: "keepclear", pts: l }); });
+  });
+  return { ok: true, errors: errors, warnings: warnings, name: parsed.name || field.name || "Field",
+           fieldName: field.name, outline: field.ring, zones: zones, lines: lines, crowd: crowd };
+}
+
+/* KMZ = a zip. Find the .kml entry (doc.kml first) and hand back its raw
+   bytes + method; the browser inflates method 8 with
+   DecompressionStream("deflate-raw"), node tests with zlib.inflateRawSync. */
+function _latin1(u, off, len) {
+  let s = "";
+  for (let i = 0; i < len && off + i < u.length; i++) s += String.fromCharCode(u[off + i]);
+  return s;
+}
+function zipFindKml(bytes) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  const rd16 = function (i) { return u[i] | (u[i + 1] << 8); };
+  const rd32 = function (i) { return (u[i] | (u[i + 1] << 8) | (u[i + 2] << 16) | (u[i + 3] << 24)) >>> 0; };
+  if (u.length < 22 || rd32(0) !== 0x04034b50) return { ok: false, error: "This is not a KMZ (zip) file." };
+  const entries = [];
+  let eocd = -1;
+  for (let i = u.length - 22; i >= Math.max(0, u.length - 65557); i--) if (rd32(i) === 0x06054b50) { eocd = i; break; }
+  if (eocd >= 0) {
+    const count = rd16(eocd + 10);
+    let p = rd32(eocd + 16);
+    for (let k = 0; k < count && p + 46 <= u.length && rd32(p) === 0x02014b50; k++) {
+      const nl = rd16(p + 28), xl = rd16(p + 30), cl = rd16(p + 32);
+      entries.push({ name: _latin1(u, p + 46, nl), flags: rd16(p + 8), method: rd16(p + 10), csize: rd32(p + 20), usize: rd32(p + 24), loff: rd32(p + 42) });
+      p += 46 + nl + xl + cl;
+    }
+  }
+  if (!entries.length) {
+    // no central directory (truncated file): walk the local headers instead
+    let p = 0;
+    while (p + 30 <= u.length && rd32(p) === 0x04034b50) {
+      const flags = rd16(p + 6), csize = rd32(p + 18), nl = rd16(p + 26), xl = rd16(p + 28);
+      entries.push({ name: _latin1(u, p + 30, nl), flags: flags, method: rd16(p + 8), csize: csize, usize: rd32(p + 22), loff: p });
+      if ((flags & 8) && csize === 0) break;
+      p += 30 + nl + xl + csize;
+    }
+  }
+  const kmls = entries.filter(function (e) { return /\.kml$/i.test(e.name) && !/^__MACOSX\//.test(e.name); });
+  if (!kmls.length) return { ok: false, error: "This KMZ has no .kml file inside it.", names: entries.map(function (e) { return e.name; }) };
+  const pick = kmls.filter(function (e) { return /(^|\/)doc\.kml$/i.test(e.name); })[0] || kmls[0];
+  if (pick.flags & 1) return { ok: false, error: "The KML inside this KMZ is encrypted." };
+  if (pick.method !== 0 && pick.method !== 8) return { ok: false, error: "The KML inside uses zip method " + pick.method + " — only stored and deflate are supported." };
+  const lh = pick.loff;
+  if (lh + 30 > u.length || rd32(lh) !== 0x04034b50) return { ok: false, error: "The KMZ is damaged (bad local header)." };
+  const start = lh + 30 + rd16(lh + 26) + rd16(lh + 28);
+  if (start + pick.csize > u.length) return { ok: false, error: "The KMZ is damaged (the KML runs past the end of the file)." };
+  return { ok: true, name: pick.name, method: pick.method, data: u.subarray(start, start + pick.csize), size: pick.usize };
+}
+
+/* ===== PROJECTION =============================================================
+   lon/lat -> local metres (equirectangular around the field's centre: at a
+   few hundred metres the error is far below a balloon's width) -> rotated so
+   the crowd edge runs along the bottom with the field above it -> divided by
+   the field's larger side, so x and y keep ONE scale and both stay 0..1.
+     x: 0 = left, 1 = right, as the CROWD sees the field (their right hand)
+     y: 0 = the front of the field (crowd side), up = away from the crowd
+   Rotation angle th = the direction of the field's x axis, CCW from east. */
+const EARTH_R = 6371008.8;
+function _llToM(lon, lat, lat0, lon0) {
+  const k = Math.PI / 180 * EARTH_R;
+  return [(lon - lon0) * k * Math.cos(lat0 * Math.PI / 180), (lat - lat0) * k];
+}
+function _mToLl(E, N, lat0, lon0) {
+  const k = Math.PI / 180 * EARTH_R;
+  return [lon0 + E / (k * Math.cos(lat0 * Math.PI / 180)), lat0 + N / k];
+}
+function _rot(E, N, th) { const c = Math.cos(th), s = Math.sin(th); return [E * c + N * s, -E * s + N * c]; }
+function _unrot(X, Y, th) { const c = Math.cos(th), s = Math.sin(th); return [X * c - Y * s, X * s + Y * c]; }
+/* x axis from a crowd segment: the crowd faces INTO the field; x runs to their right. */
+function _rotFromCrowd(p1, p2, c) {
+  const dx = p2[0] - p1[0], dy = p2[1] - p1[1], L = Math.hypot(dx, dy);
+  if (L < 1e-6) return null;
+  let nx = -dy / L, ny = dx / L;
+  if (nx * (c[0] - p1[0]) + ny * (c[1] - p1[1]) < 0) { nx = -nx; ny = -ny; }
+  return Math.atan2(-nx, ny);
+}
+function _r5(v) { return Math.round(v * 1e5) / 1e5; }
+/* geometry in local metres -> the normalised field object */
+function _fieldFromMetres(M, th, info) {
+  const R = function (p) { return _rot(p[0], p[1], th); };
+  const bb = _bbox(M.outline.map(R));
+  const x0 = Math.floor(bb.x0 * 1000) / 1000, y0 = Math.floor(bb.y0 * 1000) / 1000;
+  const s = Math.max(0.001, Math.ceil(Math.max(bb.x1 - x0, bb.y1 - y0) * 1000) / 1000);
+  const nrm = function (p) { const q = R(p); return [_r5((q[0] - x0) / s), _r5((q[1] - y0) / s)]; };
+  const f = { name: info.name || "Field", w: _r5((bb.x1 - x0) / s), h: _r5((bb.y1 - y0) / s), mPerUnit: s,
+              areaM2: Math.round(polyArea(M.outline)),
+              outline: M.outline.map(nrm),
+              zones: (M.zones || []).map(function (z) { return { name: z.name, kind: z.kind, poly: z.poly.map(nrm) }; }),
+              lines: (M.lines || []).map(function (l) { return { name: l.name, kind: l.kind, pts: l.pts.map(nrm) }; }),
+              crowd: M.crowd ? M.crowd.map(nrm) : [[0, 0], [_r5((bb.x1 - x0) / s), 0]],
+              crowdFrom: info.crowdFrom || "default",
+              geo: { rotDeg: Math.round(th * 180 / Math.PI * 1000) / 1000, x0: x0, y0: y0 } };
+  if (_isNum(info.lat0) && _isNum(info.lon0)) { f.geo.lat0 = Math.round(info.lat0 * 1e7) / 1e7; f.geo.lon0 = Math.round(info.lon0 * 1e7) / 1e7; }
+  return f;
+}
+/* classified KML (lon/lat) -> field. opts.rotDeg forces a rotation (the crowd
+   edge then becomes the bottom of the rotated field). */
+function projectField(src, opts) {
+  const o = opts || {};
+  const c = _centroid(src.outline);
+  const lon0 = c[0], lat0 = c[1];
+  const toM = function (p) { return _llToM(p[0], p[1], lat0, lon0); };
+  const M = {
+    outline: src.outline.map(toM),
+    zones: (src.zones || []).map(function (z) { return { name: z.name, kind: z.kind, poly: (z.ring || z.poly).map(toM) }; }),
+    lines: (src.lines || []).map(function (l) { return { name: l.name, kind: l.kind, pts: l.pts.map(toM) }; }),
+    crowd: src.crowd ? src.crowd.map(toM) : null
+  };
+  let th = 0, crowdFrom = "default";
+  if (_isNum(o.rotDeg)) { th = o.rotDeg * Math.PI / 180; crowdFrom = "rotate"; M.crowd = null; }
+  else if (M.crowd) {
+    const r = _rotFromCrowd(M.crowd[0], M.crowd[1], _centroid(M.outline));
+    if (r === null) M.crowd = null; else { th = r; crowdFrom = "file"; }
+  }
+  return _fieldFromMetres(M, th, { name: src.name || src.fieldName, crowdFrom: crowdFrom, lat0: lat0, lon0: lon0 });
+}
+function _fieldTh(f) { return ((f.geo && _isNum(f.geo.rotDeg)) ? f.geo.rotDeg : 0) * Math.PI / 180; }
+/* a field point (normalised) -> local unrotated metres, and back */
+function fieldPtToMetres(f, x, y) {
+  const g = f.geo || { x0: 0, y0: 0 };
+  return _unrot(x * f.mPerUnit + (g.x0 || 0), y * f.mPerUnit + (g.y0 || 0), _fieldTh(f));
+}
+function metresToFieldPt(f, E, N) {
+  const g = f.geo || { x0: 0, y0: 0 };
+  const q = _rot(E, N, _fieldTh(f));
+  return [(q[0] - (g.x0 || 0)) / f.mPerUnit, (q[1] - (g.y0 || 0)) / f.mPerUnit];
+}
+function fieldPtToLonLat(f, x, y) {
+  if (!f.geo || !_isNum(f.geo.lat0)) return null;
+  const m = fieldPtToMetres(f, x, y);
+  return _mToLl(m[0], m[1], f.geo.lat0, f.geo.lon0);
+}
+function lonLatToFieldPt(f, lon, lat) {
+  if (!f.geo || !_isNum(f.geo.lat0)) return null;
+  const m = _llToM(lon, lat, f.geo.lat0, f.geo.lon0);
+  return metresToFieldPt(f, m[0], m[1]);
+}
+/* Re-rotate a field (the ⟲ / ⟳ buttons, "tap an edge"). Balloons keep their
+   real spots on the ground; only the map turns. crowdM: the new crowd edge in
+   metres, else the bottom edge of the rotated field. */
+function rotateField(f, balloons, rotDeg, crowdM) {
+  const toM = function (p) { return fieldPtToMetres(f, p[0], p[1]); };
+  const M = {
+    outline: f.outline.map(toM),
+    zones: (f.zones || []).map(function (z) { return { name: z.name, kind: z.kind, poly: z.poly.map(toM) }; }),
+    lines: (f.lines || []).map(function (l) { return { name: l.name, kind: l.kind, pts: l.pts.map(toM) }; }),
+    crowd: crowdM || null
+  };
+  const bm = (balloons || []).map(function (b) { return toM([b.x, b.y]); });
+  const g = f.geo || {};
+  const nf = _fieldFromMetres(M, rotDeg * Math.PI / 180, { name: f.name, crowdFrom: crowdM ? "edge" : "rotate", lat0: g.lat0, lon0: g.lon0 });
+  const nb = (balloons || []).map(function (b, i) {
+    const p = metresToFieldPt(nf, bm[i][0], bm[i][1]);
+    return Object.assign({}, b, { x: _clamp01(_r5(p[0])), y: _clamp01(_r5(p[1])) });
+  });
+  return { field: nf, balloons: nb };
+}
+/* make outline edge i (vertex i -> i+1) the crowd edge */
+function crowdFromEdge(f, balloons, i) {
+  const L = f.outline.length;
+  const p1 = fieldPtToMetres(f, f.outline[i % L][0], f.outline[i % L][1]);
+  const p2 = fieldPtToMetres(f, f.outline[(i + 1) % L][0], f.outline[(i + 1) % L][1]);
+  const th = _rotFromCrowd(p1, p2, _centroid(f.outline.map(function (p) { return fieldPtToMetres(f, p[0], p[1]); })));
+  if (th === null) return { field: f, balloons: balloons };
+  return rotateField(f, balloons, th * 180 / Math.PI, [p1, p2]);
+}
+/* nearest outline edge to a point, within tol (field units), or -1 */
+function fieldEdgeAt(f, x, y, tol) {
+  let best = -1, bestD = tol;
+  const L = f.outline.length;
+  for (let i = 0; i < L; i++) {
+    const a = f.outline[i], b = f.outline[(i + 1) % L];
+    const d = _segDist(x, y, a[0], a[1], b[0], b[1]);
+    if (d <= bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+/* a re-import of the same field: carry each balloon to the same spot on the ground */
+function carryBalloons(oldF, newF, balloons) {
+  if (!oldF || !newF || !oldF.geo || !newF.geo || !_isNum(oldF.geo.lat0) || !_isNum(newF.geo.lat0)) return null;
+  return (balloons || []).map(function (b) {
+    const ll = fieldPtToLonLat(oldF, b.x, b.y);
+    const p = lonLatToFieldPt(newF, ll[0], ll[1]);
+    return Object.assign({}, b, { x: _clamp01(_r5(p[0])), y: _clamp01(_r5(p[1])) });
+  });
+}
+/* "C4": row letter from the crowd edge back, column number left -> right, in cellM squares */
+function gridRefOf(f, x, y, cellM) {
+  if (!f || !_isNum(f.mPerUnit)) return "";
+  const c = cellM || 25;
+  const col = Math.floor(Math.max(0, x) * f.mPerUnit / c) + 1;
+  const row = Math.floor(Math.max(0, y) * f.mPerUnit / c);
+  return (row < 26 ? String.fromCharCode(65 + row) : "Z" + (row - 25)) + col;
+}
+
+/* ===== AUTO-FILL ==============================================================
+   N balloon spots spread evenly inside the field outline minus every keep-out
+   zone: a staggered (hex) grid whose rows run parallel to the crowd edge,
+   with every spot at least half a spacing from the outline and from each
+   zone. The spacing is SOLVED so N fit, then reported in metres. Below the
+   minimum spacing it warns; it never quietly leaves balloons out — if N cannot
+   fit at all, it says how many did. Numbered 1..N front row first, left to
+   right as the crowd sees it; groups are contiguous depth bands. */
+function autofillField(f, count, opts) {
+  const o = opts || {};
+  const N = Math.max(0, Math.min(999, Math.round(Number(count) || 0)));
+  const groupIds = (o.groupIds && o.groupIds.length) ? o.groupIds.slice() : ["g1"];
+  const minSpacingM = _isNum(o.minSpacingM) && o.minSpacingM > 0 ? o.minSpacingM : 25;
+  const marginFrac = _isNum(o.marginFrac) ? Math.max(0, Math.min(1, o.marginFrac)) : 0.5;
+  const m = f.mPerUnit, outline = f.outline, zones = (f.zones || []).map(function (z) { return z.poly; });
+  const res = { ok: true, balloons: [], wanted: N, fitted: 0, spacingM: 0, minPairM: 0, minSpacingM: minSpacingM, warning: "", short: 0 };
+  if (!N || !outline || outline.length < 3) return res;
+  const bb = _bbox(outline);
+  const area = Math.max(1e-9, polyArea(outline));
+  const H3 = Math.sqrt(3) / 2;
+  const spot = function (x, y, s) {
+    if (!pointInPoly(x, y, outline)) return -1;
+    const margin = s * marginFrac;
+    let clr = polyEdgeDist(x, y, outline);
+    if (clr < margin - 1e-12) return -1;
+    for (let k = 0; k < zones.length; k++) {
+      if (pointInPoly(x, y, zones[k])) return -1;
+      const dz = polyEdgeDist(x, y, zones[k]);
+      if (dz < margin - 1e-12) return -1;
+      clr = Math.min(clr, dz);
+    }
+    return clr;
+  };
+  const lattice = function (s, fx, fy) {
+    const rowH = s * H3, out = [];
+    const r0 = Math.floor((bb.y0 - fy) / rowH) - 1, r1 = Math.ceil((bb.y1 - fy) / rowH) + 1;
+    for (let r = r0; r <= r1; r++) {
+      const y = fy + r * rowH;
+      if (y < bb.y0 - 1e-9 || y > bb.y1 + 1e-9) continue;
+      const xo = fx + (((r % 2) + 2) % 2) * s / 2;
+      const c0 = Math.floor((bb.x0 - xo) / s) - 1, c1 = Math.ceil((bb.x1 - xo) / s) + 1;
+      for (let c = c0; c <= c1; c++) {
+        const x = xo + c * s;
+        if (x < bb.x0 - 1e-9 || x > bb.x1 + 1e-9) continue;
+        const clr = spot(x, y, s);
+        if (clr >= 0) out.push({ x: x, y: y, row: r, clr: clr });
+      }
+    }
+    return out;
+  };
+  const P = Math.max(1, Math.min(8, o.phases || 5));
+  const layouts = function (s) {
+    const all = [];
+    for (let i = 0; i < P; i++) for (let j = 0; j < P; j++) all.push(lattice(s, bb.x0 + s * i / P, bb.y0 + s * H3 * j / P));
+    return all;
+  };
+  const maxCount = function (s) { let mx = 0; layouts(s).forEach(function (l) { mx = Math.max(mx, l.length); }); return mx; };
+  const sEst = Math.sqrt(area / (N * H3));
+  const sFloor = 2 / m;
+  let s = Math.max(sFloor, Math.min(2 * Math.sqrt(area), 2 * sEst)), prev = null, guard = 0;
+  while (s > sFloor && maxCount(s) < N && guard++ < 400) { prev = s; s = Math.max(sFloor, s * 0.97); }
+  let pts;
+  if (maxCount(s) < N) {
+    // cannot fit N even at the floor: place what fits, say so loudly
+    s = sFloor;
+    pts = layouts(s).reduce(function (a, l) { return l.length > a.length ? l : a; }, []);
+    res.short = N - pts.length;
+  } else {
+    if (prev !== null) {
+      let lo = s, hi = prev;
+      for (let k = 0; k < 16; k++) { const mid = (lo + hi) / 2; if (maxCount(mid) >= N) lo = mid; else hi = mid; }
+      s = lo;
+    }
+    let best = null, bestEx = Infinity, bestClr = -1;
+    layouts(s).forEach(function (l) {
+      if (l.length < N) return;
+      const ex = l.length - N;
+      let c = 0; l.forEach(function (p) { c += p.clr; });
+      if (ex < bestEx || (ex === bestEx && c > bestClr + 1e-12)) { best = l; bestEx = ex; bestClr = c; }
+    });
+    pts = best.slice();
+    if (pts.length > N) {
+      // trim the spots with the least clearance (tightest to an edge), back of the field first
+      pts.sort(function (a, b) { return (a.clr - b.clr) || (b.y - a.y) || (b.x - a.x); });
+      pts = pts.slice(pts.length - N);
+    }
+  }
+  pts.sort(function (a, b) { return (a.row - b.row) || (a.x - b.x); });
+  const K = pts.length, G = groupIds.length;
+  const base = Math.floor(K / G), extra = K % G;
+  let gi = 0, left = base + (gi < extra ? 1 : 0);
+  res.balloons = pts.map(function (p, i) {
+    while (left <= 0 && gi < G - 1) { gi++; left = base + (gi < extra ? 1 : 0); }
+    left--;
+    return { n: i + 1, group: groupIds[gi], x: _clamp01(_r5(p.x)), y: _clamp01(_r5(p.y)) };
+  });
+  let minPair = Infinity;
+  for (let i = 0; i < K; i++) for (let j = i + 1; j < K; j++) {
+    minPair = Math.min(minPair, Math.hypot(res.balloons[i].x - res.balloons[j].x, res.balloons[i].y - res.balloons[j].y));
+  }
+  res.fitted = K;
+  res.spacingM = Math.round(s * m * 10) / 10;
+  res.minPairM = isFinite(minPair) ? Math.round(minPair * m * 10) / 10 : 0;
+  res.rows = pts.length ? pts[pts.length - 1].row - pts[0].row + 1 : 0;
+  if (res.short > 0) {
+    res.ok = false;
+    res.warning = "Only " + K + " of " + N + " balloons fit in this field, even " + Math.round(sFloor * m) + " m apart. Use fewer balloons or a bigger field.";
+  } else if (res.spacingM < minSpacingM - 0.05) {
+    res.warning = N + " balloons only fit about " + Math.round(res.spacingM) + " m apart here — under your " + minSpacingM + " m minimum. Use fewer balloons, or lower the minimum if that is really what you want.";
+  }
+  return res;
+}
+
 const PHASE_RANK = { IDLE: 1, VENT: 2, GETREADY: 3, STOP: 4, PULSE: 5, BURN: 5 };
 
 function stateAt(tl, myGroups, tMs) {
   const groups = (myGroups || []).filter(function (g) { return !!tl.perGroup[g]; });
+  return _laneState(tl, groups.map(function (g) { return tl.perGroup[g]; }), groups, tMs,
+    function (c) { return groups.some(function (g) { return c.groups.indexOf(g) !== -1; }); });
+}
+
+/* The pilot who picked balloon #n: that balloon's own lane — its group's
+   cues plus every pattern / set / number cue that names it — through the
+   exact same state machine as stateAt(). For a show with only group cues the
+   result is identical to stateAt(tl, [its group], t) (the suite sweeps it). */
+function stateAtBalloon(tl, n, tMs) {
+  const b = tl.balloonOf ? tl.balloonOf[n] : null;
+  if (!b) return stateAt(tl, [], tMs);
+  const lane = (tl.perBalloon && tl.perBalloon[n]) || tl.perGroup[b.group];
+  return _laneState(tl, lane ? [lane] : [], lane ? [b.group] : [], tMs, function (c) {
+    return c.balloons ? c.balloons.indexOf(n) !== -1 : c.groups.indexOf(b.group) !== -1;
+  });
+}
+
+/* What a pilot's phone renders. Shows with no balloon-addressed cues keep the
+   original group path exactly; the balloon path only engages when a cue is
+   actually addressed to balloons. */
+function stateForPilot(tl, n, gid, tMs) {
+  if (tl.hasBalloonCues && n != null && tl.balloonOf && tl.balloonOf[n]) return stateAtBalloon(tl, n, tMs);
+  return stateAt(tl, gid ? [gid] : [], tMs);
+}
+
+function _laneState(tl, lanes, groups, tMs, isMine) {
   let phase = "IDLE", rank = 1, seg = null, stopRec = null, readyRec = null;
   let ventBest = null;
 
-  groups.forEach(function (gid) {
-    const pg = tl.perGroup[gid];
+  lanes.forEach(function (pg) {
     for (let i = 0; i < pg.windows.length; i++) {
       const w = pg.windows[i];
       if (tMs >= w.t && tMs < w.end) {
@@ -1335,8 +2447,8 @@ function stateAt(tl, myGroups, tMs) {
 
   // ---- next cue for me -------------------------------------------------
   let nextOwn = null;
-  groups.forEach(function (gid) {
-    tl.perGroup[gid].windows.forEach(function (w) {
+  lanes.forEach(function (pg) {
+    pg.windows.forEach(function (w) {
       if (w.t > tMs && (!nextOwn || w.t < nextOwn.t)) nextOwn = w;
     });
   });
@@ -1348,7 +2460,7 @@ function stateAt(tl, myGroups, tMs) {
     if (c.t <= tMs) continue;
     next.push({
       cue: c, msUntil: c.t - tMs,
-      mine: groups.some(function (g) { return c.groups.indexOf(g) !== -1; })
+      mine: isMine(c)
     });
   }
 
