@@ -9075,8 +9075,8 @@ function edWireEvents() {
       case "ed-fimport": $("ew-ffile").click(); break;
       case "ed-mapsong": $("ew-mapsongfile").click(); break;
       case "ed-fhavasu": edUseBuiltInField("fields/havasu-windsor4-glow.kml"); break;
-      case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json", null, window.GLOW_DEMO ? "songs/lightning-storm.m4a" : null); break;
-      case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json", null, window.GLOW_DEMO ? "songs/forest-for-the-trees.m4a" : null); break;
+      case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json", null, window.GLOW_DEMO ? "songs/lightning-storm.mp4" : null); break;
+      case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json", null, window.GLOW_DEMO ? "songs/forest-for-the-trees.mp4" : null); break;
       case "ed-fdraw": ED.drawPts = []; ED.mapMode = "draw"; edRenderMap(); break;
       case "ed-fdone": edFinishDraw(); break;
       case "ed-fundo": if (ED.drawPts && ED.drawPts.length) ED.drawPts.pop(); edRenderMap(); break;
