@@ -607,6 +607,8 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <input type="file" id="e-showfile" accept="application/json,.json">
         <label class="fld"><span>or paste show JSON</span><textarea id="e-showjson" placeholder='{"format":"glow-show/1", ...}'></textarea></label>
         <button class="wide" data-act="ed-import">IMPORT THIS SHOW</button>
+        <button class="wide" data-act="ed-demo-ls">HAVASU DEMO · LIGHTNING STORM</button>
+        <button class="wide" data-act="ed-demo-ft">HAVASU DEMO · FOREST FOR THE TREES</button>
         <div class="tiny">An imported show is fully editable. Without a song loaded the waveform strip stays empty and cues snap to a plain grid.</div>
       </div>
     </div>
@@ -679,6 +681,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
           <button class="primary bigbtn" data-act="ed-fimport">IMPORT KML / KMZ<small>Google Earth · My Maps · CalTopo</small></button>
           <button class="bigbtn" data-act="ed-fdraw">DRAW THE FIELD<small>tap the corners, then DONE</small></button>
         </div>
+        <button class="wide" data-act="ed-fhavasu" style="margin-top:8px">USE THE HAVASU GLOW FIELD<small style="display:block;font-weight:600;opacity:.75">Windsor 4 ramp lot · built in, no file needed</small></button>
         <input type="file" id="ew-ffile" class="hidden">
         <div id="ew-fieldstate" class="small" style="margin-top:10px"></div>
       </div>
@@ -5266,6 +5269,7 @@ async function loadShowFromUrl(url) {
     const res = await fetch(url, { cache: "no-store", mode: "cors" });
     if (!res.ok) { showFatal("COULD NOT LOAD SHOW", url, ["HTTP " + res.status + " " + res.statusText]); return; }
     const txt = await res.text();
+    APP.urlShowText = txt;
     applyShow(parseShowText(txt), url);
   } catch (e) {
     showFatal("COULD NOT LOAD SHOW", url, [String(e && e.message || e), "If you are offline, paste the show JSON instead."]);
@@ -7232,6 +7236,34 @@ async function edReadFieldFile(file) {
   }
   return new TextDecoder().decode(buf);
 }
+/* Built-in field: fetch the KML that ships beside the page, so a phone with no
+   field file can still put the real field on the map. */
+async function edUseBuiltInField(url) {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const txt = await res.text();
+    await edImportField(new File([txt], url.split("/").pop(), { type: "application/vnd.google-earth.kml+xml" }));
+  } catch (e) { showFatal("COULD NOT LOAD THE FIELD", url, [String((e && e.message) || e), "If you are offline, import the KML file instead."]); }
+}
+/* Open a show file in the editor, straight onto the MAP tab. */
+async function edOpenShowOnMap(url, text) {
+  try {
+    if (text == null) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      text = await res.text();
+    }
+  } catch (e) { showFatal("COULD NOT LOAD SHOW", url, [String((e && e.message) || e)]); return; }
+  edImportText(text);
+  if (!ED.ready) return;
+  edSetTab("map", true);
+  // land on the play button + field, not on the setup cards above it
+  requestAnimationFrame(function () {
+    const pb = $("ew-mapplay");
+    if (pb) window.scrollTo(0, Math.max(0, pb.getBoundingClientRect().top + window.scrollY - 70));
+  });
+}
 async function edImportField(file) {
   if (!file) return;
   let text;
@@ -8987,6 +9019,9 @@ function edWireEvents() {
       case "ed-bclear": ED.balloons = []; ED.selBalloon = null; ED.selSet = []; ED.fillReport = null; edMapChanged(); break;
       case "ed-maprewind": edMapScrub(0); break;
       case "ed-fimport": $("ew-ffile").click(); break;
+      case "ed-fhavasu": edUseBuiltInField("fields/havasu-windsor4-glow.kml"); break;
+      case "ed-demo-ls": edOpenShowOnMap("shows/havasu-lightning-storm.json"); break;
+      case "ed-demo-ft": edOpenShowOnMap("shows/havasu-forest-for-the-trees.json"); break;
       case "ed-fdraw": ED.drawPts = []; ED.mapMode = "draw"; edRenderMap(); break;
       case "ed-fdone": edFinishDraw(); break;
       case "ed-fundo": if (ED.drawPts && ED.drawPts.length) ED.drawPts.pop(); edRenderMap(); break;
@@ -9211,8 +9246,12 @@ function setRole(role) {
     if (qT0 && /^\d+$/.test(qT0)) armT0(parseInt(qT0, 10), "url");
     const role = load(LS.role);
     edRestore();
-    if (role === "pilot" || role === "conductor") { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
-    else if (role === "editor") { APP.role = role; go("editor"); }
+    if (q.get("edit") !== "1" && (role === "pilot" || role === "conductor")) { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
+    else if (role === "editor" || q.get("edit") === "1") {
+      APP.role = "editor"; store(LS.role, "editor"); go("editor");
+      // a show link opens THAT show in the editor (on the field map), not the last session's work
+      if (qShow && APP.urlShowText) edOpenShowOnMap(qShow, APP.urlShowText);
+    }
     else go("role");
     if (APP.workerUrl) runSync({ silent: true }).then(renderAll);
     if (reanchored) SYNC.lastError = null;
