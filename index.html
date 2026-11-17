@@ -3215,6 +3215,13 @@ const CH_DEFAULTS = {
   fairness: 0.6,
   minCueMs: 600,
   minPeriodMs: 400,
+  // field mode (a real field + numbered balloons): pattern bands. These three
+  // figures are REASONING, not measurement — pilots react 0.5–1.5 s after a
+  // cue, so bands ~1.5 s apart keep the order readable. Test on a real field.
+  bandStepMs: 1500,
+  bandBurnMs: 2500,
+  bands: 4,
+  seed: 1,
   title: "",
   audioTitle: "",
   groups: [
@@ -3268,6 +3275,17 @@ function chOptions(options) {
   // balloons ride along untouched — they are identity, not choreography.
   // chBuildShow() normalizes them against the sanitised group ids above.
   o.balloons = Array.isArray(i.balloons) ? i.balloons : [];
+  // a real field (+ sets) rides along too; with balloons it switches the
+  // generator to per-balloon pattern choreography unless fieldMode === false
+  o.field = (i.field && typeof i.field === "object" && !Array.isArray(i.field)) ? i.field : null;
+  o.sets = Array.isArray(i.sets) ? i.sets : [];
+  o.fieldMode = i.fieldMode !== false;
+  o.bandStepMs = _chNum(i.bandStepMs, CH_DEFAULTS.bandStepMs, 500, 10000);
+  o.bandBurnMs = _chNum(i.bandBurnMs, CH_DEFAULTS.bandBurnMs, 500, 12000);
+  o.bands = Math.round(_chNum(i.bands, CH_DEFAULTS.bands, 2, 12));
+  o.seed = Math.round(_chNum(i.seed, CH_DEFAULTS.seed, 0, 1e9));
+  // per-balloon lanes in the constraint engine (set by chAudit / choreograph)
+  o.perBalloon = !!i.perBalloon;
   return o;
 }
 
@@ -3329,17 +3347,69 @@ function _chIsAll(gs) { return (gs || []).some(function (g) { return String(g).t
 
 function chScheduler(opt, audioMs) {
   const groupIds = opt.groups.map(function (g) { return g.id; });
+  /* LANES. By default one lane per group (as always). With opt.perBalloon one
+     lane per numbered balloon instead: every rule — max burn, rest, the 12 s
+     long-burn runway, the budget — then runs for each balloon on its own, and
+     problems name balloon numbers. A pattern's bands are ONE instruction for
+     each balloon in it (its own band, or its own legs of an alternate), the
+     same exemption a ping-pong's legs have always had. */
+  const perB = !!opt.perBalloon;
+  const balloons = perB ? normalizeBalloons(opt.balloons, groupIds) : [];
+  const laneIds = perB ? balloons.map(function (b) { return String(b.n); }) : groupIds;
   const spans = {}, load = {};
-  groupIds.forEach(function (g) { spans[g] = []; load[g] = 0; });
+  laneIds.forEach(function (g) { spans[g] = []; load[g] = 0; });
   const cues = [];
   let nextId = 1;
 
   const resolve = function (gs) { return _chIsAll(gs) ? groupIds.slice() : (gs || []).filter(function (g) { return groupIds.indexOf(g) !== -1; }); };
+  const laneLabel = function (lane) {
+    if (perB) return "#" + lane;
+    return (opt.groups.filter(function (g) { return g.id === lane; })[0] || {}).label || lane;
+  };
+
+  function footprint(cue) { return perB ? balloonFootprint(cue) : groupFootprint(cue); }
+
+  /* per-balloon footprint: group cues land on every balloon of those groups;
+     balloon-addressed cues on their members; a pattern on each balloon's own
+     band window (or the span of its own alternate legs). */
+  function balloonFootprint(cue) {
+    const out = [];
+    if (isBalloonCue(cue)) {
+      if (cue.type === "pattern") {
+        const per = {};
+        patternSegs(cue).forEach(function (p) {
+          const s = Math.round(p.t), e = Math.round(p.end);
+          (cue.bands[p.band] || []).forEach(function (n) {
+            const r = per[n] || (per[n] = { t: s, end: e, sustained: 0, load: 0 });
+            r.t = Math.min(r.t, s); r.end = Math.max(r.end, e);
+            r.sustained = Math.max(r.sustained, e - s); r.load += e - s;
+          });
+        });
+        balloons.forEach(function (b) { const r = per[b.n]; if (r) out.push({ gid: String(b.n), t: r.t, end: r.end, sustained: r.sustained, load: r.load }); });
+      } else {
+        const t = Math.round(cue.t), end = Math.round(cue.t + cue.dur);
+        const sustained = cue.type === "pulse" ? 0 : cue.dur;
+        const ld = cue.type === "pulse" ? cue.dur * opt.pulseDuty : cue.dur;
+        resolveTargetNums(cue.target, balloons, opt.sets).forEach(function (n) {
+          out.push({ gid: String(n), t: t, end: end, sustained: sustained, load: ld });
+        });
+      }
+      return out;
+    }
+    const byG = {};
+    groupFootprint(cue).forEach(function (f) { byG[f.gid] = f; });
+    balloons.forEach(function (b) {
+      const f = byG[b.group];
+      if (f) out.push({ gid: String(b.n), t: f.t, end: f.end, sustained: f.sustained, load: f.load });
+    });
+    return out;
+  }
 
   /* per-group footprint of one cue: the whole cue is treated as occupied for
      every group it touches (legs of an alternate are internal to the cue), with
      `sustained` = the longest continuous burn that group actually holds. */
-  function footprint(cue) {
+  function groupFootprint(cue) {
+    if (isBalloonCue(cue)) return [];
     const gs = resolve(cue.groups);
     const t = Math.round(cue.t), end = Math.round(cue.t + cue.dur);
     const out = [];
@@ -3374,29 +3444,47 @@ function chScheduler(opt, audioMs) {
     const push = function (code, sev, text) { out.push({ code: code, severity: sev, text: text }); };
     // per-group problems are recorded as (who, body) so that the same problem
     // hitting every group collapses into one readable line instead of N
-    const pushG = function (code, sev, who, body) { out.push({ code: code, severity: sev, who: who, body: body, text: who + " " + body }); };
+    const pushG = function (code, sev, who, body, lane) { out.push({ code: code, severity: sev, who: who, body: body, lane: lane, text: who + " " + body }); };
     if (!cue || !isFinite(cue.t) || !isFinite(cue.dur) || cue.dur <= 0) { push("shape", "block", "cue has no valid start/duration"); return out; }
     if (cue.t < 0) push("bounds", "block", "starts before the show");
     if (cue.t + cue.dur > audioMs) push("bounds", "block", "runs " + secs(cue.t + cue.dur - audioMs) + " past the end of the audio");
-    const gs = resolve(cue.groups);
-    if (!gs.length) push("groups", "block", "no known group");
-    if (cue.type === "alternate" && gs.length < 2) push("groups", "block", "an alternate needs at least two groups");
-    if (cue.type === "alternate" && !(cue.periodMs > 0)) push("shape", "block", "alternate needs a periodMs");
-    if (cue.type === "alternate" && cue.periodMs > cue.dur) push("shape", "block", "periodMs is longer than the cue");
+    const bCue = isBalloonCue(cue);
+    const gs = bCue ? [] : resolve(cue.groups);
+    const fps = footprint(cue);
+    if (bCue) {
+      if (!perB) push("groups", "block", "is addressed to balloons, but the show has no numbered balloons");
+      else if (!fps.length) push("groups", "block", "targets no balloons");
+      if (cue.type === "alternate") push("groups", "block", "an alternate trades between groups — use the ALTERNATE pattern for balloons");
+      if (cue.type === "pattern") {
+        const B = Array.isArray(cue.bands) ? cue.bands.length : 0;
+        if (PATTERNS.indexOf(cue.pattern) === -1) push("shape", "block", "unknown pattern");
+        if (!B) push("shape", "block", "the pattern has no bands of balloons");
+        if (cue.pattern === "alternate" && B < 2) push("shape", "block", "the alternate pattern needs two bands to trade between");
+        if (cue.pattern === "alternate" && !(cue.stepMs > 0)) push("shape", "block", "the alternate pattern needs a leg length");
+        if (cue.pattern !== "alternate" && B > 1 && !(cue.stepMs > 0)) push("shape", "block", "the bands need a step between them");
+        if (cue.pattern !== "alternate" && B > 1 && (B - 1) * cue.stepMs >= cue.dur) push("shape", "block", "its last band would start after the cue ends");
+        if (cue.pattern !== "alternate" && cue.pattern !== "fill" && !(cue.burnMs > 0)) push("shape", "block", "the bands need a burn length");
+      }
+    } else {
+      if (!gs.length) push("groups", "block", "no known group");
+      if (cue.type === "alternate" && gs.length < 2) push("groups", "block", "an alternate needs at least two groups");
+      if (cue.type === "alternate" && !(cue.periodMs > 0)) push("shape", "block", "alternate needs a periodMs");
+      if (cue.type === "alternate" && cue.periodMs > cue.dur) push("shape", "block", "periodMs is longer than the cue");
+    }
     if (cue.type === "pulse" && !(cue.bpm >= 20 && cue.bpm <= 300)) push("shape", "block", "pulse needs a bpm between 20 and 300");
 
-    footprint(cue).forEach(function (f) {
-      const lbl = (opt.groups.filter(function (g) { return g.id === f.gid; })[0] || {}).label || f.gid;
+    fps.forEach(function (f) {
+      const lbl = laneLabel(f.gid);
       if (f.sustained > opt.maxBurnMs + 0.5) {
         const hard = f.sustained > Math.max(opt.maxBurnMs * opt.hardBurnFactor, opt.maxBurnMs + opt.hardBurnPadMs);
-        pushG("maxburn", hard ? "block" : "warn", lbl, "would hold " + secs(f.sustained) + " of burn — over the " + secs(opt.maxBurnMs) + " limit");
+        pushG("maxburn", hard ? "block" : "warn", lbl, "would hold " + secs(f.sustained) + " of burn — over the " + secs(opt.maxBurnMs) + " limit", f.gid);
       }
       const list = spans[f.gid];
       let prev = null, next = null;
       for (let i = 0; i < list.length; i++) {
         const s = list[i];
         if (ignoreId != null && s.cueId === ignoreId) continue;
-        if (f.t < s.end && s.t < f.end) { pushG("overlap", "block", lbl, "is already busy with “" + s.label + "”"); continue; }
+        if (f.t < s.end && s.t < f.end) { pushG("overlap", "block", lbl, "is already busy with “" + s.label + "”", f.gid); continue; }
         if (s.end <= f.t && (!prev || s.end > prev.end)) prev = s;
         if (s.t >= f.end && (!next || s.t < next.t)) next = s;
       }
@@ -3407,7 +3495,7 @@ function chScheduler(opt, audioMs) {
           const hard = long ? gap < opt.stopMs + opt.criticalWarnMs : gap < opt.criticalRestMs;
           pushG(long ? "runway" : "rest", hard ? "block" : "warn", lbl,
             "gets only " + secs(gap) + " after “" + prev.label + "” — needs " + secs(need) +
-            (long ? " to vent and get ready before a long burn" : " of rest"));
+            (long ? " to vent and get ready before a long burn" : " of rest"), f.gid);
         }
       }
       if (next) {
@@ -3416,17 +3504,17 @@ function chScheduler(opt, audioMs) {
           const long = next.sustained >= opt.longBurnMs;
           const hard = long ? gap < opt.stopMs + opt.criticalWarnMs : gap < opt.criticalRestMs;
           pushG(long ? "runway" : "rest", hard ? "block" : "warn", lbl,
-            "would get only " + secs(gap) + " before “" + next.label + "” — needs " + secs(need));
+            "would get only " + secs(gap) + " before “" + next.label + "” — needs " + secs(need), f.gid);
         }
       }
       let used = 0;
       for (let i = 0; i < list.length; i++) if (ignoreId == null || list[i].cueId !== ignoreId) used += list[i].load;
       if (used + f.load > opt.burnBudgetMs + 0.5) {
-        pushG("budget", "warn", lbl, "would burn " + secs(used + f.load) + " total — over the " + secs(opt.burnBudgetMs) + " budget");
+        pushG("budget", "warn", lbl, "would burn " + secs(used + f.load) + " total — over the " + secs(opt.burnBudgetMs) + " budget", f.gid);
       }
     });
 
-    const nGroups = Math.max(1, gs.length);
+    const nGroups = Math.max(1, perB ? fps.length : gs.length);
     const bucket = {}, seen = {}, collapsed = [];
     out.forEach(function (i) { if (i.who) { const k = i.code + "|" + i.body; (bucket[k] = bucket[k] || []).push(i); } });
     out.forEach(function (i) {
@@ -3435,8 +3523,13 @@ function chScheduler(opt, audioMs) {
       if (seen[k]) return;
       seen[k] = 1;
       const n = bucket[k].length;
-      const who = n < 2 ? i.who : (n >= nGroups ? "Every group" : n + " groups");
-      collapsed.push({ code: i.code, severity: i.severity, text: who + " " + i.body });
+      const who = n < 2 ? i.who
+        : !perB ? (n >= nGroups ? "Every group" : n + " groups")
+        : (n >= nGroups ? (nGroups >= laneIds.length ? "Every balloon" : "All " + n + " balloons in it")
+                        : fmtNums(bucket[k].map(function (x) { return Number(x.lane); })));
+      // several balloons named: plural verbs ("#3, #7 get only…"); group wording is untouched
+      const body = (perB && n >= 2 && who !== "Every balloon") ? i.body.replace(/^gets /, "get ").replace(/^is already/, "are already") : i.body;
+      collapsed.push({ code: i.code, severity: i.severity, text: who + " " + body });
     });
     return collapsed;
   }
@@ -3455,6 +3548,9 @@ function chScheduler(opt, audioMs) {
 
   return {
     groupIds: groupIds,
+    laneIds: laneIds,
+    balloonMode: perB,
+    laneLabel: laneLabel,
     cues: cues,
     footprint: footprint,
     issuesFor: issuesFor,
@@ -3476,19 +3572,19 @@ function chScheduler(opt, audioMs) {
     force: function (cue) { return commit(cue); },
     removeById: function (id) {
       for (let i = cues.length - 1; i >= 0; i--) if (cues[i]._id === id) cues.splice(i, 1);
-      groupIds.forEach(function (g) {
+      laneIds.forEach(function (g) {
         for (let i = spans[g].length - 1; i >= 0; i--) {
           if (spans[g][i].cueId === id) { load[g] -= spans[g][i].load; spans[g].splice(i, 1); }
         }
       });
     },
-    loads: function () { const c = {}; groupIds.forEach(function (g) { c[g] = load[g]; }); return c; },
+    loads: function () { const c = {}; laneIds.forEach(function (g) { c[g] = load[g]; }); return c; },
     groupsByLoad: function () {
-      return groupIds.slice().sort(function (a, b) { return (load[a] - load[b]) || (groupIds.indexOf(a) - groupIds.indexOf(b)); });
+      return laneIds.slice().sort(function (a, b) { return (load[a] - load[b]) || (laneIds.indexOf(a) - laneIds.indexOf(b)); });
     },
     balance: function () {
-      let mn = Infinity, mx = 0, weakest = groupIds[0], strongest = groupIds[0];
-      groupIds.forEach(function (g) {
+      let mn = Infinity, mx = 0, weakest = laneIds[0], strongest = laneIds[0];
+      laneIds.forEach(function (g) {
         if (load[g] < mn) { mn = load[g]; weakest = g; }
         if (load[g] > mx) { mx = load[g]; strongest = g; }
       });
@@ -3690,6 +3786,366 @@ function chPlan(A, opt, grid, onlySections) {
   return { anchors: t0.concat(t1).concat(t2), fillers: fillers };
 }
 
+/* ---- FIELD MODE: per-balloon pattern choreography -----------------------
+   With a real field and numbered balloons the generator writes PATTERNS
+   across the field instead of group lanes, so it never reads as one row at a
+   time:
+     intro     -> gentle sweeps front to back, lots of air
+     verse     -> sweeps and chases that change direction, alternating the
+                  whole field with call-and-response halves
+     build     -> sweeps that speed up into a FILL that lands at the end of
+                  the build (every band stays lit: the field fills up)
+     chorus    -> ripples, mirrors, radials and checkerboards, bands on beats
+     drop      -> a ripple out on the downbeat, then ALL burns on bass hits
+                  traded with radials and mirrors
+     breakdown -> sparse: a sparkle or a ripple on one third of the field
+     outro     -> a mirror closing in, then the finale ALL burn if it ends hot
+   Consecutive moves never repeat a pattern + direction within three.
+
+   It plans against a REAL constraint engine (a second scheduler used as a
+   simulator, fed every tile of the plan): a tile is only planned where every
+   balloon in it has its rest, its long-burn runway and its budget. Because
+   every rule is pairwise or a sum, any subset of a feasible plan is feasible
+   too — so the density dial (a prefix of the value-ordered fillers) only ever
+   adds show, and every planned cue then lands in the real placement.
+   Deterministic: seeded, no clock, no randomness. */
+const CH_MOVES = {
+  intro:     [["sweep", "fb"], ["sweep", "lr"], ["sparkle", ""], ["sweep", "rl"]],
+  verse:     [["sweep", "lr"], ["chase", "up"], ["sweep", "rl"], ["mirror", "in"], ["chase", "down"], ["sweep", "fb"]],
+  build:     [["sweep", "lr"], ["sweep", "rl"], ["sweep", "fb"], ["chase", "up"]],
+  chorus:    [["ripple", "out"], ["mirror", "in"], ["radial", "cw"], ["ripple", "in"], ["mirror", "out"], ["radial", "ccw"], ["alternate", ""]],
+  drop:      [["radial", "cw"], ["mirror", "out"], ["radial", "ccw"], ["ripple", "in"]],
+  breakdown: [["sparkle", ""], ["ripple", "in"], ["sweep", "bf"], ["radial", "ccw"]],
+  outro:     [["mirror", "in"], ["sweep", "bf"], ["ripple", "in"], ["radial", "cw"]]
+};
+const CH_FIELD_VALUE = { drop: 0.9, chorus: 0.78, verse: 0.6, build: 0.62, outro: 0.5, intro: 0.36, breakdown: 0.33 };
+/* bands per wave, as a multiple of the "bands" option: more bands = a longer
+   wave for the same burn per balloon, so the field stays busy while each
+   balloon still gets its full rest */
+const CH_FIELD_BANDS = { drop: 1.5, chorus: 1.5, verse: 1.25, build: 1.25, outro: 1.25, intro: 1, breakdown: 0.75 };
+const CH_DIR_WORDS = { lr: "left→right", rl: "right→left", fb: "front→back", bf: "back→front", cw: "clockwise", ccw: "counter-clockwise", up: "by number", down: "by number, back down" };
+function chMoveText(pattern, dir) {
+  if (pattern === "ripple") return dir === "in" ? "ripple in" : "ripple out";
+  if (pattern === "mirror") return dir === "out" ? "mirror out" : "mirror in";
+  if (pattern === "alternate") return "checkerboard";
+  return pattern + (dir && CH_DIR_WORDS[dir] ? " " + CH_DIR_WORDS[dir] : "");
+}
+function _chHash(a, b) { return (Math.imul((a | 0) ^ 0x9e3779b9, 2654435761) ^ Math.imul((b | 0) + 0x7f4a7c15, 40503)) >>> 0; }
+
+function chPlanField(A, opt, grid, onlySections, keepCues) {
+  const t0 = [], t1 = [], t2 = [], fillers = [], advisories = [];
+  const groupIds = opt.groups.map(function (g) { return g.id; });
+  const balloons = normalizeBalloons(opt.balloons, groupIds);
+  const allN = balloons.map(function (b) { return b.n; });
+  const byN = {};
+  balloons.forEach(function (b) { byN[b.n] = b; });
+  const beatMs = grid.beatMs, barMs = grid.barMs;
+  const wanted = function (i) { return !onlySections || onlySections.indexOf(i) !== -1; };
+  const cap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+  const at = function (t) { return fmtMMSS(t); };
+
+  // bands ride the beat grid: a whole number of beats apart, burning whole beats
+  let stepBeats = Math.max(1, Math.round(opt.bandStepMs / beatMs));
+  if (stepBeats * beatMs < 0.8 * opt.bandStepMs) stepBeats++;
+  const stepMs = Math.round(stepBeats * beatMs);
+  const burnMs = Math.max(opt.minCueMs, Math.round(Math.max(2, Math.round(opt.bandBurnMs / beatMs)) * beatMs));
+  const shortBurn = Math.max(opt.minCueMs, Math.round(2 * beatMs));
+
+  // halves for call-and-response, thirds for the breakdown's sparse moves
+  const median = function (arr) { const a = arr.slice().sort(function (x, y) { return x - y; }); return a[Math.floor(a.length / 2)]; };
+  const mxX = median(balloons.map(function (b) { return b.x; })), mxY = median(balloons.map(function (b) { return b.y; }));
+  const halfOf = {
+    left:  allN.filter(function (n) { return byN[n].x < mxX; }),
+    right: allN.filter(function (n) { return byN[n].x >= mxX; }),
+    front: allN.filter(function (n) { return byN[n].y < mxY; }),
+    back:  allN.filter(function (n) { return byN[n].y >= mxY; })
+  };
+  const HALF_NAME = { left: "left half", right: "right half", front: "front half", back: "back half" };
+  const shuf = allN.slice(), rnd = _mulberry(_chHash(opt.seed, 77));
+  for (let i = shuf.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = shuf[i]; shuf[i] = shuf[j]; shuf[j] = t; }
+  const thirds = [0, 1, 2].map(function (k) { return shuf.filter(function (n, i) { return i % 3 === k; }).sort(function (a, b) { return a - b; }); })
+                          .filter(function (t) { return t.length > 0; });
+
+  const sim = chScheduler(opt, A.durationMs);
+  (keepCues || []).forEach(function (c) { sim.force(c); });
+  const strict = function (cue) {
+    return !sim.issuesFor(cue, null).some(function (x) {
+      return x.severity === "block" || x.code === "rest" || x.code === "runway" || x.code === "maxburn" || x.code === "budget";
+    });
+  };
+  const mkPattern = function (pattern, dir, members, o) {
+    const oo = o || {};
+    const bandCount = Math.max(2, Math.min(12, oo.bands || opt.bands));
+    const seed = pattern === "sparkle" ? (_chHash(opt.seed, oo.seedSalt || 0) % 100000) : undefined;
+    const bands = patternBands({ pattern: pattern, dir: dir, bandCount: bandCount, members: members, seed: seed }, balloons);
+    if (bands.length < (pattern === "alternate" ? 2 : 1)) return null;
+    const cue = { t: 0, dur: 1, type: "pattern",
+                  target: members.length === allN.length ? { all: true } : { n: members.slice() },
+                  label: "", pattern: pattern, bands: bands, stepMs: oo.stepMs || stepMs, burnMs: oo.burnMs || burnMs, bandCount: bandCount };
+    if (dir) cue.dir = dir;
+    if (seed !== undefined) cue.seed = seed;
+    cue.dur = pattern === "alternate" ? cue.stepMs * Math.max(2, oo.legs || 8) : patternDur(cue);
+    return cue;
+  };
+  const beatAt = function (from, k) { return Math.round(grid.beatAtOrAfter(from) + k * beatMs); };
+  // earliest beat in [from, to - dur] where every balloon in the cue has room
+  const earliest = function (cue, from, to) {
+    if (!cue) return null;
+    for (let k = 0; k < 4000; k++) {
+      const t = beatAt(from, k);
+      if (t + cue.dur > to + 0.5) return null;
+      const c = Object.assign({}, cue, { t: t });
+      if (strict(c)) return c;
+    }
+    return null;
+  };
+  // …and committed to the simulation
+  const firstFit = function (cue, from, to) {
+    const c = earliest(cue, from, to);
+    if (c) sim.force(c);
+    return c;
+  };
+  // latest beat in [from, to - dur] that fits; commits it
+  const lastFit = function (cue, from, to) {
+    if (!cue) return null;
+    const tb = grid.beatAtOrAfter(to - cue.dur);
+    const top = tb > to - cue.dur + 0.5 ? tb - beatMs : tb;     // the latest beat that still ends by `to`
+    for (let k = 0; k < 4000; k++) {
+      const t = Math.round(top - k * beatMs);
+      if (t < from - 0.5) return null;
+      const c = Object.assign({}, cue, { t: t });
+      if (strict(c)) { sim.force(c); return c; }
+    }
+    return null;
+  };
+  const lowAt = function (t) {
+    let v = 0;
+    for (let i = 0; i < A.beats.length; i++) if (Math.abs(A.beats[i].t - t) < beatMs / 2) { v = Math.max(v, A.beats[i].low); }
+    return v;
+  };
+
+  const recent = [];
+  const keyOf = function (c) { return c.type === "pattern" ? c.pattern + ":" + (c.dir || "") : "allburn"; };
+  const pickMove = function (lab, si, k, avoid) {
+    const list = CH_MOVES[lab] || CH_MOVES.verse;
+    const start = (_chHash(opt.seed, si * 31 + 7) + k) % list.length;
+    const tryWin = function (w) {
+      const banned = recent.slice(-w).concat(avoid ? [avoid] : []);
+      for (let j = 0; j < list.length; j++) {
+        const mv = list[(start + j) % list.length];
+        if (banned.indexOf(mv[0] + ":" + mv[1]) === -1) return mv;
+      }
+      return null;
+    };
+    return tryWin(3) || tryWin(2) || tryWin(1) || list[start];
+  };
+  const name = function (c, targetName) { return chMoveText(c.pattern, c.dir) + (targetName ? " · " + targetName : ""); };
+
+  /* ---- pre-pass: the tier-0 moments claim their place first ---------------- */
+  // drops open on their downbeat, alternating: a ripple out from the centre,
+  // then (next drop) an ALL burn — the two biggest moments the field has
+  const dropAnchor = {};
+  let dropNo = 0;
+  A.sections.forEach(function (sec, si) {
+    if (sec.label !== "drop") return;
+    const ripple = (dropNo++ % 2) === 0;
+    if (!wanted(si)) return;
+    const s0 = Math.max(0, grid.barAtOrAfter(sec.startMs));
+    const endLimit = Math.min(sec.endMs, A.durationMs);
+    const tag = cap(sec.label) + " " + (si + 1);
+    const cue = ripple ? mkPattern("ripple", "out", allN, { bands: Math.max(2, Math.round(opt.bands * CH_FIELD_BANDS.drop)) })
+                       : _chCue(0, Math.min(opt.maxBurnMs, grid.quantBeats(2 * barMs, 4)), "burn", ["all"], "");
+    const what = ripple ? "a ripple out" : "an ALL burn";
+    const c = cue && firstFit(cue, s0, Math.min(endLimit, s0 + 2 * barMs + cue.dur));
+    if (!c) {
+      advisories.push({ tMs: s0, sectionIndex: si, wanted: what + " on the drop at " + at(s0), reason: "no room around it",
+        text: "wanted " + what + " on the drop at " + at(s0) + " — skipped: the balloons need their rest or vent time there" });
+      return;
+    }
+    c.label = tag + " — " + (ripple ? name(c) : "ALL burn on the drop");
+    dropAnchor[si] = c;
+    t0.push(_chCand(c, 0.95, si, what + " on the drop at " + at(c.t), {}));
+  });
+  const last = A.sections[A.sections.length - 1];
+  if (wanted(A.sections.length - 1) && (last.energy >= 0.5 || last.label === "drop" || last.label === "chorus")) {
+    const endT = grid.barAtOrBefore(A.durationMs - 1000);
+    const dur = Math.min(opt.maxBurnMs, grid.quantBeats(Math.min(8 * barMs, (endT - last.startMs) * 0.8), 2));
+    const st = endT - dur;
+    if (dur >= 2 * beatMs && st > last.startMs && st >= 0) {
+      const fin = _chCue(st, dur, "burn", ["all"], "FINALE — all burn");
+      if (strict(fin)) {
+        sim.force(fin);
+        t0.push(_chCand(fin, 1, A.sections.length - 1, "the finale all-burn at " + at(st), {}));
+      }
+    }
+  }
+
+  /* ---- the sections, in time order --------------------------------------- */
+  A.sections.forEach(function (sec, si) {
+    if (!wanted(si)) return;
+    const s0 = Math.max(0, grid.barAtOrAfter(sec.startMs));
+    const endLimit = Math.min(sec.endMs, A.durationMs);
+    const lab = sec.label, tag = cap(lab) + " " + (si + 1);
+    const base = CH_FIELD_VALUE[lab] || 0.5;
+    const nextAnchor = dropAnchor[si + 1] ? keyOf(dropAnchor[si + 1]) : null;
+    const tier = lab === "chorus" ? t1 : (lab === "verse" || lab === "build") ? t2 : null;
+    const secBands = Math.max(2, Math.round(opt.bands * (CH_FIELD_BANDS[lab] || 1)));
+    let k = 0, cursor = s0;
+    const add = function (c, want, anchor, targetName) {
+      if (!c.label) c.label = tag + " — " + (c.type === "pattern" ? name(c, targetName) : "ALL burn") + (k ? " " + (k + 1) : "");
+      const cand = _chCand(c, base - 0.03 * k, si, want, {});
+      if (anchor && tier) tier.push(cand); else fillers.push(cand);
+      recent.push(keyOf(c));
+      k++;
+    };
+    if (endLimit - s0 < 2 * barMs) return;
+
+    /* Greedy tiling. Each tile has a planned target (the cycle); if that
+       target cannot start within two bars — its balloons are still resting —
+       whichever other target can start soonest goes instead, so a rested half
+       of the field answers while the other half rests. */
+    const members = function (tgt) {
+      if (tgt === "all" || tgt === "allburn") return allN;
+      if (tgt.indexOf("third") === 0) return thirds[Number(tgt.slice(5)) % thirds.length] || allN;
+      return halfOf[tgt] && halfOf[tgt].length ? halfOf[tgt] : allN;
+    };
+    const targetName = function (tgt, mem) {
+      if (mem === allN) return "";
+      return tgt.indexOf("third") === 0 ? "a third of the field" : HALF_NAME[tgt];
+    };
+    const tileGreedy = function (cycle, o) {
+      for (let guard = 0; guard < 24; guard++) {
+        const primary = cycle[k % cycle.length];
+        const order = [primary].concat(cycle.filter(function (x, i) { return x !== primary && cycle.indexOf(x) === i; }));
+        const mv = pickMove(lab, si, k, nextAnchor);
+        let best = null, bestTgt = null, prim = null;
+        const popts = Object.assign({ bands: secBands }, o.patternOpts ? o.patternOpts(k) : {});
+        const tryAll = function (bands) {
+        prim = null;
+        for (let i = 0; i < order.length; i++) {
+          const tgt = order[i];
+          let c;
+          if (tgt === "allburn") {
+            const ab = _chCue(0, Math.min(opt.maxBurnMs, grid.quantBeats(2 * barMs, 4)), "burn", ["all"], "");
+            const e = earliest(ab, cursor, endLimit);
+            if (!e) continue;
+            // on the strongest bass hit within two bars of the first moment it fits
+            let pick = e, ps = lowAt(e.t);
+            for (let j = 1; j <= 2 * opt.beatsPerBar; j++) {
+              const cc = Object.assign({}, ab, { t: Math.round(e.t + j * beatMs) });
+              if (cc.t + cc.dur > endLimit + 0.5) break;
+              if (strict(cc) && lowAt(cc.t) > ps + 1e-9) { pick = cc; ps = lowAt(cc.t); }
+            }
+            c = pick;
+            c._fitsFrom = e.t;     // judged on when it first fits, landed on the bass hit
+          } else {
+            const mem = members(tgt);
+            c = earliest(mkPattern(mv[0], mv[1], mem, Object.assign({}, popts, { bands: bands })), cursor, endLimit);
+          }
+          if (!c) continue;
+          const tFit = c._fitsFrom !== undefined ? c._fitsFrom : c.t;
+          if (i === 0) { prim = c; if (tFit <= cursor + 2 * barMs + 0.5) { best = c; bestTgt = tgt; return; } continue; }
+          if (!best || c.t < best.t) { best = c; bestTgt = tgt; }
+        }
+        // the planned target still wins if it is at most three bars behind the soonest alternative
+        if (prim && (!best || (prim._fitsFrom !== undefined ? prim._fitsFrom : prim.t) <= best.t + 3 * barMs + 0.5)) { best = prim; bestTgt = order[0]; }
+        };
+        tryAll(popts.bands);
+        // the tail of a section: a shorter wave (fewer bands) still fits where a full one does not
+        if (!best && popts.bands > 2) tryAll(Math.max(2, popts.bands - 2));
+        if (!best) break;
+        delete best._fitsFrom;
+        sim.force(best);
+        const mem = members(bestTgt);
+        add(best, best.type === "pattern"
+              ? "a " + chMoveText(best.pattern, best.dir) + " across the " + (mem === allN ? "field" : targetName(bestTgt, mem)) + " at " + at(best.t)
+              : "an ALL burn on a bass hit at " + at(best.t),
+            k === 0 && o.anchorFirst, best.type === "pattern" ? targetName(bestTgt, mem) : "");
+        cursor = o.after(best, mem === allN);
+      }
+    };
+
+    if (lab === "drop") {
+      const a = dropAnchor[si];
+      if (a) { recent.push(keyOf(a)); cursor = a.t + barMs; k = 1; }
+      // after the opener the halves trade moves, with ALL burns on bass hits where the rest allows
+      tileGreedy(["all", "left", "right", "allburn", "front", "back", "all"], { after: function (c) { return c.t + barMs; } });
+    } else if (lab === "build") {
+      const fdir = ["fb", "lr", "rl"][_chHash(opt.seed, si) % 3];
+      let fill = null;
+      for (let nb = secBands; nb >= 3 && !fill; nb--) fill = lastFit(mkPattern("fill", fdir, allN, { bands: nb }), s0, endLimit);
+      const fillT = fill ? fill.t : endLimit;
+      const steps = [Math.max(stepBeats, 2 * stepBeats), Math.max(stepBeats, Math.ceil(1.5 * stepBeats)), stepBeats];
+      for (let i = 0; i < 6; i++) {
+        const mv = pickMove("build", si, k, fill ? "fill:" + fdir : nextAnchor);
+        const sb = steps[Math.min(i, steps.length - 1)];
+        const c = firstFit(mkPattern(mv[0], mv[1], allN, { stepMs: Math.round(sb * beatMs), bands: secBands }), cursor, fillT);
+        if (!c) break;
+        add(c, "a " + chMoveText(c.pattern, c.dir) + " in the build at " + at(c.t), false);
+        cursor = c.t + 2 * barMs;
+      }
+      if (fill) {
+        const kk = k; k = 0;
+        add(fill, "a fill landing at the end of the build at " + at(fill.t), true);
+        k = kk + 1;
+      }
+    } else if (lab === "verse") {
+      tileGreedy(["all", "left", "right", "front", "back"], { anchorFirst: true, after: function (c, whole) { return c.t + (whole ? barMs : 2 * barMs); } });
+    } else if (lab === "chorus") {
+      tileGreedy(["all", "left", "right", "all", "front", "back"], { anchorFirst: true, after: function (c) { return c.t + barMs; } });
+    } else if (lab === "intro") {
+      // lots of air: the whole field, one gentle move at a time
+      tileGreedy(["all"], { after: function (c) { return c.t + c.dur + 4 * barMs; } });
+    } else if (lab === "outro") {
+      tileGreedy(["all", "front", "back"], { after: function (c) { return c.t + c.dur + 2 * barMs; } });
+    } else {
+      // breakdown: sparse — a third of the field at a time, short burns, few bands
+      tileGreedy(["third0", "third1", "third2"], {
+        patternOpts: function (kk) { return { bands: 3, burnMs: shortBurn, seedSalt: si * 13 + kk }; },
+        after: function (c) { return c.t + c.dur + 2 * barMs; }
+      });
+    }
+  });
+
+  const byTime = function (a, b) { return (a.cue.t - b.cue.t) || (a.value - b.value); };
+  t0.sort(byTime); t1.sort(byTime); t2.sort(byTime);
+  fillers.sort(function (a, b) { return (b.value - a.value) || (a.cue.t - b.cue.t) || (a.cue.label < b.cue.label ? -1 : 1); });
+  return { anchors: t0.concat(t1).concat(t2), fillers: fillers, advisories: advisories,
+           band: { stepMs: stepMs, burnMs: burnMs, bands: opt.bands } };
+}
+
+/* Fairness per balloon: if some balloons burn under `fairness` of the busiest,
+   give them balance accents together (a burn addressed to their numbers) on
+   strong beats. It only ever adds; if nothing fits, it says so. */
+function _chFairnessBalloons(sched, A, opt, grid, adv) {
+  if (opt.fairness <= 0 || sched.laneIds.length < 2) return;
+  const beatsByStrength = A.beats.slice().sort(function (a, b) { return (b.strength - a.strength) || (a.t - b.t); });
+  const dur = grid.quantBeats(2 * grid.beatMs, 1);
+  for (let guard = 0; guard < 40; guard++) {
+    const loads = sched.loads();
+    let mx = 0;
+    sched.laneIds.forEach(function (l) { mx = Math.max(mx, loads[l]); });
+    if (mx <= 0) return;
+    const weak = sched.laneIds.filter(function (l) { return loads[l] < opt.fairness * mx - 1e-9; }).map(Number)
+      .sort(function (a, b) { return (loads[a] - loads[b]) || (a - b); });
+    if (!weak.length) return;
+    let added = false;
+    [weak.slice().sort(function (a, b) { return a - b; }), [weak[0]]].some(function (group) {
+      for (let i = 0; i < beatsByStrength.length; i++) {
+        const b = beatsByStrength[i];
+        if (b.t + dur > A.durationMs) continue;
+        const cue = { t: b.t, dur: dur, type: "burn", target: { n: group.slice() }, label: "Balance accent · " + fmtNums(group, 3) };
+        if (sched.add(cue).ok) { added = true; return true; }
+      }
+      return false;
+    });
+    if (added) continue;
+    adv.push({ tMs: 0, sectionIndex: -1, wanted: "even burn time across balloons", reason: "no room left to even them up",
+      text: "balloons are uneven — " + fmtNums(weak, 4) + " burn under " + Math.round(opt.fairness * 100) + "% of the busiest, and there is no room left to even them up" });
+    return;
+  }
+}
+
 /* ---- placement with a retry ladder -------------------------------------- */
 function _chVariants(cand, opt) {
   const base = cand.cue, f = cand.flex, out = [base];
@@ -3774,6 +4230,22 @@ function _chFairness(sched, A, opt, grid, adv) {
 
 /* ---- show assembly ------------------------------------------------------ */
 function chStripCue(c) {
+  if (isBalloonCue(c)) {
+    const b = { t: Math.round(c.t), dur: Math.round(c.dur), type: c.type, target: copyTarget(c.target), label: c.label };
+    if (c.type === "pulse") b.bpm = Math.round(c.bpm * 100) / 100;
+    if (c.type === "pattern") {
+      b.pattern = c.pattern;
+      if (c.dir) b.dir = c.dir;
+      if (Array.isArray(c.center) && _isNum(c.center[0]) && _isNum(c.center[1])) b.center = [Math.round(c.center[0] * 1e4) / 1e4, Math.round(c.center[1] * 1e4) / 1e4];
+      if (_isInt(c.seed)) b.seed = c.seed;
+      if (_isInt(c.bandCount)) b.bandCount = c.bandCount;
+      b.bands = (c.bands || []).map(function (x) { return x.slice(); });
+      b.stepMs = Math.round(c.stepMs || 0);
+      if (c.pattern !== "alternate" || c.burnMs) b.burnMs = Math.round(c.burnMs || 0);
+    }
+    if (c.vent === true) b.vent = true;
+    return b;
+  }
   const o = { t: Math.round(c.t), dur: Math.round(c.dur), type: c.type, groups: c.groups.slice(), label: c.label };
   if (c.type === "pulse") o.bpm = Math.round(c.bpm * 100) / 100;
   if (c.type === "alternate") o.periodMs = Math.round(c.periodMs);
@@ -3802,13 +4274,19 @@ function chBuildShow(cues, opt, A) {
   };
   const bl = normalizeBalloons(opt.balloons, show.groups.map(function (g) { return g.id; }));
   if (bl.length) show.balloons = bl;
+  // the field and the sets ride out with the show whenever the project has them
+  if (opt.field) { const nf = normalizeField(opt.field); if (nf.field) show.field = nf.field; }
+  if (bl.length && opt.sets && opt.sets.length) { const ss = normalizeSets(opt.sets, bl); if (ss.length) show.sets = ss; }
   return show;
 }
 
 /* Audit an arbitrary cue list against the same constraints — this is what the
-   editor calls after every drag so a broken cue can turn red with a reason. */
+   editor calls after every drag so a broken cue can turn red with a reason.
+   Once any cue is addressed to balloons, every rule runs PER BALLOON and the
+   problems name balloon numbers. */
 function chAudit(cues, options, durationMs) {
   const opt = chOptions(options);
+  if (!opt.perBalloon && opt.balloons.length && (cues || []).some(isBalloonCue)) opt.perBalloon = true;
   const sched = chScheduler(opt, durationMs);
   const recs = cues.map(function (c) { return sched.force(c); });
   const perCue = recs.map(function (r) { return sched.issuesFor(r, r._id); });
@@ -3818,7 +4296,7 @@ function chAudit(cues, options, durationMs) {
     list.forEach(function (i) { if (i.severity === "block") blocking++; else warnings++; });
   });
   return { perCue: perCue, loads: loads, balance: bal, blocking: blocking, warnings: warnings,
-           fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9 };
+           fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9, perBalloon: sched.balloonMode };
 }
 
 /* ---- the entry point ---------------------------------------------------- */
@@ -3827,18 +4305,28 @@ function choreograph(analysis, options) {
   const A = chAnalysis(analysis, opt);
   const grid = chGrid(A, opt);
   const adv = [];
+  const keep = options && options.keepCues ? options.keepCues : [];
+  /* FIELD MODE when there is a real field and at least two numbered balloons
+     (or kept cues already addressed to balloons): pattern choreography, every
+     rule per balloon. Without a field, generation is exactly what it was. */
+  const nBalloons = normalizeBalloons(opt.balloons, opt.groups.map(function (g) { return g.id; })).length;
+  const fieldMode = nBalloons >= 2 && ((opt.fieldMode && !!opt.field) || keep.some(isBalloonCue));
+  if (fieldMode) opt.perBalloon = true;
   const sched = chScheduler(opt, A.durationMs);
 
-  (options && options.keepCues ? options.keepCues : []).forEach(function (c) { sched.force(c); });
+  keep.forEach(function (c) { sched.force(c); });
 
-  const plan = chPlan(A, opt, grid, options && options.onlySections ? options.onlySections : null);
+  const only = options && options.onlySections ? options.onlySections : null;
+  const plan = fieldMode ? chPlanField(A, opt, grid, only, keep) : chPlan(A, opt, grid, only);
+  (plan.advisories || []).forEach(function (a) { adv.push(a); });
   plan.anchors.forEach(function (c) { _chPlace(sched, c, opt, adv); });
 
   // intensity = how deep into the (fixed, value-ordered) filler list we go.
   const k = Math.round(opt.intensity * plan.fillers.length);
   for (let i = 0; i < k; i++) _chPlace(sched, plan.fillers[i], opt, adv);
 
-  _chFairness(sched, A, opt, grid, adv);
+  if (fieldMode) _chFairnessBalloons(sched, A, opt, grid, adv);
+  else _chFairness(sched, A, opt, grid, adv);
 
   // belt and braces: the show that leaves here always validates
   let cues = sched.sorted();
@@ -3873,16 +4361,29 @@ function choreograph(analysis, options) {
   show.cues.forEach(function (c) { totalCueMs += c.dur; });
   Object.keys(loads).forEach(function (g) { totalBurnMs += loads[g]; });
 
+  const stats = {
+    placed: show.cues.length, dropped: adv.length, totalCueMs: totalCueMs, totalBurnMs: totalBurnMs,
+    perGroupBurnMs: loads, fairnessRatio: Math.round(bal.ratio * 1000) / 1000,
+    fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9,
+    intensity: opt.intensity, fillersOffered: plan.fillers.length, fillersTried: k
+  };
+  if (fieldMode) {
+    // per-balloon loads, and what the field choreography is made of
+    stats.mode = "field";
+    stats.perBalloonBurnMs = loads;
+    const mix = {};
+    show.cues.forEach(function (c) {
+      const key = c.type === "pattern" ? c.pattern : (c.groups && _chIsAll(c.groups) ? "all-burn" : (c.target ? "balloon-" + c.type : c.type));
+      mix[key] = (mix[key] || 0) + 1;
+    });
+    stats.patternMix = mix;
+    stats.band = plan.band;
+  }
   return {
     ok: res.ok, show: res.ok ? res.show : show, raw: show, errors: res.errors || [], warnings: res.warnings || [],
     cues: show.cues, advisories: adv,
     analysis: A, grid: { beatMs: grid.beatMs, barMs: grid.barMs, beatT0: grid.beatT0, barT0: grid.barT0 },
-    stats: {
-      placed: show.cues.length, dropped: adv.length, totalCueMs: totalCueMs, totalBurnMs: totalBurnMs,
-      perGroupBurnMs: loads, fairnessRatio: Math.round(bal.ratio * 1000) / 1000,
-      fair: bal.max <= 0 || bal.ratio >= opt.fairness - 1e-9,
-      intensity: opt.intensity, fillersOffered: plan.fillers.length, fillersTried: k
-    }
+    stats: stats
   };
 }
 

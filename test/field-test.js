@@ -435,5 +435,170 @@ const oldShape = JSON.parse(JSON.stringify(demoRaw)); delete oldShape.balloons; 
 const oV = C.validateShow(oldShape);
 eq('a pre-balloon show still compiles with empty per-balloon lanes', [oV.ok, Object.keys(C.compileShow(oV.show).perBalloon).length], [true, 0]);
 
+/* ========================================================================= */
+section('PER-BALLOON SAFETY AUDIT — every rule, for each balloon on its own');
+const OPTB = { groups, balloons: BAL, field: F };
+const sw2 = patCue(30000, 'sweep', 'lr', { all: true }, ALLN, { label: 'Sweep' });
+const sw2Bo = bandOf(sw2.bands);
+const lastBandN = ALLN.filter(n => sw2Bo[n] === sw2.bands.length - 1);
+const auRest = C.chAudit([sw2, { t: 30000 + sw2.dur + 4000, dur: 2000, type: 'burn', groups: ['all'], label: 'Too soon' }], OPTB, 120000);
+eq('a show with a pattern is audited per balloon', auRest.perBalloon, true);
+const restIss = auRest.perCue[1].filter(i => i.code === 'rest');
+ok('an ALL burn 4 s after the sweep ends is caught as a REST problem', restIss.length > 0, auRest.perCue[1]);
+ok('  …naming the balloon numbers that are short of rest', restIss.every(i => /#\d/.test(i.text)), restIss.map(i => i.text));
+ok('  …the last band (' + C.fmtNums(lastBandN) + ') is named with its own 4 s gap', restIss.some(i => /gets? only 4s/.test(i.text) && i.text.indexOf(C.fmtNums(lastBandN)) === 0), restIss.map(i => i.text));
+ok('  …several balloons take a plural verb ("#3, #7 get only…")', restIss.filter(i => /^#\d+[,–]/.test(i.text)).every(i => / get only/.test(i.text)), restIss.map(i => i.text));
+ok('  …rest is tight, not dangerous: amber', restIss.every(i => i.severity === 'warn'));
+const setB = lastBandN.slice(0, 3);
+const auRun = C.chAudit([sw2, { t: 30000 + sw2.dur + 3000, dur: 8000, type: 'burn', target: { n: setB }, label: 'Long burn' }], OPTB, 120000);
+const runIss = auRun.perCue[1].filter(i => i.code === 'runway');
+ok('a long burn on three balloons 3 s after the sweep is a RUNWAY problem (needs 12 s to vent + get ready)', runIss.length > 0, auRun.perCue[1]);
+ok('  …at under stopMs + 2 s it is RED (the vent warning would never show)', runIss.some(i => i.severity === 'block'), runIss);
+ok('  …and it names only those balloons', runIss.every(i => (i.text.match(/#\d+/g) || []).every(m => setB.indexOf(Number(m.slice(1))) !== -1 || /–/.test(i.text))), runIss.map(i => i.text));
+const altLong = patCue(20000, 'alternate', null, { all: true }, ALLN, { dur: 12000, label: 'Checkerboard' });
+const auAlt = C.chAudit([altLong], OPTB, 120000);
+eq('the legs inside one pattern never count as rest problems against each other (one instruction)', auAlt.perCue[0], []);
+const auClash = C.chAudit([{ t: 20000, dur: 2000, type: 'burn', target: { all: true }, label: 'A' }, { t: 21000, dur: 14000, type: 'burn', target: { all: true }, label: 'B' }], OPTB, 120000);
+ok('the same problem on every balloon collapses into one "Every balloon" line', auClash.perCue[1].filter(i => /^Every balloon/.test(i.text)).length >= 1, auClash.perCue[1]);
+const bigFill = patCue(30000, 'fill', 'fb', { all: true }, ALLN, { bandCount: 6, stepMs: 2500, burnMs: 2500, label: 'Huge fill' });
+const mbIss = C.chAudit([bigFill], OPTB, 120000).perCue[0].filter(i => i.code === 'maxburn');
+ok('a fill whose first band would hold ' + (bigFill.dur / 1000) + ' s is over the 12 s max burn — for THAT band only', mbIss.length === 1 && mbIss[0].text.indexOf('#') === 0, mbIss);
+const auBud = C.chAudit([sw2, patCue(60000, 'ripple', 'out', { all: true }, ALLN, { label: 'R' })], Object.assign({ burnBudgetMs: 4000 }, OPTB), 120000);
+ok('the burn budget is per balloon', auBud.perCue[1].some(i => i.code === 'budget' && /balloon|#/.test(i.text)), auBud.perCue[1]);
+const demoA = C.chAudit(demoRaw.cues, { groups: demoRaw.groups, balloons: demoRaw.balloons }, demoRaw.audio.durationMs);
+eq('a groups-only show keeps the group audit (same wording as ever)', [demoA.perBalloon, demoA.blocking], [false, 0]);
+
+/* ------------------------------------- independent per-balloon re-check
+   From compileShow().perBalloon — the lanes the phones run — never from the
+   scheduler: a bug in the choreographer cannot mark its own homework. */
+const PULSE_DUTY = 0.5;
+function restNeedB(o, sus) { return sus >= o.longBurnMs ? Math.max(o.minRestMs, o.stopMs + o.ventLeadMs + o.getReadyMs) : o.minRestMs; }
+function verifyPerBalloon(show, o, label) {
+  const v = C.validateShow(show);
+  ok(label + ': validateShow clean', v.ok, v.errors);
+  if (!v.ok) return null;
+  const tl = C.compileShow(v.show);
+  const problems = [], loads = {};
+  tl.balloons.forEach(b => {
+    const blocks = [];
+    tl.perBalloon[b.n].windows.forEach(w => {
+      const isP = w.type === 'pulse', last = blocks[blocks.length - 1];
+      if (last && last.cueIndex === w.cueIndex) {
+        last.end = Math.max(last.end, w.end); last.sustained = Math.max(last.sustained, isP ? 0 : w.dur); last.load += isP ? w.dur * PULSE_DUTY : w.dur;
+      } else blocks.push({ cueIndex: w.cueIndex, t: w.t, end: w.end, label: w.baseLabel, sustained: isP ? 0 : w.dur, load: isP ? w.dur * PULSE_DUTY : w.dur });
+    });
+    let tot = 0;
+    blocks.forEach((bl, i) => {
+      tot += bl.load;
+      if (bl.sustained > o.maxBurnMs + 0.5) problems.push('#' + b.n + ' holds ' + bl.sustained + 'ms in "' + bl.label + '"');
+      if (i > 0) { const gap = bl.t - blocks[i - 1].end, need = restNeedB(o, bl.sustained); if (gap < need - 0.5) problems.push('#' + b.n + ' gets ' + gap + 'ms before "' + bl.label + '" (needs ' + need + ')'); }
+      if (bl.sustained >= o.longBurnMs && !tl.perBalloon[b.n].vents.some(vv => vv.cueT === bl.t)) problems.push('#' + b.n + ' has a long burn at ' + bl.t + ' with no vent warning');
+    });
+    loads[b.n] = tot;
+    if (tot > o.burnBudgetMs + 0.5) problems.push('#' + b.n + ' burns ' + tot + 'ms total');
+  });
+  const vals = Object.values(loads), mn = Math.min(...vals), mx = Math.max(...vals);
+  if (mx > 0 && mn / mx < o.fairness - 1e-9) problems.push('per-balloon fairness ' + (mn / mx).toFixed(3));
+  ok(label + ': every rule holds for every balloon (re-derived from compileShow)', problems.length === 0, problems.slice(0, 8));
+  return tl;
+}
+function synthAnalysis(bpm, secs, off) {
+  const beatMs = 60000 / bpm, dur = secs[secs.length - 1][1], o = off || 0;
+  const A0 = { durationMs: dur, bpm, beatOffsetMs: o, barPhase: 0, beats: [], sections: [] };
+  let st = 0;
+  secs.forEach(([lab, end, e]) => { A0.sections.push({ startMs: st, endMs: end, label: lab, confidence: 0.7, energy: e }); st = end; });
+  for (let t = o, i = 0; t <= dur; t += beatMs, i++) A0.beats.push({ t: Math.round(t), strength: i % 4 === 0 ? 0.9 : 0.4, low: i % 8 === 0 ? 0.95 : (i % 4 === 0 ? 0.7 : 0.2) });
+  return A0;
+}
+const SONG = synthAnalysis(120, [['intro', 16000, 0.2], ['verse', 48000, 0.55], ['build', 64000, 0.7], ['drop', 96000, 1], ['breakdown', 120000, 0.3], ['chorus', 152000, 0.9], ['outro', 180000, 0.6]], 120);
+
+section('CHOREOGRAPHER ON A FIELD — patterns, per balloon');
+const GEN = { groups, balloons: BAL, field: F, title: 'Field glow', audioTitle: 'fixture' };
+const rF = C.choreograph(SONG, GEN);
+ok('generates a valid show', rF.ok, rF.errors);
+eq('in field mode', rF.stats.mode, 'field');
+const pats = rF.cues.filter(c => c.type === 'pattern');
+ok('writes pattern cues (' + pats.length + ' of ' + rF.cues.length + ')  ' + JSON.stringify(rF.stats.patternMix), pats.length >= 6);
+eq('the show carries the field and all 21 balloons', [!!rF.show.field, rF.show.balloons.length], [true, 21]);
+verifyPerBalloon(rF.show, C.chOptions(GEN), 'default run');
+eq('the generator\'s own per-balloon audit agrees: nothing blocking, nothing tight', [C.chAudit(rF.cues, GEN, SONG.durationMs).blocking, C.chAudit(rF.cues, GEN, SONG.durationMs).warnings], [0, 0]);
+eq('same input twice -> byte-identical show', JSON.stringify(C.choreograph(SONG, GEN).show), JSON.stringify(rF.show));
+eq('deep-copied input -> byte-identical show', JSON.stringify(C.choreograph(JSON.parse(JSON.stringify(SONG)), JSON.parse(JSON.stringify(GEN))).show), JSON.stringify(rF.show));
+const tlF = C.compileShow(C.validateShow(rF.show).show);
+let offBeat = null;
+tlF.bSegments.forEach(s => { const k = (s.t - SONG.beatOffsetMs) / 500; if (Math.abs(k - Math.round(k)) * 500 > 1) offBeat = offBeat || [s.label, s.t]; });
+ok('every band of every pattern starts on a beat (bands land on the beat grid)', offBeat === null, offBeat);
+ok('stored bands are exactly what the geometry gives (re-derived from pattern + direction + target)', pats.every(c => {
+  const mem = C.resolveTargetNums(c.target, rF.show.balloons, rF.show.sets);
+  return JSON.stringify(C.patternBands({ pattern: c.pattern, dir: c.dir, bandCount: c.bandCount, seed: c.seed, members: mem }, rF.show.balloons)) === JSON.stringify(c.bands);
+}));
+const dropCues = rF.cues.filter(c => /^Drop/.test(c.label));
+ok('the first drop opens with a ripple out on its downbeat', dropCues[0] && dropCues[0].pattern === 'ripple' && dropCues[0].dir === 'out' && Math.abs(dropCues[0].t - 64120) <= 2000, dropCues.map(c => [c.t, c.label]));
+ok('  …then the field keeps moving through the drop (patterns after the opener)', dropCues.slice(1).some(c => c.type === 'pattern'), dropCues.map(c => c.label));
+ok('the build fills the field', rF.cues.some(c => c.pattern === 'fill' && /^Build/.test(c.label)));
+ok('the chorus uses ripples / mirrors / radials / checkerboards', rF.cues.filter(c => /^Chorus/.test(c.label)).every(c => ['ripple', 'mirror', 'radial', 'alternate'].indexOf(c.pattern) !== -1));
+const SONG2 = synthAnalysis(120, [['verse', 30000, 0.5], ['drop', 70000, 1], ['breakdown', 90000, 0.3], ['drop', 140000, 1], ['outro', 160000, 0.5]], 0);
+const r2d = C.choreograph(SONG2, Object.assign({ intensity: 1 }, GEN));
+verifyPerBalloon(r2d.show, C.chOptions(Object.assign({ intensity: 1 }, GEN)), 'two drops');
+const d2 = r2d.cues.filter(c => /^Drop 4/.test(c.label));
+ok('the next drop opens with an ALL burn on its downbeat instead', d2[0] && d2[0].type === 'burn' && d2[0].groups && d2[0].groups[0] === 'all' && Math.abs(d2[0].t - 90000) <= 2000, d2.map(c => [c.t, c.label]));
+ok('  …and a long drop trades ALL burns on bass hits with patterns', r2d.cues.filter(c => /^Drop/.test(c.label) && c.type === 'burn').length >= 2 && r2d.cues.filter(c => /^Drop/.test(c.label) && c.type === 'pattern').length >= 2, r2d.cues.filter(c => /^Drop/.test(c.label)).map(c => c.label));
+ok('a long band (the fill\'s first) gets its own VENT warning on that balloon', tlF.balloons.some(b => tlF.perBalloon[b.n].vents.some(v => /fill/.test(v.label))));
+const variety = (cues) => { const p = cues.filter(c => c.type === 'pattern'); for (let i = 1; i < p.length; i++) if (p[i].pattern === p[i - 1].pattern && (p[i].dir || '') === (p[i - 1].dir || '')) return [p[i - 1].label, p[i].label]; return null; };
+let prevMs = -1, monoF = true;
+const series = [];
+[0, 0.25, 0.5, 0.75, 1].forEach(i => {
+  const ri = C.choreograph(SONG, Object.assign({ intensity: i }, GEN));
+  series.push(ri.stats.totalCueMs);
+  if (ri.stats.totalCueMs < prevMs) monoF = false;
+  prevMs = ri.stats.totalCueMs;
+  verifyPerBalloon(ri.show, C.chOptions(Object.assign({ intensity: i }, GEN)), 'intensity ' + i);
+  eq('intensity ' + i + ': no two consecutive patterns share a pattern + direction', variety(ri.cues), null);
+});
+ok('total cue time is monotone in intensity  ' + JSON.stringify(series), monoF, series);
+const r1 = C.choreograph(SONG, Object.assign({ intensity: 1 }, GEN));
+const kinds = [...new Set(r1.cues.filter(c => c.type === 'pattern').map(c => c.pattern))];
+ok('at full density it uses at least 6 of the 8 patterns  ' + JSON.stringify(kinds), kinds.length >= 6);
+ok('…and some moves are on half the field (call and response), not only the whole field',
+   r1.cues.some(c => c.type === 'pattern' && c.target && c.target.n && c.target.n.length < 21 && c.target.n.length >= 9));
+ok('…and the breakdown stays sparse (a third of the field at a time)', r1.cues.filter(c => /^Breakdown/.test(c.label)).every(c => c.target && c.target.n && c.target.n.length <= 8));
+const rNoField = C.choreograph(SONG, { groups, balloons: BAL, title: 'Field glow', audioTitle: 'fixture' });
+ok('WITHOUT a field: no pattern cues — the group choreographer, unchanged', rNoField.cues.every(c => c.type !== 'pattern' && !c.target) && rNoField.stats.mode === undefined);
+eq('a field with fieldMode:false generates the exact same cues as no field', JSON.stringify(C.choreograph(SONG, Object.assign({ fieldMode: false }, GEN)).show.cues), JSON.stringify(rNoField.show.cues));
+ok('  …and still carries the field out with the show (it is the layout)', !!C.choreograph(SONG, Object.assign({ fieldMode: false }, GEN)).show.field);
+const one = C.choreograph(SONG, Object.assign({}, GEN, { balloons: BAL.slice(0, 1) }));
+ok('one balloon is not a field show (falls back to groups)', one.ok && one.cues.every(c => c.type !== 'pattern'));
+[[90, 'slow'], [150, 'fast']].forEach(([bpm, nm]) => {
+  const sA = synthAnalysis(bpm, [['verse', 40000, 0.5], ['chorus', 80000, 0.9], ['drop', 120000, 1]], 77);
+  const rr = C.choreograph(sA, GEN);
+  verifyPerBalloon(rr.show, C.chOptions(GEN), bpm + ' BPM (' + nm + ')');
+  const st = rr.stats.band.stepMs;
+  ok(bpm + ' BPM: band step is a whole number of beats and 1.2–2 s  [' + st + ' ms]', st >= 1200 && st <= 2000 && Math.abs(st / (60000 / bpm) - Math.round(st / (60000 / bpm))) < 0.01);
+});
+const tight = C.choreograph(SONG, Object.assign({ minRestMs: 3000, bandStepMs: 1000, bandBurnMs: 2000, bands: 6 }, GEN));
+verifyPerBalloon(tight.show, C.chOptions(Object.assign({ minRestMs: 3000, bandStepMs: 1000, bandBurnMs: 2000, bands: 6 }, GEN)), 'editable bands / step / burn');
+ok('  …the band settings are honoured (6-band waves at 1 s steps on the beat)', tight.stats.band.stepMs === 1000 && tight.cues.some(c => c.type === 'pattern' && c.bands.length >= 6));
+
+section('CHOREOGRAPHER ON A FIELD — regenerate one section, end to end');
+const keepF = rF.cues.filter(c => c.t < SONG.sections[5].startMs || c.t >= SONG.sections[5].endMs);
+const regenF = C.choreograph(SONG, Object.assign({ keepCues: keepF, onlySections: [5] }, GEN));
+ok('regenerating the chorus keeps every cue outside it', keepF.every(k => regenF.cues.some(c => c.t === k.t && c.label === k.label)));
+ok('  …and only adds cues inside it', regenF.cues.filter(c => !keepF.some(k => k.t === c.t && k.label === c.label)).every(c => c.t >= SONG.sections[5].startMs && c.t < SONG.sections[5].endMs));
+verifyPerBalloon(regenF.show, C.chOptions(GEN), 'chorus regenerated');
+const reparsed = C.parseShowText(JSON.stringify(rF.show));
+ok('the exported JSON re-parses and re-validates', reparsed.ok, reparsed.errors);
+const tlE = C.compileShow(reparsed.show);
+let badPh = null, run = {}, maxRun = 0, nSt = 0;
+for (let t = 0; t < tlE.endMs; t += 100) {
+  tlE.balloons.forEach(b => {
+    const st = C.stateForPilot(tlE, b.n, b.group, t);
+    nSt++;
+    if (st.phase === 'BURN') { run[b.n] = (run[b.n] || 0) + 100; maxRun = Math.max(maxRun, run[b.n]); } else run[b.n] = 0;
+    if (['IDLE', 'PRESHOW', 'ENDED', 'BURN', 'PULSE', 'STOP', 'GETREADY', 'VENT'].indexOf(st.phase) === -1) badPh = [b.n, t, st.phase];
+  });
+}
+ok('every pilot\'s state through the whole show is a known phase (' + nSt + ' states)', badPh === null, badPh);
+ok('no balloon ever sees a continuous BURN longer than maxBurnMs  [' + maxRun + ' ms]', maxRun <= C.CH_DEFAULTS.maxBurnMs + 100, maxRun);
+
 console.log('\n================  ' + pass + ' passed, ' + fail + ' failed  ================');
 process.exit(fail ? 1 : 0);
