@@ -188,6 +188,11 @@ ok('  …with that edge on y = 0', Math.abs(ce.field.crowd[0][1]) < 1e-5 && Math
 const F30 = C.projectField(K, { rotDeg: 30 });
 const carried = C.carryBalloons(F, F30, [{ n: 9, group: 'g', x: 0.5, y: 0.4 }]);
 ok('re-import at another rotation carries balloons to the same ground spot', haversine(C.fieldPtToLonLat(F30, carried[0].x, carried[0].y), llPin) < 0.02);
+const drawn = C.fieldFromPoints([[0.1, 0.1], [0.9, 0.12], [0.8, 0.5], [0.2, 0.55]], 120, 'Back lot');
+ok('DRAW THE FIELD: tapped corners + a width in metres make a field', !!drawn && drawn.crowdFrom === 'drawn' && Math.abs(drawn.mPerUnit - 120) < 0.01 && !!C.normalizeField(drawn).field && C.normalizeField(drawn).problems.length === 0, drawn);
+near('  …its area is the drawn polygon at that scale (m²)', drawn.areaM2, C.polyArea([[0.1, 0.1], [0.9, 0.12], [0.8, 0.5], [0.2, 0.55]]) * 150 * 150, 30);
+ok('  …and auto-fill works on it', C.autofillField(drawn, 12, { groupIds: ['a'] }).balloons.length === 12);
+eq('a degenerate drawing (a line) is refused', C.fieldFromPoints([[0, 0], [0.5, 0], [1, 0]], 100), null);
 eq('grid reference: row letter from the crowd, column across (25 m squares)', [C.gridRefOf(F, 0, 0), C.gridRefOf(F, 0.5, 0.4)], ['A1', 'C4']);
 
 section('AUTO-FILL — 21 balloons on the Havasu field');

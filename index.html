@@ -158,6 +158,7 @@ label.fld > span{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5p
 .stage-top{min-height:26px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:800;letter-spacing:.05em}
 .stage-main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.4vh;min-height:0;width:100%}
 .stage-label{font-size:clamp(15px,5.2vw,30px);font-weight:800;letter-spacing:.09em;text-transform:uppercase;opacity:.92;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage-band{font-size:clamp(13px,4.2vw,22px);font-weight:900;letter-spacing:.08em;text-transform:uppercase;opacity:.86;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stage-big{font-size:min(30vh,34vw);line-height:.94;font-weight:900;letter-spacing:-.02em}
 .stage-big.text{font-size:min(19vh,20vw);letter-spacing:.02em}
 .stage-sub{font-size:clamp(15px,5vw,28px);font-weight:800;letter-spacing:.06em;opacity:.9}
@@ -277,6 +278,10 @@ table.dbg tr.best td{color:#3ff094;font-weight:800}
 .ms-STOP{background:#00164a;color:#cfe0ff}
 .ms-VENT{background:#4b0f8f;color:#f6ecff}
 .ms-IDLE,.ms-PRESHOW,.ms-ENDED{background:#141a26;color:#7b869c}
+.bmirror{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.btile{border-radius:9px;border:1px solid var(--line);border-left:5px solid var(--g,#666);padding:5px 4px;display:flex;flex-direction:column;align-items:center;min-height:46px;justify-content:center}
+.btile b{font-size:16px;font-weight:900;line-height:1}
+.btile span{font-size:9px;font-weight:900;letter-spacing:.04em;min-height:11px}
 
 canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated;background:#fff;border-radius:10px;padding:8px;display:block;margin:0 auto}
 .sharebox{word-break:break-all;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#0a0e16;border:1px solid var(--line);border-radius:10px;padding:10px;line-height:1.5}
@@ -331,6 +336,28 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
 .ednum button{flex:0 0 auto;min-height:48px;padding:0 16px;font-size:19px}
 .edrow > *{min-width:0}
 .edsel{font-size:14px}
+.fieldbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.bigbtn{min-height:76px;flex-direction:column;gap:3px;font-size:14.5px;font-weight:900;letter-spacing:.04em;border-radius:14px}
+.bigbtn small{font-size:11px;font-weight:600;letter-spacing:0;color:#b7c2d6}
+.bigbtn.primary small{color:#cfe0ff}
+.patbtn{background:#ff5a00 !important;border-color:#ff8a3d !important;color:#1a0500 !important;font-weight:900}
+.edtools{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#0b111d;border:1px solid var(--line);border-radius:12px;padding:4px;margin:0 0 10px}
+.edtool{min-height:44px;border-radius:9px;border:0;background:transparent;color:#9fb2d4;font-size:12.5px;letter-spacing:.06em}
+.edtool.on{background:#1d4ed8;color:#fff}
+.ednum .patbtn{min-height:48px;padding:0 14px;font-size:13px}
+.setchip{display:inline-flex;align-items:center;gap:6px}
+.setchip .x{min-height:0;padding:0 2px 0 6px;border:0;background:transparent;color:#ff8b83;font-size:13px}
+.patgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0}
+.patgrid button{min-height:44px;padding:4px;border-radius:10px;font-size:11.5px;font-weight:900;letter-spacing:.03em}
+.patgrid button.on{background:#ff5a00;border-color:#ff8a3d;color:#1a0500}
+.dirchip.on{background:#ffffff;border-color:#ffffff;color:#05070d}
+#ew-patmap{display:block;width:100%;border:1px solid var(--line);border-radius:12px;background:#070a12;touch-action:none;margin:8px 0 6px}
+.bandline{border:1px solid var(--line);border-radius:12px;background:#0b111d;padding:10px 12px;margin:8px 0}
+.bandline b{font-size:14px}
+.edissue.note{border-left-color:#3a5a99;background:#0d1426}
+.edissue .sev{display:inline-block;font-size:10px;font-weight:900;padding:2px 6px;border-radius:5px;margin-right:6px;background:#b3261e;color:#fff}
+.edissue.warn .sev{background:#e0a100;color:#1a1200}
+.edissue.note .sev{background:#1b2740;color:#c9d4ea}
 @media (max-width:640px){
   .edtrans button{min-height:40px;padding:7px 10px;font-size:13px}
 }
@@ -417,6 +444,9 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     </div>
     <div class="stage-main">
       <div id="st-label" class="stage-label"></div>
+      <!-- pattern cues only: "SWEEP · BAND 3 OF 4". Hidden otherwise, so a
+           show with no patterns renders exactly as it always did. -->
+      <div id="st-band" class="stage-band hidden"></div>
       <!-- the beat ring wraps the digits: an SVG loading-circle that fills over
            each beat and snaps empty on the next, thickening on the downbeat.
            Absolutely positioned, so a show with no bpm shifts nothing. -->
@@ -521,7 +551,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <div id="cr-cues" class="stack"></div>
     </div>
     <div class="card">
-      <h3>All-groups mirror</h3>
+      <h3 id="cr-mirrorhead">All-groups mirror</h3>
       <div id="cr-mirror" class="mirror"></div>
     </div>
     <button class="wide huge danger" data-act="hold">SHOW HOLD &mdash; STOP EVERYTHING</button>
@@ -611,6 +641,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <button data-act="ed-zoomout">&minus;</button>
         <button data-act="ed-zoomin">+</button>
         <button data-act="ed-fit">FIT</button>
+        <button id="ew-addpat" class="patbtn" data-act="ed-addpattern">+ PATTERN</button>
         <button data-act="ed-export">EXPORT</button>
         <button data-act="ed-copy">COPY</button>
       </div>
@@ -624,7 +655,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <div class="card" id="ew-inspector"></div>
 
       <div class="card">
-        <h3>Preview <span class="tiny" style="text-transform:none;letter-spacing:0">&mdash; what each group's phone shows at the playhead</span></h3>
+        <h3>Preview <span id="ew-mirrorsub" class="tiny" style="text-transform:none;letter-spacing:0">&mdash; what each group's phone shows at the playhead</span></h3>
         <div id="ew-mirror" class="mirror"></div>
       </div>
 
@@ -639,23 +670,48 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       </div>
     </div>
 
-    <!-- MAP tab: balloon numbers + where each one parks on the field.
-         Cues stay group-based; this is identity and placement only. -->
+    <!-- MAP tab: the real field (KML/KMZ or drawn), balloon spots auto-filled
+         inside it, sets, and where each numbered balloon parks. -->
     <div id="ew-tab-map" class="hidden">
       <div class="card">
-        <h3>How many balloons</h3>
-        <div class="row">
-          <label class="fld grow" style="margin:0"><span>Number of balloons</span>
-            <input type="number" id="ew-bcount" min="0" max="400" step="1" inputmode="numeric">
-          </label>
-          <button class="primary" data-act="ed-bset">SET COUNT</button>
+        <h3>The field</h3>
+        <div class="fieldbtns">
+          <button class="primary bigbtn" data-act="ed-fimport">IMPORT KML / KMZ<small>Google Earth · My Maps · CalTopo</small></button>
+          <button class="bigbtn" data-act="ed-fdraw">DRAW THE FIELD<small>tap the corners, then DONE</small></button>
         </div>
+        <input type="file" id="ew-ffile" class="hidden">
+        <div id="ew-fieldstate" class="small" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h3>Balloons</h3>
+        <div class="row ednum">
+          <span class="small" style="flex:0 0 auto">Balloons</span>
+          <button data-act="ed-bminus" aria-label="Fewer balloons">&minus;</button>
+          <input type="number" id="ew-bcount" min="0" max="400" step="1" inputmode="numeric" aria-label="Number of balloons">
+          <button data-act="ed-bplus" aria-label="More balloons">+</button>
+          <button class="patbtn" data-act="ed-autofill">AUTO-FILL</button>
+        </div>
+        <div class="row ednum" id="ew-spacingrow" style="margin-top:8px">
+          <span class="small" style="flex:0 0 auto">Keep them at least</span>
+          <button data-act="ed-spminus" aria-label="Less spacing">&minus;</button>
+          <b id="ew-minsp" class="mono" style="flex:1 1 auto;text-align:center">25 m</b>
+          <button data-act="ed-spplus" aria-label="More spacing">+</button>
+          <span class="small" style="flex:0 0 auto">apart</span>
+        </div>
+        <div id="ew-fillstate" class="small" style="margin-top:8px"></div>
         <div class="row" style="margin-top:8px">
-          <button class="grow" data-act="ed-barrange">AUTO-ARRANGE</button>
           <button class="grow" data-act="ed-badd">+ ADD ONE</button>
+          <button class="grow" id="ew-barrange" data-act="ed-barrange">ROWS</button>
           <button class="grow danger" data-act="ed-bclear">CLEAR ALL</button>
         </div>
-        <div class="tiny" style="margin-top:8px">Setting a count creates balloons 1&hellip;N split into contiguous blocks per group (&ldquo;1&ndash;8 are NORTH ROW&rdquo;) and lays them out in rows. Then drag any balloon to where it actually parks.</div>
+        <div class="tiny" id="ew-filltip" style="margin-top:8px"></div>
+      </div>
+
+      <div class="row edtools" role="group" aria-label="Map tool">
+        <button id="ew-mode-move" class="edtool on" data-act="ed-mode-move">MOVE</button>
+        <button id="ew-mode-lasso" class="edtool" data-act="ed-mode-lasso">LASSO</button>
+        <button id="ew-mode-add" class="edtool" data-act="ed-mode-add">ADD</button>
       </div>
 
       <!-- Play the show on the map: each balloon lights in its group's cue state
@@ -671,6 +727,27 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       </div>
       <div id="ew-mapwrap"><canvas id="ew-mapcanvas"></canvas></div>
       <div class="tiny edhint" id="ew-maphint"></div>
+      <div id="ew-placenotes"></div>
+
+      <div class="card" id="ew-setcard">
+        <div class="row" style="gap:8px">
+          <b id="ew-selcount" style="font-size:15px">0 selected</b>
+          <button class="grow" data-act="ed-sel-invert">INVERT</button>
+          <button class="grow" data-act="ed-sel-clear">CLEAR</button>
+        </div>
+        <div class="row" style="margin-top:8px;gap:8px">
+          <label class="fld grow" style="margin:0"><span>Set name</span><input type="text" id="ew-setname" placeholder="e.g. LAKESIDE ARC" maxlength="40"></label>
+          <button class="primary" style="align-self:flex-end" data-act="ed-sel-save">SAVE AS SET</button>
+        </div>
+        <div class="row" style="margin-top:8px;gap:8px">
+          <label class="fld grow" style="margin:0"><span>+ By number</span><input type="text" id="ew-bynum" placeholder="1–12, 30" inputmode="text"></label>
+          <button style="align-self:flex-end" data-act="ed-sel-bynum">SELECT</button>
+        </div>
+        <div id="ew-selmsg" class="tiny" style="margin-top:6px"></div>
+        <div class="tiny" style="margin:10px 0 6px;letter-spacing:.1em;font-weight:800">SETS — tap one to select it</div>
+        <div id="ew-sets" class="edchips"></div>
+        <div class="tiny" style="margin-top:8px">The groups are sets too. A balloon can be in several sets; a cue picks one.</div>
+      </div>
 
       <div class="card" id="ew-mapinspector"></div>
     </div>
@@ -2190,6 +2267,17 @@ function projectField(src, opts) {
     if (r === null) M.crowd = null; else { th = r; crowdFrom = "file"; }
   }
   return _fieldFromMetres(M, th, { name: src.name || src.fieldName, crowdFrom: crowdFrom, lat0: lat0, lon0: lon0 });
+}
+/* DRAW THE FIELD: corners tapped on the map (x across, y back, one scale)
+   plus how wide that drawing is in metres. No geo position, crowd = bottom. */
+function fieldFromPoints(pts, widthM, name) {
+  const P = _pts(pts, 3);
+  if (!P || !(widthM > 0)) return null;
+  const bb = _bbox(P), span = Math.max(1e-9, bb.x1 - bb.x0);
+  const k = widthM / span;
+  const M = { outline: P.map(function (p) { return [(p[0] - bb.x0) * k, (p[1] - bb.y0) * k]; }), zones: [], lines: [], crowd: null };
+  if (polyArea(M.outline) < 1) return null;
+  return _fieldFromMetres(M, 0, { name: name || "Drawn field", crowdFrom: "drawn" });
 }
 function _fieldTh(f) { return ((f.geo && _isNum(f.geo.rotDeg)) ? f.geo.rotDeg : 0) * Math.PI / 180; }
 /* a field point (normalised) -> local unrotated metres, and back */
@@ -3926,6 +4014,32 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
 
   const recent = [];
   const keyOf = function (c) { return c.type === "pattern" ? c.pattern + ":" + (c.dir || "") : "allburn"; };
+  const usedLabels = {};
+  const uniq = function (lbl) {
+    usedLabels[lbl] = (usedLabels[lbl] || 0) + 1;
+    return usedLabels[lbl] > 1 ? lbl + " (" + usedLabels[lbl] + ")" : lbl;
+  };
+  /* The density dial takes a prefix of the fillers. Within a section they are
+     ranked in bit-reversal order of their place in time (1st, middle, the
+     quarters, …) so a lower density thins the WHOLE section evenly instead
+     of keeping its start and dropping its end. */
+  const PAIR = { left: "right", right: "left", front: "back", back: "front" };
+  const spread = function (cands, base) {
+    // a half and the complementary half right after it are one unit (call and
+    // response): thinned together, so nobody is left out of the answer
+    const units = [];
+    for (let i = 0; i < cands.length; i++) {
+      const a = cands[i], b = cands[i + 1];
+      if (b && a.tgt && PAIR[a.tgt] === b.tgt) { units.push([a, b]); i++; } else units.push([a]);
+    }
+    const n = units.length;
+    if (n < 2 && cands.length < 2) return;
+    let bits = 0;
+    while ((1 << bits) < n) bits++;
+    const rev = function (i) { let r = 0; for (let b = 0; b < bits; b++) if (i & (1 << b)) r |= 1 << (bits - 1 - b); return r; };
+    const order = units.map(function (u, i) { return i; }).sort(function (a, b) { return rev(a) - rev(b); });
+    order.forEach(function (idx, rank) { units[idx].forEach(function (c, j) { c.value = base - 0.03 * rank - 0.001 * j; }); });
+  };
   const pickMove = function (lab, si, k, avoid) {
     const list = CH_MOVES[lab] || CH_MOVES.verse;
     const start = (_chHash(opt.seed, si * 31 + 7) + k) % list.length;
@@ -3962,7 +4076,7 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
         text: "wanted " + what + " on the drop at " + at(s0) + " — skipped: the balloons need their rest or vent time there" });
       return;
     }
-    c.label = tag + " — " + (ripple ? name(c) : "ALL burn on the drop");
+    c.label = uniq(tag + " — " + (ripple ? name(c) : "ALL burn on the drop"));
     dropAnchor[si] = c;
     t0.push(_chCand(c, 0.95, si, what + " on the drop at " + at(c.t), {}));
   });
@@ -3991,10 +4105,12 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
     const tier = lab === "chorus" ? t1 : (lab === "verse" || lab === "build") ? t2 : null;
     const secBands = Math.max(2, Math.round(opt.bands * (CH_FIELD_BANDS[lab] || 1)));
     let k = 0, cursor = s0;
-    const add = function (c, want, anchor, targetName) {
-      if (!c.label) c.label = tag + " — " + (c.type === "pattern" ? name(c, targetName) : "ALL burn") + (k ? " " + (k + 1) : "");
+    const mine = [];
+    const add = function (c, want, anchor, targetName, tgtKey) {
+      if (!c.label) c.label = uniq(tag + " — " + (c.type === "pattern" ? name(c, targetName) : "ALL burn"));
       const cand = _chCand(c, base - 0.03 * k, si, want, {});
-      if (anchor && tier) tier.push(cand); else fillers.push(cand);
+      cand.tgt = tgtKey || null;
+      if (anchor && tier) tier.push(cand); else { fillers.push(cand); mine.push(cand); }
       recent.push(keyOf(c));
       k++;
     };
@@ -4060,7 +4176,7 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
         add(best, best.type === "pattern"
               ? "a " + chMoveText(best.pattern, best.dir) + " across the " + (mem === allN ? "field" : targetName(bestTgt, mem)) + " at " + at(best.t)
               : "an ALL burn on a bass hit at " + at(best.t),
-            k === 0 && o.anchorFirst, best.type === "pattern" ? targetName(bestTgt, mem) : "");
+            k === 0 && o.anchorFirst, best.type === "pattern" ? targetName(bestTgt, mem) : "", mem === allN ? null : bestTgt);
         cursor = o.after(best, mem === allN);
       }
     };
@@ -4084,11 +4200,7 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
         add(c, "a " + chMoveText(c.pattern, c.dir) + " in the build at " + at(c.t), false);
         cursor = c.t + 2 * barMs;
       }
-      if (fill) {
-        const kk = k; k = 0;
-        add(fill, "a fill landing at the end of the build at " + at(fill.t), true);
-        k = kk + 1;
-      }
+      if (fill) add(fill, "a fill landing at the end of the build at " + at(fill.t), true);
     } else if (lab === "verse") {
       tileGreedy(["all", "left", "right", "front", "back"], { anchorFirst: true, after: function (c, whole) { return c.t + (whole ? barMs : 2 * barMs); } });
     } else if (lab === "chorus") {
@@ -4105,6 +4217,7 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
         after: function (c) { return c.t + c.dur + 2 * barMs; }
       });
     }
+    spread(mine.sort(function (a, b) { return a.cue.t - b.cue.t; }), base - (tier && mine.length ? 0.03 : 0));
   });
 
   const byTime = function (a, b) { return (a.cue.t - b.cue.t) || (a.value - b.value); };
@@ -4112,6 +4225,33 @@ function chPlanField(A, opt, grid, onlySections, keepCues) {
   fillers.sort(function (a, b) { return (b.value - a.value) || (a.cue.t - b.cue.t) || (a.cue.label < b.cue.label ? -1 : 1); });
   return { anchors: t0.concat(t1).concat(t2), fillers: fillers, advisories: advisories,
            band: { stepMs: stepMs, burnMs: burnMs, bands: opt.bands } };
+}
+
+/* After thinning, two placed moves next to each other can be the same pattern
+   in the same direction. Turn the later one round (same bands, same length,
+   re-checked for every balloon); if that does not fit either, it stays. */
+const CH_REVERSE = { lr: "rl", rl: "lr", fb: "bf", bf: "fb", out: "in", in: "out", cw: "ccw", ccw: "cw", up: "down", down: "up" };
+function _chVaryPass(sched, opt) {
+  const groupIds = opt.groups.map(function (g) { return g.id; });
+  const balloons = normalizeBalloons(opt.balloons, groupIds);
+  const pats = sched.sorted().filter(function (c) { return c.type === "pattern"; });
+  for (let i = 1; i < pats.length; i++) {
+    const a = pats[i - 1], b = pats[i];
+    if (a.pattern !== b.pattern || (a.dir || "") !== (b.dir || "")) continue;
+    const alt = Object.assign({}, b);
+    delete alt._id;
+    if (b.dir && CH_REVERSE[b.dir]) alt.dir = CH_REVERSE[b.dir];
+    else if (b.pattern === "sparkle") { alt.pattern = "chase"; alt.dir = "up"; delete alt.seed; }
+    else continue;
+    alt.bands = patternBands({ pattern: alt.pattern, dir: alt.dir, bandCount: alt.bandCount, center: alt.center, seed: alt.seed,
+                               members: resolveTargetNums(alt.target, balloons, opt.sets) }, balloons);
+    if (alt.pattern !== "alternate") alt.dur = patternDur(alt);
+    alt.label = alt.label.replace(chMoveText(b.pattern, b.dir), chMoveText(alt.pattern, alt.dir));
+    sched.removeById(b._id);
+    const r = sched.add(alt);
+    if (r.ok) pats[i] = r.cue;
+    else pats[i] = sched.force(b);
+  }
 }
 
 /* Fairness per balloon: if some balloons burn under `fairness` of the busiest,
@@ -4325,7 +4465,7 @@ function choreograph(analysis, options) {
   const k = Math.round(opt.intensity * plan.fillers.length);
   for (let i = 0; i < k; i++) _chPlace(sched, plan.fillers[i], opt, adv);
 
-  if (fieldMode) _chFairnessBalloons(sched, A, opt, grid, adv);
+  if (fieldMode) { _chVaryPass(sched, opt); _chFairnessBalloons(sched, A, opt, grid, adv); }
   else _chFairness(sched, A, opt, grid, adv);
 
   // belt and braces: the show that leaves here always validates
@@ -5186,8 +5326,12 @@ function renderPilotSetup() {
     });
     gbox.appendChild(grid);
     const mine = APP.myBalloon != null ? APP.tl.balloonOf[APP.myBalloon] : null;
+    const perB = APP.tl.hasBalloonCues;
     gbox.appendChild(el("div", "small", mine
-      ? "You are #" + mine.n + " — " + (APP.tl.labelOf[mine.group] || mine.group) + (mine.label ? " (" + mine.label + ")" : "") + ". You burn on your group's cues and on every ALL cue."
+      ? "You are #" + mine.n + " — " + (APP.tl.labelOf[mine.group] || mine.group) + (mine.label ? " (" + mine.label + ")" : "") +
+        (APP.tl.field ? ", square " + gridRefOf(APP.tl.field, mine.x, mine.y) : "") + ". " +
+        (perB ? "Your phone gives you #" + mine.n + "'s own cues: your group's, every ALL cue, and every pattern or set cue that includes #" + mine.n + "."
+              : "You burn on your group's cues and on every ALL cue.")
       : "Tap your balloon number — the briefing sheet has it. Your group is set automatically."));
     const mb = el("button", "wide", "SHOW ME THE FIELD MAP");
     mb.onclick = openFieldMap;
@@ -5356,6 +5500,7 @@ function pdom() {
     PILOT_DOM.stage = $("stage");
     PILOT_DOM.left = $("st-left"); PILOT_DOM.right = $("st-right");
     PILOT_DOM.label = $("st-label"); PILOT_DOM.big = $("st-big"); PILOT_DOM.sub = $("st-sub");
+    PILOT_DOM.band = $("st-band");
     PILOT_DOM.barwrap = $("st-barwrap"); PILOT_DOM.bar = $("st-bar");
     PILOT_DOM.preview = $("st-preview"); PILOT_DOM.footer = $("st-footer");
     PILOT_DOM.foottext = $("st-foottext");
@@ -5429,6 +5574,7 @@ function renderPilot(now) {
     hideRings(D);
     D.mapbtn.classList.add("hidden");
     setStagePhase(D, "HOLD");
+    D.band.classList.add("hidden");
     setTxt(D.label, "SHOW HOLD");
     D.big.classList.add("text");
     setTxt(D.big, "STOP BURNING");
@@ -5444,6 +5590,7 @@ function renderPilot(now) {
     D.mapbtn.classList.add("hidden");
     setStagePhase(D, "IDLE");
     setTxt(D.label, "NO SHOW LOADED");
+    D.band.classList.add("hidden");
     D.big.classList.add("text"); setTxt(D.big, "SETUP");
     setTxt(D.sub, "tap to go back");
     D.barwrap.classList.add("hidden");
@@ -5456,6 +5603,7 @@ function renderPilot(now) {
     D.mapbtn.classList.toggle("hidden", !canMap);
     setStagePhase(D, "IDLE");
     setTxt(D.label, "NOT ARMED");
+    D.band.classList.add("hidden");
     D.big.classList.remove("text");
     setTxt(D.big, fmtClockShort(now));
     setTxt(D.sub, "tap for setup — arm a start time");
@@ -5467,8 +5615,9 @@ function renderPilot(now) {
   }
 
   const t = now - APP.armed.t0;
-  const groups = APP.myGroup ? [APP.myGroup] : [];
-  const s = stateAt(APP.tl, groups, t);
+  // the pilot's own balloon lane when the show addresses balloons; otherwise
+  // the group path, exactly as before
+  const s = stateForPilot(APP.tl, APP.myBalloon, APP.myGroup, t);
 
   setStagePhase(D, s.phase);
   D.big.classList.remove("text");
@@ -5545,6 +5694,13 @@ function renderPilot(now) {
     }
   }
 
+  // which band of a pattern this pilot is in, while it matters
+  const bandSeg = s.phase === "GETREADY" ? s.readySeg : (s.phase === "BURN" ? s.seg : null);
+  if (bandSeg && bandSeg.fromPattern) {
+    setTxt(D.band, patternWord(bandSeg.pattern) + " · BAND " + (bandSeg.band + 1) + " OF " + bandSeg.bands);
+    D.band.classList.remove("hidden");
+  } else if (!D.band.classList.contains("hidden")) D.band.classList.add("hidden");
+
   // corner vent chip whenever a vent warning is live but not the top state
   setTxt(D.left, s.ventChip ? "VENT — " + ventText(s.vent) : "");
   D.left.className = s.ventChip ? "ventchip" : "";
@@ -5588,7 +5744,7 @@ function renderPreview(D, s) {
       const col = n.cue.isAll ? "#ffffff" : (APP.tl.colorOf[n.cue.groups[0]] || "#888");
       blk.style.borderColor = col;
       blk.style.boxShadow = "inset 0 -4px 0 " + col;
-      blk.appendChild(el("div", "pvt", (n.cue.isAll ? "ALL · " : "") + n.cue.label));
+      blk.appendChild(el("div", "pvt", (n.cue.pattern ? patternWord(n.cue.pattern) + " · " : (n.cue.isAll ? "ALL · " : "")) + n.cue.label));
       const m = el("div", "pvm", "");
       m.dataset.ci = String(n.cue.cueIndex);
       blk.appendChild(m);
@@ -5602,13 +5758,24 @@ function renderPreview(D, s) {
   }
 }
 
+/* "SWEEP", "RIPPLE"… as the pilot reads it */
+function patternWord(p) { return String(p || "").toUpperCase(); }
+/* the sets a balloon belongs to, by name */
+function setsOfBalloon(tl, n) {
+  return (tl && tl.sets ? tl.sets : []).filter(function (s) { return s.members.indexOf(n) !== -1; }).map(function (s) { return s.name; });
+}
 function renderFooter(D, now) {
   const st = syncStatus();
   const parts = [];
   parts.push(APP.show ? APP.show.title : "no show");
-  // identity: "#12 · NORTH ROW" when the show numbers its balloons
+  // identity: "#12 · NORTH ROW" when the show numbers its balloons, and on a
+  // real field "#23 · <label or grid square> · <set>"
   const who = APP.myGroup && APP.tl ? APP.tl.labelOf[APP.myGroup] : "no group";
-  parts.push(APP.myBalloon != null ? "#" + APP.myBalloon + " · " + who : who);
+  const b = APP.myBalloon != null && APP.tl ? APP.tl.balloonOf[APP.myBalloon] : null;
+  if (b && APP.tl.field) {
+    const sets = setsOfBalloon(APP.tl, b.n);
+    parts.push(["#" + b.n, b.label || gridRefOf(APP.tl.field, b.x, b.y) || who].concat(sets.length ? [sets[0]] : [who]).join(" · "));
+  } else parts.push(APP.myBalloon != null ? "#" + APP.myBalloon + " · " + who : who);
   parts.push(fmtClockShort(now));
   parts.push(st.level === "green" ? "SYNCED ±" + Math.round(SYNC.uncertainty) + "ms" : st.short);
   setTxt(D.foottext, parts.join("  ·  "));
@@ -5623,8 +5790,10 @@ function renderFooter(D, now) {
    whole layout) and the editor (draggable).
    ========================================================================= */
 const MAP_PAD = 12;
-function mapGeom(canvas, count) {
+const MAP_FONT = "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+function mapGeom(canvas, count, field) {
   const w = Math.max(240, canvas.clientWidth || canvas.parentNode.clientWidth || 320);
+  if (field && field.outline && field.outline.length >= 3) return _fieldGeom(w, count, field);
   const h = Math.round(Math.max(200, Math.min(520, w * 0.62)));
   const crowdH = 22;
   const fx = MAP_PAD, fy = MAP_PAD;
@@ -5638,11 +5807,173 @@ function mapGeom(canvas, count) {
     uy: function (py) { return 1 - (py - fy) / fh; }
   };
 }
+/* A real field keeps ONE scale on both axes: the view box is everything we
+   draw (outline, zones, lines, crowd edge) with a little air and room for the
+   crowd label under the crowd edge, fitted to the canvas width. */
+function _fieldGeom(w, count, f) {
+  let pts = f.outline.slice();
+  (f.zones || []).forEach(function (z) { pts = pts.concat(z.poly); });
+  (f.lines || []).forEach(function (l) { pts = pts.concat(l.pts); });
+  if (f.crowd) pts = pts.concat(f.crowd);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  pts.forEach(function (p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+  const span = Math.max(x1 - x0, y1 - y0, 1e-6), pad = 0.04 * span;
+  const vx0 = x0 - pad, vx1 = x1 + pad, vy0 = y0 - pad - 0.1 * span, vy1 = y1 + pad + 0.05 * span;
+  const vw = vx1 - vx0, vh = vy1 - vy0;
+  const h = Math.round(Math.max(220, Math.min(560, (w - 2 * MAP_PAD) * vh / vw + 2 * MAP_PAD)));
+  const k = Math.min((w - 2 * MAP_PAD) / vw, (h - 2 * MAP_PAD) / vh);
+  const ox = (w - vw * k) / 2, oy = (h - vh * k) / 2;
+  const areaPx = polyArea(f.outline) * k * k;
+  const r = Math.max(8, Math.min(20, Math.sqrt(Math.max(1, areaPx) / Math.max(1, count)) / 2.6));
+  return {
+    w: w, h: h, field: f, k: k, r: r, fx: ox, fy: oy, fw: vw * k, fh: vh * k, crowdH: 0,
+    px: function (x) { return ox + (x - vx0) * k; },
+    py: function (y) { return oy + (vy1 - y) * k; },
+    ux: function (px) { return vx0 + (px - ox) / k; },
+    uy: function (py) { return vy1 - (py - oy) / k; }
+  };
+}
+const ZONE_STYLE = {
+  nob:      { fill: "rgba(200,0,170,.16)", stroke: "#c43bb4", text: "#f0a8e8", dash: null },
+  tent:     { fill: "rgba(255,230,0,.06)", stroke: "#ffe14d", text: "#ffe98a", dash: [5, 4] },
+  pa:       { fill: "rgba(0,0,0,.5)",       stroke: "#7d8aa6", text: "#c9d4ea", dash: null },
+  keepout:  { fill: "rgba(255,59,48,.14)",  stroke: "#ff6b61", text: "#ffb3ad", dash: null }
+};
+function _polyPath(c, g, poly) {
+  c.beginPath();
+  poly.forEach(function (p, i) { const x = g.px(p[0]), y = g.py(p[1]); if (i) c.lineTo(x, y); else c.moveTo(x, y); });
+  c.closePath();
+}
+function _fitText(c, txt, maxW, size, weight) {
+  let s = size;
+  c.font = (weight || 800) + " " + s + "px " + MAP_FONT;
+  while (s > 7 && c.measureText(txt).width > maxW) { s -= 0.5; c.font = (weight || 800) + " " + s + "px " + MAP_FONT; }
+  if (c.measureText(txt).width <= maxW) return txt;
+  let t = txt;
+  while (t.length > 3 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return t + "…";
+}
+function _drawFieldBackdrop(c, g, f, o) {
+  c.fillStyle = "#080c15";
+  c.fillRect(0, 0, g.w, g.h);
+  const m = f.mPerUnit || 0;
+  // the lettered 25 m grid (rows A.. from the crowd edge back, columns 1.. left to right)
+  if (m > 0 && !o.draft) {
+    const cell = 25 / m;
+    let bx1 = 0, by1 = 0;
+    f.outline.forEach(function (p) { bx1 = Math.max(bx1, p[0]); by1 = Math.max(by1, p[1]); });
+    c.save();
+    _polyPath(c, g, f.outline);
+    c.clip();
+    c.strokeStyle = "rgba(255,255,255,.055)"; c.lineWidth = 1;
+    for (let x = cell; x < bx1; x += cell) { c.beginPath(); c.moveTo(g.px(x), g.py(0)); c.lineTo(g.px(x), g.py(by1)); c.stroke(); }
+    for (let y = cell; y < by1; y += cell) { c.beginPath(); c.moveTo(g.px(0), g.py(y)); c.lineTo(g.px(bx1), g.py(y)); c.stroke(); }
+    c.restore();
+    c.fillStyle = "rgba(159,178,212,.45)";
+    c.font = "700 9px " + MAP_FONT; c.textAlign = "center"; c.textBaseline = "middle";
+    for (let i = 0; i * cell < by1 && i < 26; i++) c.fillText(String.fromCharCode(65 + i), Math.max(6, g.px(0) - 8), g.py((i + 0.5) * cell));
+    for (let j = 0; j * cell < bx1; j++) c.fillText(String(j + 1), g.px((j + 0.5) * cell), g.h - 7);
+  }
+  // the field itself
+  _polyPath(c, g, f.outline);
+  c.fillStyle = o.draft ? "rgba(255,255,255,.02)" : "rgba(29,78,216,.12)";
+  c.fill();
+  c.lineWidth = 2; c.strokeStyle = "#3a5a99"; c.setLineDash([]); c.stroke();
+  // keep-out zones, named
+  (f.zones || []).forEach(function (z) {
+    const st = ZONE_STYLE[z.kind] || ZONE_STYLE.keepout;
+    _polyPath(c, g, z.poly);
+    c.fillStyle = st.fill; c.fill();
+    c.lineWidth = 2; c.strokeStyle = st.stroke; c.setLineDash(st.dash || []); c.stroke(); c.setLineDash([]);
+  });
+  (f.zones || []).forEach(function (z, zi) {
+    const st = ZONE_STYLE[z.kind] || ZONE_STYLE.keepout;
+    // steer round SMALLER zones (a tent nested in a no-balloon strip), never round the zone that contains this one
+    const myArea = polyArea(z.poly);
+    const others = (f.zones || []).filter(function (o2, j) { return j !== zi && polyArea(o2.poly) < myArea; });
+    // the roomiest spot inside this zone and outside every other zone (a nested
+    // PILOT TENT must not sit under the NO BALLOONS label)
+    let zx0 = Infinity, zx1 = -Infinity, zy0 = Infinity, zy1 = -Infinity;
+    z.poly.forEach(function (q) { zx0 = Math.min(zx0, q[0]); zx1 = Math.max(zx1, q[0]); zy0 = Math.min(zy0, q[1]); zy1 = Math.max(zy1, q[1]); });
+    let best = null, bestS = -1;
+    for (let i = 1; i < 12; i++) for (let j = 1; j < 8; j++) {
+      const x = zx0 + (zx1 - zx0) * i / 12, y = zy0 + (zy1 - zy0) * j / 8;
+      if (!pointInPoly(x, y, z.poly) || others.some(function (o2) { return pointInPoly(x, y, o2.poly); })) continue;
+      let sc = polyEdgeDist(x, y, z.poly);
+      others.forEach(function (o2) { sc = Math.min(sc, polyEdgeDist(x, y, o2.poly)); });
+      // ties go to the spot nearest the middle of the zone
+      sc -= 1e-3 * Math.hypot(x - (zx0 + zx1) / 2, y - (zy0 + zy1) / 2);
+      if (sc > bestS) { bestS = sc; best = [x, y]; }
+    }
+    if (!best) return;
+    const wPx = (zx1 - zx0) * g.k, hPx = (zy1 - zy0) * g.k;
+    const tall = hPx > wPx * 1.4;
+    // free run along the text line, both ways from the spot, inside this zone and clear of nested ones
+    const free = function (dx, dy) {
+      const stepU = Math.max(zx1 - zx0, zy1 - zy0) / 80;
+      let d = 0;
+      for (let k2 = 1; k2 <= 80; k2++) {
+        const x = best[0] + dx * k2 * stepU, y = best[1] + dy * k2 * stepU;
+        if (!pointInPoly(x, y, z.poly) || others.some(function (o2) { return pointInPoly(x, y, o2.poly); })) break;
+        d = k2 * stepU;
+      }
+      return d;
+    };
+    // centre the label on its whole clear run along the line it is written on
+    const fa = tall ? free(0, 1) : free(1, 0), fb = tall ? free(0, -1) : free(-1, 0);
+    const span = (fa + fb) / 2;
+    best = tall ? [best[0], best[1] + (fa - fb) / 2] : [best[0] + (fa - fb) / 2, best[1]];
+    const words = z.name.toUpperCase().replace(/\s+-\s+/, "\n").split("\n");
+    c.save();
+    c.translate(g.px(best[0]), g.py(best[1]));
+    if (tall) c.rotate(-Math.PI / 2);
+    c.fillStyle = st.text; c.textAlign = "center"; c.textBaseline = "middle";
+    const lh = 11, room = Math.max(36, 2 * span * g.k - 8);
+    words.slice(0, 2).forEach(function (wd, i) {
+      const t = _fitText(c, wd, room, i ? 8.5 : 9.5, i ? 700 : 900);
+      c.fillText(t, 0, (i - (Math.min(2, words.length) - 1) / 2) * lh);
+    });
+    c.restore();
+  });
+  // keep-clear lines
+  (f.lines || []).forEach(function (l) {
+    c.beginPath();
+    l.pts.forEach(function (p, i) { const x = g.px(p[0]), y = g.py(p[1]); if (i) c.lineTo(x, y); else c.moveTo(x, y); });
+    c.lineWidth = 3; c.strokeStyle = "#ffc800"; c.setLineDash([7, 5]); c.stroke(); c.setLineDash([]);
+    const mid = l.pts[Math.floor(l.pts.length / 2)], a = l.pts[0], b = l.pts[l.pts.length - 1];
+    const ang = Math.atan2(-(g.py(b[1]) - g.py(a[1])), g.px(b[0]) - g.px(a[0]));
+    c.save();
+    c.translate(g.px(mid[0]), g.py(mid[1]));
+    let rot = -ang; if (rot > Math.PI / 2) rot -= Math.PI; if (rot < -Math.PI / 2) rot += Math.PI;
+    c.rotate(rot);
+    c.fillStyle = "#ffd84d"; c.font = "900 9px " + MAP_FONT; c.textAlign = "center"; c.textBaseline = "bottom";
+    c.fillText("KEEP CLEAR", 0, -4);
+    c.restore();
+  });
+  // the crowd edge — the one thing that makes the map unambiguous
+  if (f.crowd && f.crowd.length === 2 && !o.draft) {
+    const a = f.crowd[0], b = f.crowd[1];
+    c.beginPath(); c.moveTo(g.px(a[0]), g.py(a[1])); c.lineTo(g.px(b[0]), g.py(b[1]));
+    c.lineWidth = 5; c.lineCap = "round"; c.strokeStyle = "#4da3ff"; c.stroke(); c.lineCap = "butt";
+    c.fillStyle = "#4da3ff"; c.font = "900 10.5px " + MAP_FONT; c.textAlign = "center"; c.textBaseline = "top";
+    c.fillText("▲ CROWD ▲", (g.px(a[0]) + g.px(b[0])) / 2, Math.max(g.py(a[1]), g.py(b[1])) + 6);
+  }
+  // scale bar
+  if (m > 0 && !o.draft) {
+    const len = m >= 160 ? 25 : 10, L = len / m * g.k;
+    const x = g.w - MAP_PAD - L, y = MAP_PAD + 12;
+    c.strokeStyle = "#9fb2d4"; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x, y); c.lineTo(x + L, y); c.lineTo(x + L, y - 4); c.stroke();
+    c.fillStyle = "#9fb2d4"; c.font = "800 9.5px " + MAP_FONT; c.textAlign = "center"; c.textBaseline = "bottom";
+    c.fillText(len + " m", x + L / 2, y - 5);
+  }
+  c.textAlign = "left";
+}
 
 function drawFieldMap(canvas, o) {
   if (!canvas) return null;
   const balloons = o.balloons || [];
-  const g = mapGeom(canvas, balloons.length);
+  const g = mapGeom(canvas, balloons.length, o.field || null);
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   if (canvas.width !== Math.round(g.w * dpr) || canvas.height !== Math.round(g.h * dpr)) {
     canvas.width = Math.round(g.w * dpr); canvas.height = Math.round(g.h * dpr);
@@ -5652,46 +5983,55 @@ function drawFieldMap(canvas, o) {
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.clearRect(0, 0, g.w, g.h);
 
-  // field
-  c.fillStyle = "#080c15";
-  c.fillRect(0, 0, g.w, g.h);
-  c.fillStyle = "#0b1220";
-  c.fillRect(g.fx, g.fy, g.fw, g.fh);
-  c.strokeStyle = "#22304a"; c.lineWidth = 1;
-  c.strokeRect(g.fx + 0.5, g.fy + 0.5, g.fw - 1, g.fh - 1);
-  c.strokeStyle = "rgba(255,255,255,.05)";
-  for (let i = 1; i < 6; i++) {
-    const x = g.fx + g.fw * i / 6;
-    c.beginPath(); c.moveTo(x, g.fy); c.lineTo(x, g.fy + g.fh); c.stroke();
-  }
-  for (let i = 1; i < 4; i++) {
-    const y = g.fy + g.fh * i / 4;
-    c.beginPath(); c.moveTo(g.fx, y); c.lineTo(g.fx + g.fw, y); c.stroke();
-  }
+  if (g.field) _drawFieldBackdrop(c, g, o.field, o);
+  else {
+    // field
+    c.fillStyle = "#080c15";
+    c.fillRect(0, 0, g.w, g.h);
+    c.fillStyle = "#0b1220";
+    c.fillRect(g.fx, g.fy, g.fw, g.fh);
+    c.strokeStyle = "#22304a"; c.lineWidth = 1;
+    c.strokeRect(g.fx + 0.5, g.fy + 0.5, g.fw - 1, g.fh - 1);
+    c.strokeStyle = "rgba(255,255,255,.05)";
+    for (let i = 1; i < 6; i++) {
+      const x = g.fx + g.fw * i / 6;
+      c.beginPath(); c.moveTo(x, g.fy); c.lineTo(x, g.fy + g.fh); c.stroke();
+    }
+    for (let i = 1; i < 4; i++) {
+      const y = g.fy + g.fh * i / 4;
+      c.beginPath(); c.moveTo(g.fx, y); c.lineTo(g.fx + g.fw, y); c.stroke();
+    }
 
-  // the crowd edge — the one thing that makes the map unambiguous
-  const cy = g.fy + g.fh;
-  c.fillStyle = "#1b2740";
-  c.fillRect(g.fx, cy + 3, g.fw, g.crowdH - 6);
-  c.fillStyle = "#9fb2d4";
-  c.font = "800 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
-  c.textAlign = "center"; c.textBaseline = "middle";
-  c.fillText("▲ CROWD / STAGE — this edge faces the audience ▲", g.fx + g.fw / 2, cy + 3 + (g.crowdH - 6) / 2);
-  c.textAlign = "left";
-  c.fillStyle = "#5b6479";
-  c.font = "700 9.5px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
-  c.fillText("BACK OF FIELD", g.fx + 5, g.fy + 9);
+    // the crowd edge — the one thing that makes the map unambiguous
+    const cy = g.fy + g.fh;
+    c.fillStyle = "#1b2740";
+    c.fillRect(g.fx, cy + 3, g.fw, g.crowdH - 6);
+    c.fillStyle = "#9fb2d4";
+    c.font = "800 11px " + MAP_FONT;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("▲ CROWD / STAGE — this edge faces the audience ▲", g.fx + g.fw / 2, cy + 3 + (g.crowdH - 6) / 2);
+    c.textAlign = "left";
+    c.fillStyle = "#5b6479";
+    c.font = "700 9.5px " + MAP_FONT;
+    c.fillText("BACK OF FIELD", g.fx + 5, g.fy + 9);
+  }
 
   // balloons
   const hits = [];
   const pulse = 0.5 + 0.5 * Math.sin((o.nowMs || 0) / 1000 * Math.PI * 2 * 0.9);
 
-  // Cue animation: o.stateOf maps group id -> stateAt() result. Lit = BURN, or
-  // a PULSE on its "on" half-beat. Everything else is drawn unlit, with a ring
-  // for GET READY (amber), VENT (violet) and the off half of a PULSE (white).
+  // Cue animation: o.stateByN (balloon number -> state, the per-balloon path)
+  // or o.stateOf (group id -> stateAt() result). Lit = BURN, or a PULSE on its
+  // "on" half-beat. Everything else is drawn unlit, with a ring for GET READY
+  // (amber), VENT (violet) and the off half of a PULSE (white).
+  const stateFor = function (b) {
+    if (o.stateByN) return o.stateByN[b.n] || { phase: "IDLE" };
+    if (o.stateOf) return o.stateOf[b.group] || { phase: "IDLE" };
+    return null;
+  };
   const lookOf = function (b, col) {
-    if (!o.stateOf) return null;
-    const st = o.stateOf[b.group] || { phase: "IDLE" };
+    const st = stateFor(b);
+    if (!st) return null;
     const ph = st.phase;
     if (ph === "BURN") return { lit: true, fill: "#ff6a10", alpha: 1, ring: null, text: "#1a0500" };
     if (ph === "PULSE" && st.pulse && st.pulse.on) return { lit: true, fill: "#fff3d6", alpha: 1, ring: null, text: "#000" };
@@ -5700,7 +6040,7 @@ function drawFieldMap(canvas, o) {
     if (ph === "VENT") return { lit: false, fill: col, alpha: 0.4, ring: "#b06bff", text: "#e8ecf4" };
     return { lit: false, fill: col, alpha: 0.26, ring: null, text: "rgba(232,236,244,.8)" };
   };
-  if (o.stateOf) {
+  if (o.stateByN || o.stateOf) {
     balloons.forEach(function (b) {
       const lk = lookOf(b, "#000");
       if (!lk || !lk.lit) return;
@@ -5719,6 +6059,7 @@ function drawFieldMap(canvas, o) {
     const x = g.px(b.x), y = g.py(b.y);
     const mine = o.highlight != null && b.n === o.highlight;
     const sel = o.selected != null && b.n === o.selected;
+    const inSet = !!(o.selSet && o.selSet[b.n]);
     const col = (o.colorOf && o.colorOf[b.group]) || "#8b96ad";
     const r = mine ? g.r * 1.18 : g.r;
     const lk = lookOf(b, col);
@@ -5729,10 +6070,16 @@ function drawFieldMap(canvas, o) {
       c.lineWidth = 3;
       c.stroke();
     }
+    if (inSet) {
+      c.beginPath();
+      c.arc(x, y, r + 4.5, 0, Math.PI * 2);
+      c.lineWidth = 3; c.strokeStyle = "#ffffff";
+      c.stroke();
+    }
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
     c.fillStyle = lk ? lk.fill : col;
-    c.globalAlpha = lk ? lk.alpha : (mine ? 1 : 0.88);
+    c.globalAlpha = lk ? lk.alpha : (mine ? 1 : (o.selSet && !inSet ? 0.55 : 0.88));
     c.fill();
     c.globalAlpha = 1;
     if (lk && lk.lit) {
@@ -5749,22 +6096,54 @@ function drawFieldMap(canvas, o) {
       c.stroke();
     }
     c.fillStyle = lk ? lk.text : "#0a0d14";
-    c.font = "900 " + Math.round(r * 1.02) + "px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+    c.font = "900 " + Math.round(r * 1.02) + "px " + MAP_FONT;
     c.textAlign = "center"; c.textBaseline = "middle";
     c.fillText(String(b.n), x, y + 0.5);
     if (b.label && g.r >= 13) {
       c.fillStyle = "rgba(232,236,244,.72)";
-      c.font = "700 9.5px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+      c.font = "700 9.5px " + MAP_FONT;
       c.fillText(b.label.slice(0, 14), x, y + r + 8);
     }
     hits.push({ n: b.n, x: x, y: y, r: Math.max(r, 16) });
   });
   c.textAlign = "left";
-  if (!balloons.length) {
+
+  // editor overlays: the lasso being drawn, corners being tapped, a ripple's centre
+  if (o.lasso && o.lasso.length > 1) {
+    c.beginPath();
+    o.lasso.forEach(function (p, i) { if (i) c.lineTo(p.x, p.y); else c.moveTo(p.x, p.y); });
+    c.closePath();
+    c.fillStyle = "rgba(255,255,255,.06)"; c.fill();
+    c.setLineDash([6, 5]); c.lineWidth = 2; c.strokeStyle = "#ffffff"; c.stroke(); c.setLineDash([]);
+  }
+  if (o.drawPts && o.drawPts.length) {
+    c.beginPath();
+    o.drawPts.forEach(function (p, i) { const x = g.px(p[0]), y = g.py(p[1]); if (i) c.lineTo(x, y); else c.moveTo(x, y); });
+    c.lineWidth = 2.5; c.strokeStyle = "#ffd400"; c.stroke();
+    o.drawPts.forEach(function (p, i) {
+      c.beginPath(); c.arc(g.px(p[0]), g.py(p[1]), i ? 5 : 7, 0, Math.PI * 2);
+      c.fillStyle = i ? "#ffd400" : "#ffffff"; c.fill();
+    });
+  }
+  if (o.edgeMode && g.field) {
+    const f = o.field, L = f.outline.length;
+    for (let i = 0; i < L; i++) {
+      const a = f.outline[i], b = f.outline[(i + 1) % L];
+      c.beginPath(); c.moveTo(g.px(a[0]), g.py(a[1])); c.lineTo(g.px(b[0]), g.py(b[1]));
+      c.lineWidth = 6; c.strokeStyle = "rgba(77,163,255,.35)"; c.stroke();
+    }
+  }
+  if (o.center) {
+    const x = g.px(o.center[0]), y = g.py(o.center[1]);
+    c.strokeStyle = "#ffffff"; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x - 9, y); c.lineTo(x + 9, y); c.moveTo(x, y - 9); c.lineTo(x, y + 9); c.stroke();
+    c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.stroke();
+  }
+  if (!balloons.length && !o.drawPts) {
     c.fillStyle = "#5b6479";
-    c.font = "700 13px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+    c.font = "700 13px " + MAP_FONT;
     c.textAlign = "center";
-    c.fillText("No balloons placed yet.", g.fx + g.fw / 2, g.fy + g.fh / 2);
+    c.fillText(o.emptyText || "No balloons placed yet.", g.w / 2, g.h / 2);
     c.textAlign = "left";
   }
   return { geom: g, hits: hits };
@@ -5802,9 +6181,12 @@ function openFieldMap() {
     chip.appendChild(el("span", null, gr.label + " · " + n));
     leg.appendChild(chip);
   });
-  setTxt($("map-note"), mine
-    ? "Your balloon is the pulsing one. Park where it sits relative to the crowd edge — the map is drawn from the crowd's point of view, so left on this map is left as they see it."
-    : "Drawn from the crowd's point of view: left on this map is left as the audience sees it, and the bottom edge is the crowd line.");
+  const f = APP.tl.field;
+  const ref = mine && f ? gridRefOf(f, mine.x, mine.y) : "";
+  setTxt($("map-note"), (mine
+    ? "Your balloon is the pulsing one" + (ref ? " (square " + ref + ")" : "") + ". Park where it sits relative to the crowd edge — the map is drawn from the crowd's point of view, so left on this map is left as they see it."
+    : "Drawn from the crowd's point of view: left on this map is left as the audience sees it, and the blue line is the crowd edge.") +
+    (f ? " " + (f.name ? f.name + " · " : "") + (f.areaM2 ? Math.round(f.areaM2).toLocaleString() + " m² · " : "") + "grid squares are 25 m; keep out of the marked zones." : ""));
   drawMapOverlay();
 }
 function closeFieldMap() {
@@ -5818,17 +6200,23 @@ function drawMapOverlay() {
   let stateOf = null;
   if (APP.role === "conductor" && APP.armed && !APP.hold) {
     const t = syncedNow() - APP.armed.t0;
-    if (t >= 0 && t < APP.tl.endMs) stateOf = mapStatesAt(APP.tl, t);
+    if (t >= 0 && t < APP.tl.endMs) stateOf = mapBalloonStatesAt(APP.tl, t);
   }
   drawFieldMap($("map-canvas"), {
-    balloons: APP.tl.balloons, colorOf: APP.tl.colorOf,
+    balloons: APP.tl.balloons, colorOf: APP.tl.colorOf, field: APP.tl.field,
     highlight: APP.role === "pilot" ? APP.myBalloon : null,
-    nowMs: Date.now(), stateOf: stateOf
+    nowMs: Date.now(), stateByN: stateOf
   });
 }
 function mapStatesAt(tl, tMs) {
   const m = {};
   Object.keys(tl.perGroup || {}).forEach(function (gid) { m[gid] = stateAt(tl, [gid], tMs); });
+  return m;
+}
+/* every balloon's own state at tMs — exactly what that pilot's phone shows */
+function mapBalloonStatesAt(tl, tMs) {
+  const m = {};
+  (tl.balloons || []).forEach(function (b) { m[b.n] = stateForPilot(tl, b.n, b.group, tMs); });
   return m;
 }
 
@@ -5872,6 +6260,8 @@ function renderCondSetup() {
     const ms = $("c-mapstate");
     clear(ms);
     ms.appendChild(el("span", "badge grey", nb + " balloons placed"));
+    if (APP.tl.field) ms.appendChild(el("span", "badge grey", (APP.tl.field.name || "field") + (APP.tl.field.areaM2 ? " · " + Math.round(APP.tl.field.areaM2).toLocaleString() + " m²" : "")));
+    if (APP.tl.hasBalloonCues) ms.appendChild(el("span", "badge green", "cues per balloon"));
     ms.appendChild(el("div", "tiny", APP.tl.groups.map(function (g) {
       return APP.tl.balloons.filter(function (b) { return b.group === g.id; }).length + " × " + g.label;
     }).join(" · ")));
@@ -5999,6 +6389,7 @@ function renderConductor(now) {
 
   drawCondTimeline(t);
   drawCondCues(t);
+  setTxt($("cr-mirrorhead"), APP.tl.hasBalloonCues ? "Every balloon — what each pilot's phone shows" : "All-groups mirror");
   drawCondMirror(t);
 
   // drift check
@@ -6024,15 +6415,29 @@ function drawCondTimeline(t) {
     box.dataset.built = showId();
     clear(box);
     const total = APP.tl.audioMs;
-    const lanes = APP.tl.groupIds.length;
+    // one extra lane on top for balloon-addressed cues: each band a small step
+    const bLane = APP.tl.bSegments.length ? 1 : 0;
+    const lanes = APP.tl.groupIds.length + bLane;
+    const laneH = 84 / lanes;
+    APP.tl.bSegments.forEach(function (s) {
+      const b = el("div", "blk");
+      const B = s.bands || 1, k = s.band || 0;
+      b.style.left = (s.t / total * 100) + "%";
+      b.style.width = Math.max(0.4, s.dur / total * 100) + "%";
+      b.style.top = (6 + (B > 1 ? k * (laneH - 6) / B : 0)) + "px";
+      b.style.height = Math.max(3, (laneH - 6) / (B > 1 ? B : 1)) + "px";
+      b.style.background = "#ff8a3d";
+      b.style.opacity = s.type === "pulse" ? "0.55" : "0.95";
+      box.appendChild(b);
+    });
     APP.tl.segments.forEach(function (s) {
       s.groups.forEach(function (gid) {
-        const li = APP.tl.groupIds.indexOf(gid);
+        const li = APP.tl.groupIds.indexOf(gid) + bLane;
         const b = el("div", "blk");
         b.style.left = (s.t / total * 100) + "%";
         b.style.width = Math.max(0.4, s.dur / total * 100) + "%";
-        b.style.top = (6 + li * (84 / lanes)) + "px";
-        b.style.height = Math.max(8, (84 / lanes) - 6) + "px";
+        b.style.top = (6 + li * laneH) + "px";
+        b.style.height = Math.max(8, laneH - 6) + "px";
         b.style.background = APP.tl.colorOf[gid];
         b.style.opacity = s.type === "pulse" ? "0.55" : "0.95";
         box.appendChild(b);
@@ -6060,7 +6465,9 @@ function drawCondCues(t) {
       const dot = el("span", "dot");
       dot.style.setProperty("--g", c.isAll ? "#ffffff" : APP.tl.colorOf[c.groups[0]]);
       row.appendChild(dot);
-      row.appendChild(el("span", "mname", (c.isAll ? "ALL · " : c.groups.map(function (g) { return APP.tl.labelOf[g]; }).join(" + ") + " · ") + c.label));
+      row.appendChild(el("span", "mname", (c.pattern ? patternWord(c.pattern) + " · " : "") +
+        (c.isAll ? "ALL · " : (c.balloons ? (c.pattern ? c.balloons.length + " BALLOONS · " : fmtNums(c.balloons, 3) + " · ")
+                                          : c.groups.map(function (g) { return APP.tl.labelOf[g]; }).join(" + ") + " · ")) + c.label));
       const m = el("span", "mstate " + (now ? "ms-BURN" : "ms-IDLE"), "");
       m.dataset.ci = String(c.cueIndex);
       row.appendChild(m);
@@ -6077,10 +6484,42 @@ function drawCondCues(t) {
   });
 }
 
+/* A grid of balloon tiles, each lit in that pilot's own state — the mirror
+   for a show whose cues are addressed to balloons (patterns, sets). */
+function buildBalloonMirror(box, tl) {
+  clear(box);
+  box.className = "bmirror";
+  tl.balloons.forEach(function (b) {
+    const tile = el("div", "btile ms-IDLE", "");
+    tile.style.setProperty("--g", tl.colorOf[b.group] || "#666");
+    tile.appendChild(el("b", null, String(b.n)));
+    const st = el("span", null, "");
+    tile.appendChild(st);
+    tile.dataset.n = String(b.n);
+    box.appendChild(tile);
+  });
+}
+function paintBalloonMirror(box, tl, t) {
+  box.querySelectorAll(".btile").forEach(function (tile) {
+    const n = parseInt(tile.dataset.n, 10);
+    const b = tl.balloonOf[n];
+    const s = stateForPilot(tl, n, b ? b.group : null, t);
+    const cls = "btile ms-" + s.phase;
+    if (tile.className !== cls) tile.className = cls;
+    let txt = s.phase === "GETREADY" ? "READY " + fmtSecs(s.countdownMs) : s.phase === "BURN" ? "BURN" : s.phase === "PULSE" ? "PULSE" : s.phase === "VENT" ? "VENT" : s.phase === "STOP" ? "STOP" : "";
+    setTxt(tile.lastChild, txt);
+  });
+}
 function drawCondMirror(t) {
   const box = $("cr-mirror");
+  if (APP.tl.hasBalloonCues) {
+    if (box.dataset.built !== showId() + "|b") { box.dataset.built = showId() + "|b"; buildBalloonMirror(box, APP.tl); }
+    paintBalloonMirror(box, APP.tl, t);
+    return;
+  }
   if (box.dataset.built !== showId()) {
     box.dataset.built = showId();
+    box.className = "mirror";
     clear(box);
     APP.tl.groups.forEach(function (g) {
       const row = el("div", "mrow");
@@ -6248,7 +6687,11 @@ const ED_SLIDERS = [
   { k: "ventLeadMs",   label: "Clear air before a long burn", min: 0, max: 20000, step: 500 },
   { k: "getReadyMs",   label: "GET READY countdown",     min: 0,     max: 15000,  step: 500 },
   { k: "ventWarnMs",   label: "VENT warning lead",       min: 0,     max: 60000,  step: 1000 },
-  { k: "stopMs",       label: "STOP window after a cue", min: 0,     max: 10000,  step: 500 }
+  { k: "stopMs",       label: "STOP window after a cue", min: 0,     max: 10000,  step: 500 },
+  // field shows: how a pattern wave is cut into bands (reasoning, not measured)
+  { k: "bandStepMs",   label: "Pattern: time between bands", min: 500, max: 4000, step: 250, field: true },
+  { k: "bandBurnMs",   label: "Pattern: burn per band",  min: 1000,  max: 6000,   step: 250, field: true },
+  { k: "bands",        label: "Pattern: bands per wave", min: 2,     max: 10,     step: 1,   field: true, count: true }
 ];
 const EDG = { secH: 22, rulerH: 16, waveH: 60, laneH: 30, laneGap: 4, pad: 6, edge: 10 };
 
@@ -6263,6 +6706,17 @@ const ED = {
   groups: null,
   cues: [],
   balloons: [],          // [{ n, group, x, y, label? }] — identity + placement
+  field: null,           // the real field (see PURE CORE: projectField) or null
+  sets: [],              // [{ id, name, members }]
+  selSet: [],            // balloon numbers selected on the map (lasso / by number / a set)
+  mapMode: "move",       // "move" | "lasso" | "add" | "crowd" | "draw"
+  lasso: null,           // [{x, y}] px while drawing
+  drawPts: null,         // field corners while drawing the field
+  drawWidthM: 150,
+  minSpacingM: 25,
+  fillReport: null,      // the last auto-fill's result (spacing, warning)
+  fieldMsg: null,        // the last import's notes
+  patPrev: { i: -1, p: 0, on: false, anchorPerf: 0 },   // the pattern sheet's own preview clock
   bpm: 0,                // beat grid for an IMPORTED show with no analysis
   beatOffsetMs: 0,
   tab: "timeline",       // "timeline" | "map"
@@ -6289,7 +6743,7 @@ const ED = {
 function edDefaultOptions() {
   const o = {};
   ["maxBurnMs", "minRestMs", "burnBudgetMs", "intensity", "getReadyMs", "ventWarnMs",
-   "longBurnMs", "stopMs", "ventLeadMs", "beatsPerBar"].forEach(function (k) { o[k] = CH_DEFAULTS[k]; });
+   "longBurnMs", "stopMs", "ventLeadMs", "beatsPerBar", "bandStepMs", "bandBurnMs", "bands"].forEach(function (k) { o[k] = CH_DEFAULTS[k]; });
   return o;
 }
 /* When the show has balloons, THEY define which groups are real: a group with
@@ -6302,9 +6756,11 @@ function edGenGroups() {
   return used.length ? used : all;
 }
 function edOpt(extra) {
-  return Object.assign({}, ED.options || edDefaultOptions(), {
+  return Object.assign({}, edDefaultOptions(), ED.options || {}, {
     groups: edGenGroups(),
     balloons: ED.balloons || [],
+    field: ED.field || null,
+    sets: ED.sets || [],
     title: ED.title, audioTitle: ED.audioTitle
   }, extra || {});
 }
@@ -6424,7 +6880,9 @@ function renderEditorSetup() {
     };
     gb.appendChild(add);
   }
-  if (nBalloons) {
+  if (nBalloons && ED.field && nBalloons >= 2) {
+    gb.appendChild(el("div", "tiny", nBalloons + " balloons are on the real field (" + (ED.field.name || "MAP tab") + "), so generation writes PATTERNS across them — sweeps, ripples, mirrors, chases, fills, checkerboards, radials, sparkles — and checks every safety rule for each balloon on its own."));
+  } else if (nBalloons) {
     const used = edGenGroups().map(function (g) { return g.label; });
     gb.appendChild(el("div", "tiny", nBalloons + " balloons are placed on the field (MAP tab in the editor). " +
       "Generation writes cues for the groups that actually have balloons in them: " + used.join(", ") + "."));
@@ -6435,6 +6893,8 @@ function renderEditorSetup() {
   const ob = $("e-options");
   clear(ob);
   ED_SLIDERS.forEach(function (sp) {
+    if (sp.field && !ED.field) return;
+    if (ED.options[sp.k] === undefined) ED.options[sp.k] = CH_DEFAULTS[sp.k];
     const wrap = el("label", "edfld");
     const head = el("span", null, sp.label);
     const val = el("b", null, "");
@@ -6442,7 +6902,7 @@ function renderEditorSetup() {
     const inp = el("input");
     inp.type = "range"; inp.min = String(sp.min); inp.max = String(sp.max); inp.step = String(sp.step);
     inp.value = String(ED.options[sp.k]);
-    const show = function () { val.textContent = sp.pct ? Math.round(ED.options[sp.k] * 100) + "%" : edMs(ED.options[sp.k]); };
+    const show = function () { val.textContent = sp.pct ? Math.round(ED.options[sp.k] * 100) + "%" : sp.count ? String(ED.options[sp.k]) : edMs(ED.options[sp.k]); };
     inp.oninput = function () {
       ED.options[sp.k] = parseFloat(inp.value);
       show();
@@ -6538,6 +6998,11 @@ function edFixCueGroups() {
   ED.balloons = normalizeBalloons(ED.balloons, ids);
   if (ED.selBalloon != null && !ED.balloons.some(function (b) { return b.n === ED.selBalloon; })) ED.selBalloon = null;
   ED.cues = ED.cues.filter(function (c) {
+    if (isBalloonCue(c)) {
+      // a group that no longer exists cannot be a target: the cue goes to everyone instead
+      if (c.target && c.target.group && ids.indexOf(c.target.group) === -1) c.target = { all: true };
+      return true;
+    }
     if (c.groups.some(function (g) { return String(g).toLowerCase() === "all"; })) return true;
     c.groups = c.groups.filter(function (g) { return ids.indexOf(g) !== -1; });
     if (c.type === "alternate" && c.groups.length < 2) c.type = "burn";
@@ -6553,7 +7018,21 @@ function edShowObject() {
   const A = { durationMs: ED.durationMs || 1000, bpm: edBpm(), beatOffsetMs: edBeatT0() };
   return chBuildShow(ED.cues, o, A);
 }
+/* Pattern cues keep their DEFINITION (pattern, direction, target, band count,
+   step, burn) and their bands are re-derived from where the balloons are now,
+   so moving a balloon or editing a set re-flows every pattern that uses it. */
+function edRebandAll() {
+  (ED.cues || []).forEach(function (c) {
+    if (c.type !== "pattern") return;
+    const members = resolveTargetNums(c.target, ED.balloons, ED.sets);
+    c.bands = patternBands({ pattern: c.pattern, dir: c.dir, bandCount: c.bandCount || (c.bands && c.bands.length) || 4,
+                             center: c.center, seed: c.seed, members: members }, ED.balloons);
+    if (c.pattern !== "alternate") c.dur = Math.max(100, patternDur(c));
+    else c.dur = Math.max(c.stepMs || 100, c.dur || 0);
+  });
+}
 function edRevalidate() {
+  edRebandAll();
   const show = edShowObject();
   const v = validateShow(show);
   ED.audit = chAudit(ED.cues, edOpt(), ED.durationMs || 1000);
@@ -6616,7 +7095,9 @@ function renderEditorWork() {
   edRenderProblems();
   edRenderAdvisories();
   edRenderMirror(true);
-  setTxt($("ew-hint"), "Tap a cue to edit it · drag it to move · drag an edge to stretch · tap empty lane space to add a burn · tap a coloured section band to relabel or regenerate it · drag the waveform to scrub, drag the ruler strip to pan.");
+  setTxt($("ew-hint"), "Tap a cue to edit it · drag it to move · drag an edge to stretch · tap empty lane space to add a burn · + PATTERN puts a wave across the field at the playhead (orange stepped blocks in the ALL lane: one step per band) · tap a coloured section band to relabel or regenerate it · drag the waveform to scrub, drag the ruler strip to pan.");
+  const ap = $("ew-addpat");
+  if (ap) ap.classList.toggle("hidden", !(ED.balloons && ED.balloons.length));
 }
 
 /* ---- TIMELINE / MAP tabs -------------------------------------------------- */
@@ -6641,28 +7122,275 @@ function edColorOf() {
   (ED.groups || []).forEach(function (g) { m[g.id] = g.color; });
   return m;
 }
+const ED_DRAFT_FIELD = { w: 1, h: 0.62, mPerUnit: 0, outline: [[0, 0], [1, 0], [1, 0.62], [0, 0.62]], zones: [], lines: [], crowd: [[0, 0], [1, 0]] };
+function edSelMap() {
+  if (!ED.selSet || !ED.selSet.length) return null;
+  const m = {};
+  ED.selSet.forEach(function (n) { m[n] = true; });
+  return m;
+}
 function edDrawMap() {
   const live = !!ED.tl && (ED.play.on || ED.playheadMs > 0);
   ED.mapDrawnAt = ED.playheadMs;
+  const drawing = ED.mapMode === "draw";
   const res = drawFieldMap($("ew-mapcanvas"), {
-    balloons: ED.balloons, colorOf: edColorOf(),
-    selected: ED.selBalloon, nowMs: ED.playheadMs,
-    stateOf: live ? mapStatesAt(ED.tl, ED.playheadMs) : null
+    balloons: drawing ? [] : ED.balloons, colorOf: edColorOf(),
+    field: drawing ? ED_DRAFT_FIELD : ED.field, draft: drawing,
+    selected: ED.selBalloon, nowMs: ED.playheadMs, selSet: edSelMap(),
+    stateByN: live ? mapBalloonStatesAt(ED.tl, ED.playheadMs) : null,
+    lasso: ED.lasso, drawPts: drawing ? (ED.drawPts || []) : null,
+    edgeMode: ED.mapMode === "crowd",
+    emptyText: drawing ? "Tap the corners of the field, in order." : (ED.field ? "AUTO-FILL above puts the balloons in." : "No balloons placed yet.")
   });
   ED.mapHits = res ? res.hits : [];
   ED.mapGeom = res ? res.geom : null;
 }
+function edSetMapMode(m) {
+  ED.mapMode = m;
+  if (m !== "lasso") ED.lasso = null;
+  ["move", "lasso", "add"].forEach(function (k) { const b = $("ew-mode-" + k); if (b) b.classList.toggle("on", m === k); });
+  edRenderMap();
+}
 function edRenderMap() {
   const cnt = $("ew-bcount");
   if (cnt && document.activeElement !== cnt) cnt.value = String(ED.balloons.length);
+  setTxt($("ew-minsp"), Math.round(ED.minSpacingM) + " m");
   edDrawMap();
-  setTxt($("ew-maphint"), ED.balloons.length
-    ? "Drag a balloon to move it · tap one to renumber, reassign or name it. The crowd is along the bottom edge, so left on this map is left as the audience sees it."
-    : "Set a count above to create balloons 1…N, then drag them into position.");
+  const hints = {
+    move: ED.balloons.length
+      ? "MOVE: drag a balloon to where it parks · tap one to renumber, regroup, name or remove it. The crowd edge is the blue line, so left on this map is left as the audience sees it."
+      : (ED.field ? "Set the number of balloons and press AUTO-FILL." : "Import the field (or draw it), then set the number of balloons and press AUTO-FILL — or just set a count for plain rows."),
+    lasso: "LASSO: draw a loop round the balloons you want with one finger. Tap a balloon to add or remove it. Then SAVE AS SET below.",
+    add: "ADD: tap empty ground to put a new balloon there. Tap a balloon to select it.",
+    crowd: "Tap the edge of the outline the audience stands along — it becomes the bottom of the map.",
+    draw: "Tap the corners of the field in order, then DONE. Each tap is one corner."
+  };
+  setTxt($("ew-maphint"), hints[ED.mapMode] || hints.move);
+  edRenderFieldState();
+  edRenderFillState();
+  edRenderSets();
+  edRenderPlaceNotes();
   edRenderMapInspector();
 }
 
+/* ---- the field card ------------------------------------------------------ */
+function edRenderFieldState() {
+  const box = $("ew-fieldstate");
+  if (!box) return;
+  clear(box);
+  if (ED.mapMode === "draw") {
+    box.appendChild(el("div", null, (ED.drawPts || []).length + " corners so far."));
+    const wl = el("label", "fld");
+    wl.style.margin = "8px 0";
+    wl.appendChild(el("span", null, "How wide is it, left to right (metres)?"));
+    const wi = el("input"); wi.type = "number"; wi.min = "10"; wi.max = "5000"; wi.value = String(ED.drawWidthM); wi.inputMode = "numeric";
+    wi.onchange = function () { ED.drawWidthM = Math.max(10, Math.min(5000, Math.round(parseFloat(wi.value) || 150))); };
+    wl.appendChild(wi);
+    box.appendChild(wl);
+    const r = el("div", "row");
+    const done = el("button", "primary grow", "DONE"); done.dataset.act = "ed-fdone";
+    const undo = el("button", "grow", "UNDO"); undo.dataset.act = "ed-fundo";
+    const cancel = el("button", "grow", "CANCEL"); cancel.dataset.act = "ed-fcancel";
+    r.appendChild(done); r.appendChild(undo); r.appendChild(cancel);
+    box.appendChild(r);
+    return;
+  }
+  const f = ED.field;
+  if (!f) {
+    box.appendChild(el("div", null, "No field yet — balloons go in plain rows on a box. A KML or KMZ with a polygon named FIELD gives the real outline; zones named NO BALLOONS…, PILOT TENT or PA… stay empty, and a line named CROWD sets the front."));
+    return;
+  }
+  const W = Math.round(f.w * f.mPerUnit), H = Math.round(f.h * f.mPerUnit);
+  const head = el("div");
+  head.appendChild(el("b", null, f.name || "Field"));
+  head.appendChild(el("span", null, " · " + (f.areaM2 ? Math.round(f.areaM2).toLocaleString() + " m² · " : "") + W + " m across × " + H + " m deep"));
+  box.appendChild(head);
+  const zl = (f.zones || []).map(function (z) { return z.name; });
+  if (zl.length) box.appendChild(el("div", "tiny", "Kept empty: " + zl.join(" · ")));
+  if ((f.lines || []).length) box.appendChild(el("div", "tiny", "Drawn: " + f.lines.map(function (l) { return l.name; }).join(" · ")));
+  const crowdTxt = { file: "the file's CROWD line", rotate: "the bottom edge (rotated by hand)", edge: "the edge you tapped", drawn: "the bottom of the drawing", default: "the south side — no CROWD in the file: rotate or tap an edge" };
+  box.appendChild(el("div", "tiny", "Crowd edge: " + (crowdTxt[f.crowdFrom] || crowdTxt.default) + "."));
+  (ED.fieldMsg || []).forEach(function (m) { box.appendChild(el("div", "edissue warn", m)); });
+  const r = el("div", "row");
+  r.style.marginTop = "8px";
+  [["⟲ 15°", "ed-frotl"], ["⟳ 15°", "ed-frotr"], [ED.mapMode === "crowd" ? "TAP AN EDGE…" : "TAP CROWD EDGE", "ed-fcrowd"], ["REMOVE FIELD", "ed-fremove"]].forEach(function (pr) {
+    const b = el("button", "grow" + (pr[1] === "ed-fremove" ? " danger" : (pr[1] === "ed-fcrowd" && ED.mapMode === "crowd" ? " primary" : "")), pr[0]);
+    b.dataset.act = pr[1];
+    r.appendChild(b);
+  });
+  box.appendChild(r);
+}
+async function edReadFieldFile(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  if (buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b) {
+    const z = zipFindKml(buf);
+    if (!z.ok) throw new Error(z.error);
+    if (z.method === 0) return new TextDecoder().decode(z.data);
+    if (typeof DecompressionStream !== "function") throw new Error("This browser cannot unzip a KMZ. Save it as a .kml in Google Earth and import that.");
+    const stream = new Blob([z.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return await new Response(stream).text();
+  }
+  return new TextDecoder().decode(buf);
+}
+async function edImportField(file) {
+  if (!file) return;
+  let text;
+  try { text = await edReadFieldFile(file); }
+  catch (e) { showFatal("COULD NOT READ THAT FIELD FILE", file.name, [String((e && e.message) || e)]); return; }
+  const parsed = parseKml(text);
+  if (!parsed.ok) { showFatal("NOT A FIELD FILE", file.name, parsed.errors); return; }
+  const src = classifyKml(parsed);
+  if (!src.ok) { showFatal("NO FIELD IN THAT FILE", file.name, src.errors); return; }
+  // no CROWD line in the file but a field already here: keep its rotation
+  const opts = (!src.crowd && ED.field && ED.field.geo) ? { rotDeg: ED.field.geo.rotDeg } : {};
+  const nf = projectField(src, opts);
+  const old = ED.field;
+  if (old && ED.balloons.length) {
+    const carried = carryBalloons(old, nf, ED.balloons);
+    if (carried) ED.balloons = carried;
+  }
+  ED.field = nf;
+  ED.fieldMsg = src.warnings.length ? src.warnings : null;
+  ED.fillReport = null;
+  if (ED.mapMode === "draw" || ED.mapMode === "crowd") ED.mapMode = "move";
+  edMapChanged();
+}
+function edRotateField(deg) {
+  if (!ED.field) return;
+  const r = rotateField(ED.field, ED.balloons, (ED.field.geo ? ED.field.geo.rotDeg : 0) + deg);
+  ED.field = r.field; ED.balloons = r.balloons;
+  edMapChanged();
+}
+function edFinishDraw() {
+  const pts = ED.drawPts || [];
+  if (pts.length < 3) { showFatal("NOT ENOUGH CORNERS", "", ["Tap at least three corners of the field."]); return; }
+  const f = fieldFromPoints(pts, ED.drawWidthM, "Drawn field");
+  if (!f) { showFatal("THAT SHAPE HAS NO AREA", "", ["Tap the corners going round the field, not along a line."]); return; }
+  ED.field = f; ED.drawPts = null; ED.fieldMsg = null; ED.fillReport = null;
+  ED.mapMode = "move";
+  edMapChanged();
+}
+
+/* ---- count + auto-fill ---------------------------------------------------- */
+function edRenderFillState() {
+  const box = $("ew-fillstate");
+  if (!box) return;
+  clear(box);
+  const fr = ED.fillReport;
+  $("ew-spacingrow").classList.toggle("hidden", !ED.field);
+  $("ew-barrange").classList.toggle("hidden", !!ED.field);
+  setTxt($("ew-filltip"), ED.field
+    ? "AUTO-FILL spreads the balloons evenly inside the outline, half a spacing in from every edge and every keep-out zone, numbered from the crowd edge back (front row first, left to right as the crowd sees it). Groups become depth bands. Nothing has to be marked in the KML."
+    : "With no field, the count makes balloons 1…N in contiguous blocks per group (“1–8 are NORTH ROW”) laid out in rows; ROWS re-lays them out.");
+  if (!fr) return;
+  if (fr.warning) box.appendChild(el("div", "edissue" + (fr.short ? "" : " warn"), fr.warning));
+  if (fr.fitted) box.appendChild(el("div", "edok", fr.fitted + " balloons ≈ " + Math.round(fr.spacingM) + " m apart, in " + fr.rows + " rows."));
+}
+function edAutoFill(n) {
+  const count = Math.max(0, Math.min(400, Math.round(Number(n) || 0)));
+  const ids = edGroupIds();
+  if (!ED.field) { ED.balloons = makeBalloons(ids, count); ED.fillReport = null; }
+  else {
+    const res = autofillField(ED.field, count, { groupIds: ids, minSpacingM: ED.minSpacingM });
+    ED.balloons = res.balloons;
+    ED.fillReport = res;
+    // the factory group names were placeholders; on a real field the groups are depth bands
+    const dflt = CH_DEFAULTS.groups;
+    if (ED.groups.length === dflt.length && ED.groups.every(function (g, i) { return g.id === dflt[i].id && g.label === dflt[i].label; })) {
+      const names = ["FRONT", "MIDDLE", "BACK"];
+      ED.groups.forEach(function (g, i) { g.label = names[i]; });
+    }
+  }
+  ED.selBalloon = null; ED.selSet = [];
+  edMapChanged();
+}
+
+/* ---- selection + sets ----------------------------------------------------- */
+function edRenderSets() {
+  const box = $("ew-sets");
+  if (!box) return;
+  setTxt($("ew-selcount"), (ED.selSet || []).length + " selected" + ((ED.selSet || []).length ? " — " + fmtNums(ED.selSet, 4) : ""));
+  clear(box);
+  const chip = function (name, nums, cls, onDel) {
+    const c = el("span", "edchip setchip" + (cls ? " " + cls : ""), "");
+    c.appendChild(el("span", null, name + " · " + nums.length));
+    c.onclick = function () { ED.selSet = nums.slice(); edDrawMap(); edRenderSets(); };
+    if (onDel) {
+      const x = el("button", "x", "✕");
+      x.setAttribute("aria-label", "Delete the set " + name);
+      x.onclick = function (ev) { ev.stopPropagation(); onDel(); };
+      c.appendChild(x);
+    }
+    box.appendChild(c);
+  };
+  chip("ALL", ED.balloons.map(function (b) { return b.n; }), "");
+  (ED.groups || []).forEach(function (g) {
+    const nums = ED.balloons.filter(function (b) { return b.group === g.id; }).map(function (b) { return b.n; });
+    if (nums.length) chip(g.label, nums, "");
+  });
+  (ED.sets || []).forEach(function (s) {
+    chip(s.name, s.members, "on", function () { edDeleteSet(s.id); });
+  });
+}
+function edSaveSet() {
+  const nm = ($("ew-setname").value || "").trim();
+  const msg = $("ew-selmsg");
+  if (!ED.selSet.length) { setTxt(msg, "Select some balloons first — lasso them, tap them in LASSO mode, or type their numbers."); return; }
+  if (!nm) { setTxt(msg, "Give the set a name."); return; }
+  const same = ED.sets.filter(function (s) { return s.name.toLowerCase() === nm.toLowerCase(); })[0];
+  if (same) same.members = ED.selSet.slice();
+  else ED.sets.push({ id: "", name: nm, members: ED.selSet.slice() });
+  ED.sets = normalizeSets(ED.sets, ED.balloons);
+  setTxt(msg, (same ? "Updated " : "Saved ") + "“" + nm + "” — " + fmtNums(ED.selSet, 6) + ". Cues can target it now.");
+  $("ew-setname").value = "";
+  edMapChanged();
+}
+function edDeleteSet(id) {
+  const s = ED.sets.filter(function (x) { return x.id === id; })[0];
+  if (!s) return;
+  // cues that targeted it keep the same balloons, as a number list
+  ED.cues.forEach(function (c) { if (c.target && c.target.set === id) c.target = { n: s.members.slice() }; });
+  ED.sets = ED.sets.filter(function (x) { return x.id !== id; });
+  edMapChanged();
+}
+function edSelectByNumber() {
+  const r = parseNumberList($("ew-bynum").value);
+  const msg = $("ew-selmsg");
+  if (!r.ok) { setTxt(msg, r.error); return; }
+  const have = {};
+  ED.balloons.forEach(function (b) { have[b.n] = 1; });
+  const ok = r.nums.filter(function (n) { return have[n]; }), missing = r.nums.filter(function (n) { return !have[n]; });
+  ED.selSet = ok;
+  setTxt(msg, ok.length + " selected" + (missing.length ? " — no balloon has " + fmtNums(missing, 4) : "") + ".");
+  edDrawMap(); edRenderSets();
+}
+function edInvertSel() {
+  const on = {};
+  (ED.selSet || []).forEach(function (n) { on[n] = 1; });
+  ED.selSet = ED.balloons.filter(function (b) { return !on[b.n]; }).map(function (b) { return b.n; });
+  edDrawMap(); edRenderSets();
+}
+
+/* placement notes: a balloon outside the field or inside a keep-out zone */
+function edRenderPlaceNotes() {
+  const box = $("ew-placenotes");
+  if (!box) return;
+  clear(box);
+  const f = ED.field;
+  if (!f || !ED.balloons.length) return;
+  const out = [], inZone = {};
+  ED.balloons.forEach(function (b) {
+    if (!pointInPoly(b.x, b.y, f.outline)) out.push(b.n);
+    (f.zones || []).forEach(function (z) { if (pointInPoly(b.x, b.y, z.poly)) (inZone[z.name] = inZone[z.name] || []).push(b.n); });
+  });
+  if (out.length) box.appendChild(el("div", "edissue warn", fmtNums(out, 6) + (out.length > 1 ? " are" : " is") + " outside the field outline."));
+  Object.keys(inZone).forEach(function (zn) {
+    box.appendChild(el("div", "edissue warn", fmtNums(inZone[zn], 6) + (inZone[zn].length > 1 ? " are" : " is") + " inside “" + zn + "”."));
+  });
+}
+
 function edRenderMapInspector() {
+
   const box = $("ew-mapinspector");
   if (!box) return;
   clear(box);
@@ -6730,8 +7458,12 @@ function edRenderMapInspector() {
   });
   box.appendChild(chips);
 
-  box.appendChild(el("div", "tiny", "Position: " + Math.round(b.x * 100) + "% across · " +
-    Math.round(b.y * 100) + "% back from the crowd."));
+  const f = ED.field;
+  const inSets = (ED.sets || []).filter(function (st) { return st.members.indexOf(b.n) !== -1; }).map(function (st) { return st.name; });
+  box.appendChild(el("div", "tiny", (f
+    ? "Square " + gridRefOf(f, b.x, b.y) + " · " + Math.round(b.x * f.mPerUnit) + " m from the left edge · " + Math.round(b.y * f.mPerUnit) + " m back from the front."
+    : "Position: " + Math.round(b.x * 100) + "% across · " + Math.round(b.y * 100) + "% back from the crowd.") +
+    (inSets.length ? " Sets: " + inSets.join(", ") + "." : "")));
 
   const foot = el("div", "row");
   foot.style.marginTop = "8px";
@@ -6753,18 +7485,17 @@ function edRenderMapInspector() {
 function edMapChanged() {
   ED.balloons = normalizeBalloons(ED.balloons, edGroupIds());
   if (ED.selBalloon != null && !ED.balloons.some(function (b) { return b.n === ED.selBalloon; })) ED.selBalloon = null;
+  const have = {};
+  ED.balloons.forEach(function (b) { have[b.n] = 1; });
+  ED.selSet = (ED.selSet || []).filter(function (n) { return have[n]; });
+  ED.sets = normalizeSets(ED.sets, ED.balloons);
   edRevalidate();
   edRenderMap();
   edSave();
 }
 
-function edSetBalloonCount(n) {
-  const count = Math.max(0, Math.min(400, Math.round(Number(n) || 0)));
-  ED.balloons = makeBalloons(edGroupIds(), count);
-  ED.selBalloon = null;
-  edMapChanged();
-}
-function edAddBalloon() {
+function edSetBalloonCount(n) { edAutoFill(n); }
+function edAddBalloon(x, y) {
   const ids = edGroupIds();
   if (!ids.length) return;
   let n = 1;
@@ -6775,7 +7506,15 @@ function edAddBalloon() {
     const k = ED.balloons.filter(function (b) { return b.group === gid; }).length;
     if (k < bestN) { bestN = k; best = gid; }
   });
-  ED.balloons.push({ n: n, group: best, x: 0.5, y: 0.5 });
+  let px = 0.5, py = 0.5;
+  if (typeof x === "number") { px = x; py = y; }
+  else if (ED.field) {
+    // somewhere sensible: the middle of the field's own outline
+    let sx = 0, sy = 0;
+    ED.field.outline.forEach(function (q) { sx += q[0]; sy += q[1]; });
+    px = sx / ED.field.outline.length; py = sy / ED.field.outline.length;
+  }
+  ED.balloons.push({ n: n, group: best, x: Math.max(0, Math.min(1, px)), y: Math.max(0, Math.min(1, py)) });
   ED.selBalloon = n;
   edMapChanged();
 }
@@ -6792,15 +7531,23 @@ function edMapDown(ev) {
   const hit = mapHitAt(ED.mapHits, p.x, p.y);
   ev.preventDefault();
   try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
-  ED.mapDrag = { n: hit ? hit.n : null, moved: false, x: p.x, y: p.y };
+  ED.mapDrag = { n: hit ? hit.n : null, moved: false, x: p.x, y: p.y, mode: ED.mapMode };
+  if (ED.mapMode === "lasso") { ED.lasso = [{ x: p.x, y: p.y }]; return; }
+  if (ED.mapMode === "draw" || ED.mapMode === "crowd") return;
   if (hit) { ED.selBalloon = hit.n; edDrawMap(); edRenderMapInspector(); }
 }
 function edMapMove(ev) {
   const d = ED.mapDrag;
-  if (!d || d.n == null || !ED.mapGeom) return;
+  if (!d || !ED.mapGeom) return;
   const p = edMapLocal(ev);
   if (Math.abs(p.x - d.x) > 3 || Math.abs(p.y - d.y) > 3) d.moved = true;
-  if (!d.moved) return;
+  if (d.mode === "lasso" && ED.lasso) {
+    const last = ED.lasso[ED.lasso.length - 1];
+    if (Math.hypot(p.x - last.x, p.y - last.y) > 3) { ED.lasso.push({ x: p.x, y: p.y }); edDrawMap(); }
+    return;
+  }
+  if (d.mode !== "move" && d.mode !== "add") return;
+  if (d.n == null || !d.moved) return;
   const b = ED.balloons.filter(function (x) { return x.n === d.n; })[0];
   if (!b) return;
   b.x = Math.max(0, Math.min(1, ED.mapGeom.ux(p.x)));
@@ -6812,8 +7559,46 @@ function edMapUp(ev) {
   ED.mapDrag = null;
   if (!d) return;
   try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (e) {}
+  const g = ED.mapGeom;
+  if (d.mode === "lasso") {
+    const path = ED.lasso || [];
+    ED.lasso = null;
+    if (!d.moved || path.length < 3) {
+      // a tap in LASSO mode adds or removes one balloon
+      if (d.n != null) {
+        const i = ED.selSet.indexOf(d.n);
+        if (i >= 0) ED.selSet.splice(i, 1); else ED.selSet.push(d.n);
+        ED.selSet.sort(function (a, b) { return a - b; });
+      }
+    } else {
+      const poly = path.map(function (q) { return [q.x, q.y]; });
+      ED.selSet = ED.mapHits.filter(function (h) { return pointInPoly(h.x, h.y, poly); }).map(function (h) { return h.n; }).sort(function (a, b) { return a - b; });
+    }
+    setTxt($("ew-selmsg"), ED.selSet.length ? "Name it and SAVE AS SET, or INVERT to take everyone else." : "");
+    edDrawMap(); edRenderSets();
+    return;
+  }
+  if (!g) return;
+  if (d.mode === "draw") {
+    if (d.moved) return;
+    (ED.drawPts = ED.drawPts || []).push([_r5(Math.max(0, Math.min(1, g.ux(d.x)))), _r5(Math.max(0, Math.min(ED_DRAFT_FIELD.h, g.uy(d.y))))]);
+    edDrawMap(); edRenderFieldState();
+    return;
+  }
+  if (d.mode === "crowd") {
+    if (d.moved || !ED.field) return;
+    const e = fieldEdgeAt(ED.field, g.ux(d.x), g.uy(d.y), 18 / g.k);
+    if (e < 0) { setTxt($("ew-maphint"), "That was not on an edge — tap right on the outline, along the side the audience stands."); return; }
+    const r = crowdFromEdge(ED.field, ED.balloons, e);
+    ED.field = r.field; ED.balloons = r.balloons;
+    ED.mapMode = "move";
+    edSetMapMode("move");
+    edMapChanged();
+    return;
+  }
+  if (d.mode === "add" && d.n == null && !d.moved) { edAddBalloon(_r5(g.ux(d.x)), _r5(g.uy(d.y))); return; }
   if (d.n == null && !d.moved) { ED.selBalloon = null; edDrawMap(); edRenderMapInspector(); return; }
-  if (d.moved) { edRevalidate(); edSave(); }
+  if (d.moved) { edRevalidate(); edSave(); edRenderPlaceNotes(); }
   edRenderMapInspector();
 }
 
@@ -6943,6 +7728,7 @@ function edDraw() {
     const issues = (ED.audit && ED.audit.perCue[ci]) || [];
     const bad = issues.some(function (x) { return x.severity === "block"; });
     const warn = !bad && issues.length > 0;
+    if (isBalloonCue(cue)) { edDrawBalloonCue(c, g, cue, ci, bad, warn); return; }
     const isAll = cue.groups.some(function (x) { return String(x).toLowerCase() === "all"; });
     const gids = isAll ? ED.groups.map(function (x) { return x.id; }) : cue.groups.slice();
     const sel = ED.sel && ED.sel.kind === "cue" && ED.sel.i === ci;
@@ -7031,6 +7817,56 @@ function edDraw() {
   edStateBadge();
 }
 
+/* A pattern cue is a STEPPED block in the ALL lane: one step per band (an
+   alternate's two bands trade top / bottom), so the wave's shape is visible.
+   A burn / pulse addressed to a set is a plain block with a dashed edge. The
+   group lanes of the balloons it touches get a faint shadow. */
+function edDrawBalloonCue(c, g, cue, ci, bad, warn) {
+  const x0 = edX(cue.t), x1 = edX(cue.t + cue.dur);
+  const sel = ED.sel && ED.sel.kind === "cue" && ED.sel.i === ci;
+  ED.hits.push({ i: ci, x0: x0, x1: x1, y0: g.laneY(0), y1: g.laneY(0) + EDG.laneH, balloon: true });
+  if (x1 < -4 || x0 > g.w + 4) return;
+  const y = g.laneY(0) + 3, h = EDG.laneH - 6;
+  const xa = Math.max(-3, x0), xb = Math.min(g.w + 3, x1);
+  const members = cue.type === "pattern" ? [].concat.apply([], cue.bands || []) : resolveTargetNums(cue.target, ED.balloons, ED.sets);
+  const gOf = {};
+  ED.balloons.forEach(function (b) { gOf[b.n] = b.group; });
+  (ED.groups || []).forEach(function (gr, k) {
+    if (!members.some(function (n) { return gOf[n] === gr.id; })) return;
+    c.globalAlpha = 0.16; c.fillStyle = gr.color;
+    c.fillRect(xa, g.laneY(k + 1) + 3, Math.max(2, xb - xa), EDG.laneH - 6);
+    c.globalAlpha = 1;
+  });
+  c.fillStyle = "rgba(255,138,61,.14)";
+  c.fillRect(xa, y, Math.max(2, xb - xa), h);
+  if (cue.type === "pattern" && cue.bands && cue.bands.length) {
+    const B = cue.bands.length, alt = cue.pattern === "alternate";
+    patternSegs(cue).forEach(function (sg) {
+      const rows = alt ? 2 : B;
+      const yy = y + (alt ? (sg.band % 2) : sg.band) * h / rows;
+      c.globalAlpha = 0.95; c.fillStyle = "#ff8a3d";
+      c.fillRect(edX(sg.t), yy, Math.max(1.5, edX(sg.end) - edX(sg.t)), Math.max(2, h / rows - (rows > 1 ? 1 : 0)));
+      c.globalAlpha = 1;
+    });
+  } else {
+    c.globalAlpha = cue.type === "pulse" ? 0.55 : 0.9; c.fillStyle = "#ffb27a";
+    c.fillRect(xa, y, Math.max(2, xb - xa), h);
+    c.globalAlpha = 1;
+    c.setLineDash([4, 3]); c.strokeStyle = "#ffffff"; c.lineWidth = 1;
+    c.strokeRect(xa + 0.5, y + 0.5, Math.max(2, xb - xa - 1), h - 1); c.setLineDash([]);
+  }
+  if (bad || warn) { c.fillStyle = bad ? "#ff3b30" : "#ffc400"; c.fillRect(xa, y, Math.max(2, xb - xa), 3); }
+  if (sel) { c.strokeStyle = "#ffffff"; c.lineWidth = 2; c.strokeRect(xa + 1, y + 1, Math.max(2, xb - xa - 2), h - 2); }
+  else if (bad) { c.strokeStyle = "#ff3b30"; c.lineWidth = 1.5; c.strokeRect(xa + 0.5, y + 0.5, Math.max(2, xb - xa - 1), h - 1); }
+  if (x1 - x0 > 54) {
+    const t = (cue.type === "pattern" ? patternWord(cue.pattern) + " · " : "SET · ") + cue.label;
+    c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.8)";
+    c.strokeText(t.slice(0, Math.floor((x1 - x0) / 6.4)), Math.max(2, x0) + 5, g.laneY(0) + EDG.laneH / 2);
+    c.fillStyle = "#fff6ee";
+    c.fillText(t.slice(0, Math.floor((x1 - x0) / 6.4)), Math.max(2, x0) + 5, g.laneY(0) + EDG.laneH / 2);
+  }
+}
+
 function edDrawCursor() {
   const cur = $("ew-cursor");
   if (!cur) return;
@@ -7085,7 +7921,9 @@ function edPointerDown(ev) {
   if (hit) {
     const cue = ED.cues[hit.i];
     edSelect({ kind: "cue", i: hit.i });
-    const near = Math.abs(p.x - hit.x0) < EDG.edge ? "left" : (Math.abs(p.x - hit.x1) < EDG.edge ? "right" : "move");
+    // a pattern's length comes from its bands, step and burn (set in its sheet), so it only moves
+    const near = isBalloonCue(cue) && cue.type === "pattern" ? "move"
+               : Math.abs(p.x - hit.x0) < EDG.edge ? "left" : (Math.abs(p.x - hit.x1) < EDG.edge ? "right" : "move");
     ED.drag.mode = near;
     ED.drag.cue = hit.i;
     ED.drag.origT = cue.t;
@@ -7181,10 +8019,306 @@ function edAddCue(lane, t) {
   edRenderProblems();
 }
 
+function edAddPattern() {
+  if (!ED.balloons.length) {
+    showFatal("NO BALLOONS ON THE FIELD YET", "", ["A pattern runs across numbered balloons.", "Open the MAP tab, import the field (or draw it) and press AUTO-FILL first."]);
+    return;
+  }
+  const beat = edHasGrid() ? edBeatMs() : 500;
+  const o = Object.assign(edDefaultOptions(), ED.options || {});
+  const stepB = Math.max(1, Math.round(o.bandStepMs / beat)), burnB = Math.max(2, Math.round(o.bandBurnMs / beat));
+  const sel = ED.selSet && ED.selSet.length ? ED.selSet.slice() : null;
+  const cue = { t: 0, dur: 1000, type: "pattern", target: sel ? { n: sel } : { all: true },
+                label: "Sweep " + (ED.cues.filter(function (c) { return c.type === "pattern"; }).length + 1),
+                pattern: "sweep", dir: "lr", bandCount: o.bands || 4,
+                stepMs: Math.round(stepB * beat), burnMs: Math.round(burnB * beat), bands: [] };
+  ED.cues.push(cue);
+  edRebandAll();
+  cue.t = Math.max(0, Math.min(Math.max(0, ED.durationMs - cue.dur), edSnap(ED.playheadMs)));
+  ED.cues.sort(function (a, b) { return a.t - b.t; });
+  ED.patPrev = { i: -1, p: 0, on: false, anchorPerf: 0 };
+  edSelect({ kind: "cue", i: ED.cues.indexOf(cue) });
+  edRevalidate(); edSave(); edDraw(); edRenderProblems();
+}
+
 function edSelect(sel) {
   ED.sel = sel;
   edRenderInspector();
   edDraw();
+}
+
+/* ---- the pattern sheet ---------------------------------------------------- */
+const PATTERN_EXPLAIN = {
+  sweep: "A wave rolls across the field. The cleanest move for a crowd to read.",
+  ripple: "Rings spread from the centre, or close in on it. Tap the map to move the centre.",
+  mirror: "Two fronts meet in the middle, or open out from it.",
+  chase: "Runs through the balloons in number order, so the numbering is the path.",
+  fill: "Like a sweep, but every balloon stays lit once it starts: it builds to an all-burn.",
+  alternate: "A checkerboard: two halves trade off, leg by leg, like a ping-pong.",
+  radial: "A pinwheel around the centre. Best on a roughly round field. Tap the map to move the centre.",
+  sparkle: "Seeded random bands. Texture, not a shape — SHUFFLE for another mix."
+};
+const DIR_LABEL = { lr: "LEFT → RIGHT", rl: "RIGHT → LEFT", fb: "FRONT → BACK", bf: "BACK → FRONT", out: null, in: null, cw: "CLOCKWISE", ccw: "COUNTER-CLOCKWISE", up: "1 → N", down: "N → 1" };
+function edDirLabel(pattern, d) {
+  if (pattern === "ripple") return d === "in" ? "EDGES IN" : "CENTRE OUT";
+  if (pattern === "mirror") return d === "out" ? "MIDDLE → EDGES" : "EDGES → MIDDLE";
+  return DIR_LABEL[d] || d.toUpperCase();
+}
+/* every target a cue can pick: ALL, each group with balloons, each set */
+function edTargets() {
+  const out = [{ key: "all", label: "ALL", target: { all: true }, n: ED.balloons.length }];
+  (ED.groups || []).forEach(function (g) {
+    const k = ED.balloons.filter(function (b) { return b.group === g.id; }).length;
+    if (k) out.push({ key: "g:" + g.id, label: g.label, target: { group: g.id }, n: k });
+  });
+  (ED.sets || []).forEach(function (st) { out.push({ key: "s:" + st.id, label: st.name, target: { set: st.id }, n: st.members.length }); });
+  return out;
+}
+function edTargetKey(t) {
+  if (!t) return "";
+  if (t.all) return "all";
+  if (t.group) return "g:" + t.group;
+  if (t.set) return "s:" + t.set;
+  return "n";
+}
+function edPatChanged() { edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave(); }
+function edRenderPatternInspector(box, i, cue) {
+  const beat = edHasGrid() ? edBeatMs() : 500;
+  const secs = function (ms) { return (Math.round(ms / 100) / 10) + " s"; };
+  box.appendChild(el("h3", null, "Pattern cue " + (i + 1) + " of " + ED.cues.length + " · " + fmtMMSS(cue.t) + " – " + fmtMMSS(cue.t + cue.dur) + " · " + secs(cue.dur)));
+
+  const lab = el("input");
+  lab.type = "text"; lab.value = cue.label;
+  lab.oninput = function () { cue.label = lab.value || "Pattern"; edDraw(); edSave(); };
+  const labW = el("label", "edfld");
+  labW.appendChild(el("span", null, "Label — the pilots read this"));
+  labW.appendChild(lab);
+  box.appendChild(labW);
+
+  // target
+  const tRow = el("div", "edchips");
+  tRow.appendChild(el("span", "edchip lab", "TARGET"));
+  const tk = edTargetKey(cue.target);
+  edTargets().forEach(function (o) {
+    const b = el("button", "edchip" + (tk === o.key ? " on" : ""), o.label + " · " + o.n);
+    b.onclick = function () { cue.target = copyTarget(o.target); edPatChanged(); };
+    tRow.appendChild(b);
+  });
+  if (tk === "n") tRow.appendChild(el("span", "edchip on", fmtNums(cue.target.n, 3)));
+  box.appendChild(tRow);
+
+  // the eight patterns
+  const grid = el("div", "patgrid");
+  PATTERNS.forEach(function (p) {
+    const b = el("button", p === cue.pattern ? "on" : "", patternWord(p));
+    b.onclick = function () {
+      cue.pattern = p;
+      if (PATTERN_DEFAULT_DIR[p]) cue.dir = PATTERN_DEFAULT_DIR[p]; else delete cue.dir;
+      if (p === "sparkle" && !_isInt(cue.seed)) cue.seed = 1;
+      if (p !== "sparkle") delete cue.seed;
+      if (p !== "ripple" && p !== "radial") delete cue.center;
+      if (p === "alternate") { cue.dur = Math.max(cue.stepMs * 4, Math.round(cue.dur)); }
+      cue.label = cue.label.replace(/^(Sweep|Ripple|Mirror|Chase|Fill|Checkerboard|Alternate|Radial|Sparkle)\b/i, p === "alternate" ? "Checkerboard" : p.charAt(0).toUpperCase() + p.slice(1));
+      ED.patPrev.p = 0;
+      edPatChanged();
+    };
+    grid.appendChild(b);
+  });
+  box.appendChild(grid);
+
+  // direction
+  const dirs = PATTERN_DIRS[cue.pattern] || [];
+  if (dirs.length) {
+    const dRow = el("div", "edchips");
+    dirs.forEach(function (d) {
+      const b = el("button", "edchip dirchip" + (cue.dir === d ? " on" : ""), edDirLabel(cue.pattern, d));
+      b.onclick = function () { cue.dir = d; ED.patPrev.p = 0; edPatChanged(); };
+      dRow.appendChild(b);
+    });
+    box.appendChild(dRow);
+  }
+  if (cue.pattern === "sparkle") {
+    const sh = el("button", null, "SHUFFLE");
+    sh.style.marginTop = "6px";
+    sh.onclick = function () { cue.seed = ((cue.seed | 0) + 1) % 100000; edPatChanged(); };
+    box.appendChild(sh);
+  }
+
+  // timing
+  const timing = el("div", "edgrid");
+  timing.style.marginTop = "10px";
+  const numField = function (label, get, set, step, fmt) {
+    const w = el("label", "edfld");
+    w.appendChild(el("span", null, label));
+    const row = el("div", "ednum");
+    const minus = el("button", null, "−"), plus = el("button", null, "+");
+    const inp = el("input");
+    inp.type = "number"; inp.step = String(step); inp.value = String(Math.round(get()));
+    const apply = function (v) { set(v); edPatChanged(); };
+    minus.onclick = function () { apply(get() - step); };
+    plus.onclick = function () { apply(get() + step); };
+    inp.onchange = function () { apply(parseFloat(inp.value) || 0); };
+    row.appendChild(minus); row.appendChild(inp); row.appendChild(plus);
+    w.appendChild(row);
+    if (fmt) w.appendChild(el("div", "tiny", fmt));
+    return w;
+  };
+  timing.appendChild(numField("Start (ms) — " + fmtMMSS(cue.t), function () { return cue.t; },
+    function (v) { cue.t = Math.max(0, Math.min(ED.durationMs - cue.dur, edSnap(v))); ED.cues.sort(function (a, b) { return a.t - b.t; }); ED.sel = { kind: "cue", i: ED.cues.indexOf(cue) }; }, Math.round(beat)));
+  if (cue.pattern !== "alternate") {
+    timing.appendChild(numField("Bands", function () { return cue.bandCount || cue.bands.length || 4; },
+      function (v) { cue.bandCount = Math.max(1, Math.min(12, Math.round(v))); }, 1, cue.bands.length + " in use — " + cue.bands.map(function (b) { return b.length; }).join(" / ") + " balloons"));
+    timing.appendChild(numField("Time between bands (ms) — " + (Math.round(cue.stepMs / beat * 100) / 100) + " beats", function () { return cue.stepMs; },
+      function (v) { cue.stepMs = Math.max(200, Math.round(v)); }, Math.round(beat / 2)));
+    timing.appendChild(numField("Each band burns (ms) — " + (Math.round(cue.burnMs / beat * 100) / 100) + " beats", function () { return cue.burnMs; },
+      function (v) { cue.burnMs = Math.max(200, Math.round(v)); }, Math.round(beat / 2)));
+  } else {
+    timing.appendChild(numField("Leg length (ms) — " + (Math.round(cue.stepMs / beat * 100) / 100) + " beats", function () { return cue.stepMs; },
+      function (v) { cue.stepMs = Math.max(200, Math.round(v)); cue.dur = Math.max(cue.stepMs * 2, cue.dur); }, Math.round(beat / 2)));
+    timing.appendChild(numField("Length (ms) — " + Math.round(cue.dur / Math.max(1, cue.stepMs)) + " legs", function () { return cue.dur; },
+      function (v) { cue.dur = Math.max(cue.stepMs * 2, Math.min(ED.durationMs - cue.t, Math.round(v))); }, Math.round(cue.stepMs)));
+  }
+  box.appendChild(timing);
+
+  // the live preview on the real field
+  const cv = el("canvas"); cv.id = "ew-patmap";
+  box.appendChild(cv);
+  cv.addEventListener("pointerdown", edPatMapDown);
+  const pr = el("div", "row edtrans");
+  const pb = el("button", "primary", ED.patPrev.on ? "❚❚ PAUSE" : "▶ PLAY"); pb.id = "ew-patplay";
+  pb.onclick = function () { edPatPlay(); };
+  const rg = el("input"); rg.type = "range"; rg.min = "0"; rg.max = "1000"; rg.step = "1"; rg.id = "ew-patscrub";
+  rg.style.flex = "1 1 0"; rg.style.width = "auto"; rg.style.minWidth = "0";
+  rg.setAttribute("aria-label", "Scrub through the pattern");
+  rg.oninput = function () { ED.patPrev.on = false; ED.patPrev.p = Number(rg.value) / 1000; setTxt($("ew-patplay"), "▶ PLAY"); edDrawPatPreview(); };
+  const ck = el("span", "mono", ""); ck.id = "ew-patclock"; ck.style.flex = "0 0 auto"; ck.style.minWidth = "58px"; ck.style.textAlign = "right";
+  pr.appendChild(pb); pr.appendChild(rg); pr.appendChild(ck);
+  box.appendChild(pr);
+  const bl = el("div", "bandline");
+  const B = cue.bands.length;
+  bl.appendChild(el("b", null, cue.pattern === "alternate"
+    ? "2 halves · trading every " + secs(cue.stepMs) + " · " + Math.round(cue.dur / Math.max(1, cue.stepMs)) + " legs"
+    : B + " band" + (B === 1 ? "" : "s") + " · " + secs(cue.stepMs) + " apart · each burns " + (cue.pattern === "fill" ? "to the end" : secs(cue.burnMs))));
+  bl.appendChild(el("div", "tiny", PATTERN_EXPLAIN[cue.pattern] || ""));
+  if (cue.pattern === "ripple" || cue.pattern === "radial") {
+    if (cue.center) {
+      const rc = el("button", "linkbtn", "put the centre back in the middle");
+      rc.onclick = function () { delete cue.center; edPatChanged(); };
+      bl.appendChild(rc);
+    } else bl.appendChild(el("div", "tiny", "The centre (+) is the middle of the target."));
+  }
+  const lg = el("div", "maplegend");
+  [["ms-BURN", "BURN"], ["ms-GETREADY", "GET READY"], ["ms-IDLE", "OFF"]].forEach(function (x) { lg.appendChild(el("span", x[0], x[1])); });
+  bl.appendChild(lg);
+  box.appendChild(bl);
+
+  // type, vent, duplicate, delete
+  const foot = el("div", "row");
+  foot.style.marginTop = "6px";
+  const toBurn = el("button", null, "MAKE IT A BURN");
+  toBurn.onclick = function () {
+    ["target", "pattern", "dir", "center", "seed", "bandCount", "bands", "stepMs", "burnMs"].forEach(function (k) { delete cue[k]; });
+    cue.type = "burn"; cue.groups = ["all"]; cue.dur = Math.max(400, Math.round(beat * 2));
+    edPatChanged();
+  };
+  foot.appendChild(toBurn);
+  const vent = el("button", "edchip" + (cue.vent ? " on" : ""), "FORCE VENT WARNING");
+  vent.onclick = function () { if (cue.vent) delete cue.vent; else cue.vent = true; edPatChanged(); };
+  foot.appendChild(vent);
+  const dup = el("button", null, "DUPLICATE");
+  dup.onclick = function () {
+    const copy = JSON.parse(JSON.stringify(cue));
+    copy.t = Math.min(ED.durationMs - cue.dur, edSnap(cue.t + cue.dur + (ED.options.minRestMs || 0)));
+    ED.cues.push(copy);
+    ED.cues.sort(function (a, b) { return a.t - b.t; });
+    edSelect({ kind: "cue", i: ED.cues.indexOf(copy) });
+    edPatChanged();
+  };
+  foot.appendChild(dup);
+  const del = el("button", "danger", "DELETE");
+  del.onclick = function () { edDeleteSelected(); };
+  foot.appendChild(del);
+  box.appendChild(foot);
+
+  const issues = (ED.audit && ED.audit.perCue[i]) || [];
+  if (issues.length) {
+    const list = el("div");
+    list.style.marginTop = "10px";
+    issues.forEach(function (x) { list.appendChild(el("div", "edissue" + (x.severity === "warn" ? " warn" : ""), x.text)); });
+    box.appendChild(list);
+  } else box.appendChild(el("div", "small edok", "✓ legal for every balloon in it"));
+  if (ED.patPrev.i !== i) ED.patPrev = { i: i, p: 0, on: false, anchorPerf: 0 };
+  requestAnimationFrame(edDrawPatPreview);
+}
+/* what each balloon shows at cue-relative time tau (BURN / GET READY / off) */
+function edPatStates(cue, tau) {
+  const gr = (ED.options && ED.options.getReadyMs) || SHOW_DEFAULTS.getReadyMs;
+  const m = {}, first = {};
+  patternSegs(Object.assign({}, cue, { t: 0 })).forEach(function (sg) {
+    (cue.bands[sg.band] || []).forEach(function (n) {
+      if (first[n] === undefined || sg.t < first[n]) first[n] = sg.t;
+      if (tau >= sg.t && tau < sg.end) m[n] = { phase: "BURN" };
+    });
+  });
+  Object.keys(first).forEach(function (n) {
+    if (!m[n] && tau >= first[n] - gr && tau < first[n]) m[n] = { phase: "GETREADY" };
+  });
+  return m;
+}
+function edPatSpan(cue) {
+  const gr = (ED.options && ED.options.getReadyMs) || SHOW_DEFAULTS.getReadyMs;
+  return { lead: Math.min(gr, 3000), total: Math.min(gr, 3000) + cue.dur + 800 };
+}
+function edDrawPatPreview() {
+  const cv = $("ew-patmap");
+  const i = ED.sel && ED.sel.kind === "cue" ? ED.sel.i : -1;
+  const cue = ED.cues[i];
+  if (!cv || !cue || cue.type !== "pattern") return;
+  const P = ED.patPrev, sp = edPatSpan(cue);
+  const tau = -sp.lead + P.p * sp.total;
+  let center = null;
+  if (cue.pattern === "ripple" || cue.pattern === "radial") {
+    if (cue.center) center = cue.center;
+    else {
+      const mem = resolveTargetNums(cue.target, ED.balloons, ED.sets), byN = {};
+      ED.balloons.forEach(function (b) { byN[b.n] = b; });
+      let sx = 0, sy = 0;
+      mem.forEach(function (n) { sx += byN[n].x; sy += byN[n].y; });
+      if (mem.length) center = [sx / mem.length, sy / mem.length];
+    }
+  }
+  const res = drawFieldMap(cv, { balloons: ED.balloons, colorOf: edColorOf(), field: ED.field,
+    stateByN: edPatStates(cue, tau), nowMs: performance.now(), center: center });
+  ED.patGeom = res ? res.geom : null;
+  const rg = $("ew-patscrub");
+  if (rg && document.activeElement !== rg) rg.value = String(Math.round(P.p * 1000));
+  const at = cue.t + tau;
+  setTxt($("ew-patclock"), (at < cue.t ? "−" + (Math.round((cue.t - at) / 100) / 10).toFixed(1) + "s" : fmtMMSS(at) + "." + Math.floor((at % 1000) / 100)));
+}
+function edPatPlay() {
+  const P = ED.patPrev;
+  P.on = !P.on;
+  if (P.on) { if (P.p >= 0.999) P.p = 0; P.anchorPerf = performance.now() - P.p * edPatSpan(ED.cues[P.i] || { dur: 1000 }).total; }
+  setTxt($("ew-patplay"), P.on ? "❚❚ PAUSE" : "▶ PLAY");
+}
+function edPatFrame() {
+  const P = ED.patPrev;
+  if (!P.on) return;
+  const cue = ED.cues[P.i];
+  if (!cue || cue.type !== "pattern" || !$("ew-patmap")) { P.on = false; return; }
+  P.p = Math.min(1, (performance.now() - P.anchorPerf) / edPatSpan(cue).total);
+  if (P.p >= 1) { P.on = false; setTxt($("ew-patplay"), "▶ PLAY"); }
+  edDrawPatPreview();
+}
+function edPatMapDown(ev) {
+  const i = ED.sel && ED.sel.kind === "cue" ? ED.sel.i : -1;
+  const cue = ED.cues[i];
+  if (!cue || (cue.pattern !== "ripple" && cue.pattern !== "radial") || !ED.patGeom) return;
+  const r = ev.currentTarget.getBoundingClientRect();
+  const g = ED.patGeom;
+  cue.center = [Math.round(g.ux(ev.clientX - r.left) * 1e4) / 1e4, Math.round(g.uy(ev.clientY - r.top) * 1e4) / 1e4];
+  ED.patPrev.p = 0;
+  edPatChanged();
 }
 
 /* ---- inspector ------------------------------------------------------------ */
@@ -7200,6 +8334,7 @@ function edRenderInspector() {
   if (ED.sel.kind === "section") return edRenderSectionInspector(box);
   const i = ED.sel.i, cue = ED.cues[i];
   if (!cue) { ED.sel = null; return edRenderInspector(); }
+  if (cue.type === "pattern") return edRenderPatternInspector(box, i, cue);
   const beat = edHasGrid() ? edBeatMs() : 500;
 
   box.appendChild(el("h3", null, "Cue " + (i + 1) + " of " + ED.cues.length));
@@ -7215,9 +8350,20 @@ function edRenderInspector() {
   // type
   const typeRow = el("div", "edchips");
   typeRow.appendChild(el("span", "edchip lab", "TYPE"));
-  ["burn", "pulse", "alternate"].forEach(function (ty) {
+  ["burn", "pulse", "alternate"].concat(ED.balloons.length ? ["pattern"] : []).forEach(function (ty) {
     const b = el("button", "edchip" + (cue.type === ty ? " on" : ""), ty.toUpperCase());
     b.onclick = function () {
+      if (ty === "pattern") {
+        // a burn becomes a sweep across the same balloons
+        const o = Object.assign(edDefaultOptions(), ED.options || {});
+        const tgt = cue.target ? copyTarget(cue.target) : (cue.groups && cue.groups.length === 1 && String(cue.groups[0]).toLowerCase() !== "all" ? { group: cue.groups[0] } : { all: true });
+        delete cue.groups; delete cue.bpm; delete cue.periodMs;
+        Object.assign(cue, { type: "pattern", target: tgt, pattern: "sweep", dir: "lr", bandCount: o.bands || 4,
+          stepMs: Math.round(Math.max(1, Math.round(o.bandStepMs / beat)) * beat), burnMs: Math.round(Math.max(2, Math.round(o.bandBurnMs / beat)) * beat), bands: [] });
+        edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+        return;
+      }
+      if (ty === "alternate" && cue.target) { delete cue.target; cue.groups = ED.groups.map(function (g) { return g.id; }); }
       cue.type = ty;
       if (ty === "pulse" && !cue.bpm) cue.bpm = Math.round(Math.max(20, Math.min(300, (ED.summary && ED.summary.bpm) || 120)));
       if (ty === "alternate") {
@@ -7235,19 +8381,21 @@ function edRenderInspector() {
   const gRow = el("div", "edchips");
   gRow.style.marginTop = "8px";
   gRow.appendChild(el("span", "edchip lab", "GROUPS"));
-  const isAll = cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; });
+  const isAll = !cue.target && cue.groups.some(function (g) { return String(g).toLowerCase() === "all"; });
   const allChip = el("button", "edchip" + (isAll ? " on" : ""), "ALL");
   allChip.onclick = function () {
+    delete cue.target;
     cue.groups = isAll ? [ED.groups[0].id] : ["all"];
     if (cue.type === "alternate" && cue.groups.length < 2) cue.type = "burn";
     edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
   };
   gRow.appendChild(allChip);
   ED.groups.forEach(function (gr) {
-    const on = !isAll && cue.groups.indexOf(gr.id) !== -1;
+    const on = !isAll && !cue.target && cue.groups.indexOf(gr.id) !== -1;
     const b = el("button", "edchip" + (on ? " on" : ""), gr.label);
     b.onclick = function () {
-      let list = isAll ? [] : cue.groups.slice();
+      let list = isAll || cue.target ? [] : cue.groups.slice();
+      delete cue.target;
       if (on) list = list.filter(function (x) { return x !== gr.id; });
       else list.push(gr.id);
       if (!list.length) list = [gr.id];
@@ -7257,6 +8405,19 @@ function edRenderInspector() {
     };
     gRow.appendChild(b);
   });
+  // a burn or pulse can also go to one of the map's sets
+  if (cue.type !== "alternate" && ED.sets && ED.sets.length) {
+    ED.sets.forEach(function (st) {
+      const on = !!(cue.target && cue.target.set === st.id);
+      const b = el("button", "edchip" + (on ? " on" : ""), "SET " + st.name + " · " + st.members.length);
+      b.onclick = function () {
+        delete cue.groups;
+        cue.target = { set: st.id };
+        edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
+      };
+      gRow.appendChild(b);
+    });
+  }
   box.appendChild(gRow);
 
   // timing
@@ -7313,7 +8474,7 @@ function edRenderInspector() {
   foot.appendChild(vent);
   const dup = el("button", null, "DUPLICATE");
   dup.onclick = function () {
-    const copy = Object.assign({}, cue, { t: Math.min(ED.durationMs - cue.dur, edSnap(cue.t + cue.dur + (ED.options.minRestMs || 0))), groups: cue.groups.slice() });
+    const copy = Object.assign(JSON.parse(JSON.stringify(cue)), { t: Math.min(ED.durationMs - cue.dur, edSnap(cue.t + cue.dur + (ED.options.minRestMs || 0))) });
     ED.cues.push(copy);
     ED.cues.sort(function (a, b) { return a.t - b.t; });
     edSelect({ kind: "cue", i: ED.cues.indexOf(copy) });
@@ -7397,27 +8558,50 @@ function edRenderProblems() {
   (ED.audit ? ED.audit.perCue : []).forEach(function (list, i) {
     list.forEach(function (x) { rows.push([x.severity, "“" + (ED.cues[i] ? ED.cues[i].label : "cue " + i) + "” — " + x.text]); });
   });
+  const perB = !!(ED.audit && ED.audit.perBalloon);
   if (ED.audit && !ED.audit.fair) {
-    rows.push(["warn", "Groups are uneven: the quietest group burns " + Math.round(ED.audit.balance.ratio * 100) + "% of what the busiest does."]);
+    rows.push(["warn", perB
+      ? "Balloons are uneven: the quietest burns " + Math.round(ED.audit.balance.ratio * 100) + "% of what the busiest does (#" + ED.audit.balance.weakest + " vs #" + ED.audit.balance.strongest + ")."
+      : "Groups are uneven: the quietest group burns " + Math.round(ED.audit.balance.ratio * 100) + "% of what the busiest does."]);
   }
+  if (perB) box.appendChild(el("div", "tiny", "CHECKED FOR EVERY BALLOON — a pattern reaches each balloon at a different moment, so every rule runs per balloon."));
   if (!rows.length) {
     box.appendChild(el("div", "edok", "✓ No problems. This show will load in PILOT and CONDUCTOR exactly as it is."));
   } else {
-    rows.slice(0, 40).forEach(function (r) { box.appendChild(el("div", "edissue" + (r[0] === "warn" ? " warn" : ""), r[1])); });
+    rows.slice(0, 40).forEach(function (r) {
+      const d = el("div", "edissue" + (r[0] === "warn" ? " warn" : ""), "");
+      d.appendChild(el("span", "sev", r[0] === "warn" ? "AMBER" : "RED"));
+      d.appendChild(document.createTextNode(r[1]));
+      box.appendChild(d);
+    });
     if (rows.length > 40) box.appendChild(el("div", "tiny", "…and " + (rows.length - 40) + " more."));
     box.appendChild(el("div", "tiny",
       rows.some(function (r) { return r[0] === "block"; })
         ? "RED blocks export: the app itself would reject this show, or a pilot would be handed a long burn with no time to vent. AMBER is advice — the show is tighter than your current settings but it will still load and run."
         : "AMBER is advice, not a veto: the show is tighter than your current settings but it will still load and run. Loosen the sliders on the setup screen if that is what you meant."));
   }
+  if (ED.cues.some(function (c) { return c.type === "pattern"; })) {
+    const d = el("div", "edissue note", "");
+    d.appendChild(el("span", "sev", "NOTE"));
+    d.appendChild(document.createTextNode("The bands inside one pattern count as one instruction for each balloon, the way a ping-pong's legs always have."));
+    box.appendChild(d);
+  }
   const loads = (ED.audit && ED.audit.loads) || {};
   const st = el("div", "edstat");
   st.style.marginTop = "8px";
-  ED.groups.forEach(function (g) {
-    const s = el("span", null, g.label + ": ");
-    s.appendChild(el("b", null, fmtMMSS(loads[g.id] || 0) + " burn"));
-    st.appendChild(s);
-  });
+  if (perB) {
+    const vals = Object.keys(loads).map(function (k) { return loads[k]; });
+    const mn = vals.length ? Math.min.apply(null, vals) : 0, mx = vals.length ? Math.max.apply(null, vals) : 0;
+    const s1 = el("span", null, "Burn per balloon: ");
+    s1.appendChild(el("b", null, fmtMMSS(mn) + " – " + fmtMMSS(mx)));
+    st.appendChild(s1);
+  } else {
+    ED.groups.forEach(function (g) {
+      const s = el("span", null, g.label + ": ");
+      s.appendChild(el("b", null, fmtMMSS(loads[g.id] || 0) + " burn"));
+      st.appendChild(s);
+    });
+  }
   box.appendChild(st);
   // what rides out with the show besides the cues
   const extras = [];
@@ -7425,7 +8609,8 @@ function edRenderProblems() {
     ? "Beat ring: " + Math.round(edBpm() * 100) / 100 + " BPM grid travels with the show — every pilot sees a tempo ring."
     : "No tempo in this project, so the exported show carries no beat ring.");
   extras.push((ED.balloons || []).length
-    ? (ED.balloons.length + " numbered balloons + their field positions are exported with the show.")
+    ? (ED.balloons.length + " numbered balloons + their field positions are exported with the show." +
+       (ED.field ? " So is the field (outline, zones, crowd edge)." : "") + (ED.sets && ED.sets.length ? " So are " + ED.sets.length + " set(s)." : ""))
     : "No balloons placed — pilots will pick a group, as before. (MAP tab to number them.)");
   box.appendChild(el("div", "tiny", extras.join(" ")));
 }
@@ -7445,6 +8630,17 @@ function edRenderAdvisories() {
 function edRenderMirror(force) {
   const box = $("ew-mirror");
   if (!box) return;
+  setTxt($("ew-mirrorsub"), ED.tl && ED.tl.hasBalloonCues ? "— what each balloon's phone shows at the playhead" : "— what each group's phone shows at the playhead");
+  if (ED.tl && ED.tl.hasBalloonCues) {
+    const sig0 = "b" + ED.balloons.length + "|" + ED.balloons.map(function (b) { return b.n; }).join(",");
+    if (box.dataset.built !== sig0 || force) { box.dataset.built = sig0; buildBalloonMirror(box, ED.tl); ED.mirrorSig = ""; }
+    const sigB = String(Math.round(ED.playheadMs / 50));
+    if (sigB === ED.mirrorSig) return;
+    ED.mirrorSig = sigB;
+    paintBalloonMirror(box, ED.tl, ED.playheadMs);
+    return;
+  }
+  if (box.className !== "mirror") { box.className = "mirror"; box.dataset.built = ""; }
   if (box.dataset.built !== String(ED.groups.length) || force) {
     box.dataset.built = String(ED.groups.length);
     clear(box);
@@ -7533,6 +8729,7 @@ function edPlayPause() {
 }
 function edFrame() {
   if (!ED.ready) return;
+  edPatFrame();
   if (ED.tab === "map") {
     if (ED.play.on) {
       ED.playheadMs = ED.play.withAudio
@@ -7624,7 +8821,7 @@ function edImportText(text) {
   if (!parsed.ok) { showFatal("SHOW FILE REJECTED", "This show cannot be edited until it validates:", parsed.errors); return; }
   const show = parsed.show;
   ED.groups = show.groups.map(function (g) { return { id: g.id, label: g.label, color: g.color }; });
-  ED.cues = show.cues.map(function (c) { return Object.assign({}, c, { groups: c.groups.slice() }); });
+  ED.cues = show.cues.map(function (c) { return JSON.parse(JSON.stringify(c)); });
   ED.title = show.title;
   ED.audioTitle = show.audio.title || "";
   ED.durationMs = show.audio.durationMs;
@@ -7634,6 +8831,9 @@ function edImportText(text) {
   ED.bpm = typeof show.audio.bpm === "number" ? show.audio.bpm : 0;
   ED.beatOffsetMs = typeof show.audio.beatOffsetMs === "number" ? show.audio.beatOffsetMs : 0;
   ED.balloons = normalizeBalloons(show.balloons, ED.groups.map(function (g) { return g.id; }));
+  ED.field = show.field || null;
+  ED.sets = normalizeSets(show.sets, ED.balloons);
+  ED.selSet = []; ED.fillReport = null; ED.fieldMsg = null;
   ED.selBalloon = null;
   ED.advisories = [];
   ED.ready = true;
@@ -7650,7 +8850,8 @@ function edSave() {
     v: 1, title: ED.title, audioTitle: ED.audioTitle, fileName: ED.fileName,
     durationMs: ED.durationMs, options: ED.options, groups: ED.groups,
     cues: ED.cues, advisories: ED.advisories, summary: ED.summary, ready: ED.ready,
-    balloons: ED.balloons, bpm: ED.bpm, beatOffsetMs: ED.beatOffsetMs, tab: ED.tab
+    balloons: ED.balloons, bpm: ED.bpm, beatOffsetMs: ED.beatOffsetMs, tab: ED.tab,
+    field: ED.field, sets: ED.sets, minSpacingM: ED.minSpacingM
   });
 }
 function edRestore() {
@@ -7671,6 +8872,9 @@ function edRestore() {
     ED.bpm = typeof p.bpm === "number" ? p.bpm : 0;
     ED.beatOffsetMs = typeof p.beatOffsetMs === "number" ? p.beatOffsetMs : 0;
     ED.balloons = normalizeBalloons(p.balloons, ED.groups.map(function (g) { return g.id; }));
+    ED.field = p.field ? normalizeField(p.field).field : null;
+    ED.sets = normalizeSets(p.sets, ED.balloons);
+    ED.minSpacingM = typeof p.minSpacingM === "number" ? p.minSpacingM : 25;
     ED.tab = p.tab === "map" ? "map" : "timeline";
     ED.selBalloon = null;
     ED.ready = !!p.ready && ED.cues.length > 0;
@@ -7684,6 +8888,7 @@ function edForget() {
   ED.title = ""; ED.audioTitle = ""; ED.fileName = ""; ED.durationMs = 0;
   ED.audio.buf = null; ED.sel = null; ED.tl = null; ED.audit = null;
   ED.balloons = []; ED.selBalloon = null; ED.bpm = 0; ED.beatOffsetMs = 0; ED.tab = "timeline";
+  ED.field = null; ED.sets = []; ED.selSet = []; ED.fillReport = null; ED.fieldMsg = null; ED.mapMode = "move";
   ED.options = edDefaultOptions();
   renderEditorSetup();
 }
@@ -7730,7 +8935,12 @@ function edWireEvents() {
     ms.addEventListener("change", function () { ED.mapScrubbing = false; });
   }
   const bc = $("ew-bcount");
-  if (bc) bc.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edSetBalloonCount(bc.value); } });
+  if (bc) bc.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edAutoFill(bc.value); } });
+  const ff = $("ew-ffile");
+  // no accept filter (iOS greys out .kmz/.kml under one); the parser rejects anything else loudly
+  if (ff) ff.addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; edImportField(f); });
+  const bn = $("ew-bynum");
+  if (bn) bn.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); edSelectByNumber(); } });
   window.addEventListener("resize", function () {
     if (APP.screen !== "editor-work") return;
     if (ED.tab === "map") edDrawMap(); else edDraw();
@@ -7766,11 +8976,33 @@ function edWireEvents() {
       case "ed-use": edUseShow(); break;
       case "ed-tab-timeline": edSetTab("timeline"); break;
       case "ed-tab-map": edSetTab("map"); break;
-      case "ed-bset": edSetBalloonCount($("ew-bcount").value); break;
+      case "ed-bset": edAutoFill($("ew-bcount").value); break;
+      case "ed-autofill": edAutoFill($("ew-bcount").value); break;
+      case "ed-bminus": $("ew-bcount").value = String(Math.max(0, (parseInt($("ew-bcount").value, 10) || 0) - 1)); break;
+      case "ed-bplus": $("ew-bcount").value = String(Math.min(400, (parseInt($("ew-bcount").value, 10) || 0) + 1)); break;
+      case "ed-spminus": ED.minSpacingM = Math.max(5, ED.minSpacingM - 1); edRenderMap(); edSave(); break;
+      case "ed-spplus": ED.minSpacingM = Math.min(100, ED.minSpacingM + 1); edRenderMap(); edSave(); break;
       case "ed-barrange": ED.balloons = arrangeBalloons(ED.balloons, edGroupIds()); edMapChanged(); break;
       case "ed-badd": edAddBalloon(); break;
-      case "ed-bclear": ED.balloons = []; ED.selBalloon = null; edMapChanged(); break;
+      case "ed-bclear": ED.balloons = []; ED.selBalloon = null; ED.selSet = []; ED.fillReport = null; edMapChanged(); break;
       case "ed-maprewind": edMapScrub(0); break;
+      case "ed-fimport": $("ew-ffile").click(); break;
+      case "ed-fdraw": ED.drawPts = []; ED.mapMode = "draw"; edRenderMap(); break;
+      case "ed-fdone": edFinishDraw(); break;
+      case "ed-fundo": if (ED.drawPts && ED.drawPts.length) ED.drawPts.pop(); edRenderMap(); break;
+      case "ed-fcancel": ED.drawPts = null; edSetMapMode("move"); break;
+      case "ed-frotl": edRotateField(-15); break;
+      case "ed-frotr": edRotateField(15); break;
+      case "ed-fcrowd": ED.mapMode = ED.mapMode === "crowd" ? "move" : "crowd"; edRenderMap(); break;
+      case "ed-fremove": ED.field = null; ED.fieldMsg = null; ED.fillReport = null; ED.mapMode = "move"; edMapChanged(); break;
+      case "ed-mode-move": edSetMapMode("move"); break;
+      case "ed-mode-lasso": edSetMapMode("lasso"); break;
+      case "ed-mode-add": edSetMapMode("add"); break;
+      case "ed-sel-invert": edInvertSel(); break;
+      case "ed-sel-clear": ED.selSet = []; setTxt($("ew-selmsg"), ""); edDrawMap(); edRenderSets(); break;
+      case "ed-sel-save": edSaveSet(); break;
+      case "ed-sel-bynum": edSelectByNumber(); break;
+      case "ed-addpattern": edAddPattern(); break;
     }
   });
 }

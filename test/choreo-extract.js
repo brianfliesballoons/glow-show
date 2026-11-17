@@ -29,7 +29,7 @@ fs.writeFileSync(OUT + '/choreo.js',
   '\nmodule.exports={' +
   'parseShowText,validateShow,compileShow,stateAt,expandSegments,fmtMMSS,fmtSecs,slugify,SHOW_DEFAULTS,' +
   'beatAt,beatGridOf,groupOfBalloon,normalizeBalloons,arrangeBalloons,makeBalloons,BEATS_PER_BAR,BPM_MIN,BPM_MAX,' +
-  'stateAtBalloon,stateForPilot,isBalloonCue,copyTarget,resolveTargetNums,patternSegs,expandBalloonSegments,patternBands,patternDur,fmtNums,parseNumberList,normalizeSets,normalizeField,pointInPoly,polyEdgeDist,polyArea,parseKml,classifyKml,kmlZoneKind,zipFindKml,projectField,fieldPtToMetres,metresToFieldPt,fieldPtToLonLat,lonLatToFieldPt,rotateField,crowdFromEdge,fieldEdgeAt,carryBalloons,gridRefOf,autofillField,PATTERNS,PATTERN_DIRS,PATTERN_DEFAULT_DIR,EARTH_R,' +
+  'stateAtBalloon,stateForPilot,isBalloonCue,copyTarget,resolveTargetNums,patternSegs,expandBalloonSegments,patternBands,patternDur,fmtNums,parseNumberList,normalizeSets,normalizeField,pointInPoly,polyEdgeDist,polyArea,parseKml,classifyKml,kmlZoneKind,zipFindKml,projectField,fieldPtToMetres,metresToFieldPt,fieldPtToLonLat,lonLatToFieldPt,rotateField,crowdFromEdge,fieldEdgeAt,carryBalloons,gridRefOf,autofillField,fieldFromPoints,PATTERNS,PATTERN_DIRS,PATTERN_DEFAULT_DIR,EARTH_R,' +
   '_fftFor,_hannWindow,computeFrames,onsetEnvelope,estimateTempo,buildBeats,estimateBarPhase,detectSections,' +
   'sectionFeatures,labelSections,waveSilhouette,analyzePCM,analysisSummary,AN_DEFAULTS,' +
   'CH_DEFAULTS,chOptions,chGrid,chAnalysis,chScheduler,chPlan,chAudit,chBuildShow,choreograph,chPlanField,chMoveText,CH_MOVES' +
