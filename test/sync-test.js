@@ -106,6 +106,26 @@ ok('unverified clock falls back to Date.now()', Math.abs(S.syncedNow() - Date.no
 ok('median of 3', S.median([9,1,5]) === 5);
 ok('median of 4 averages the middle pair', S.median([1,2,3,10]) === 2.5);
 
+// 9. a phone that slept: performance.now() stood still, the wall clock did not
+APP.workerUrl = 'https://fake.invalid';
+plan = Array.from({length: 10}, () => [4,4]); round = 0;
+await S.runSync({silent:true});
+ok('no jump right after a sync', S.checkClockJump() === 0);
+S.SYNC.offset -= 5000;                          // as if perf paused for a 5 s nap
+const jump = S.checkClockJump();
+ok('a 5 s sleep pause is caught (' + Math.round(jump) + ' ms)', jump > 4900 && jump < 5100, jump);
+ok('after the catch the clock tracks the server again (err ' + (S.syncedNow() - (performance.now() + TRUE_OFFSET)).toFixed(2) + 'ms)',
+   Math.abs(S.syncedNow() - (performance.now() + TRUE_OFFSET)) < 5);
+ok('a caught sleep turns the badge yellow until the next sync', S.syncStatus().level === 'yellow');
+ok('and asks for a sync straight away', S.SYNC.lastAutoAt === 0);
+const offBefore = S.SYNC.offset;
+S.SYNC.wallDelta -= 10000;                      // as if someone set the wall clock back 10 s
+ok('a wall-clock change is noticed', S.checkClockJump() < -9000);
+ok('a wall-clock change leaves the synced clock alone', S.SYNC.offset === offBefore);
+ok('and the wall link is re-based (no second jump)', S.checkClockJump() === 0);
+S.SYNC.offset -= S.CLOCK_JUMP_MS - 50;         // small drift under the threshold
+ok('drift under ' + S.CLOCK_JUMP_MS + ' ms is left alone', S.checkClockJump() === 0);
+
 console.log('\n================  ' + pass + ' passed, ' + fail + ' failed  ================');
 process.exit(fail ? 1 : 0);
 })();

@@ -303,7 +303,7 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 .pm-nowbarw{width:100%;height:8px;border-radius:99px;background:rgba(0,0,0,.28);overflow:hidden;margin-top:10px}
 .pm-nowbarw i{display:block;height:100%;border-radius:99px;background:currentColor;width:100%}
 .pm-nowextra{font-size:14px;font-weight:700;margin-top:8px;text-shadow:var(--g-shadow)}
-.pm-now.k-cool,.pm-now.k-stop,.pm-now.k-start,.pm-now.k-wait{color:var(--g-blue-text);--nowglow:rgba(141,184,232,.4)}
+.pm-now.k-cool,.pm-now.k-stop,.pm-now.k-start,.pm-now.k-wait,.pm-now.k-late{color:var(--g-blue-text);--nowglow:rgba(141,184,232,.4)}
 .pm-now.k-burn,.pm-now.k-flicker-on{color:#2A1205;--nowglow:rgba(255,220,180,.55)}
 .pm-now.k-burn .pm-nowbig,.pm-now.k-flicker-on .pm-nowbig{color:#1E0C02;text-shadow:0 0 22px rgba(255,240,220,.65)}
 .pm-now.k-flicker-off{color:var(--g-amber-light);--nowglow:rgba(255,154,74,.45)}
@@ -5382,6 +5382,33 @@ const SYNC = {
 function syncedNow() {
   return SYNC.offset === null ? Date.now() : performance.now() + SYNC.offset;
 }
+/* performance.now() can stand still while a phone sleeps (reported for Safari), so
+   a synced clock built on it would run late by the length of the nap. Date.now()
+   keeps real time through sleep. Every frame, compare the two: if the synced
+   clock has fallen behind the wall clock's version of it by more than
+   CLOCK_JUMP_MS, rebuild it from the wall clock (yellow RE-ANCHORED until the next
+   sync) and ask for a sync. If the wall clock jumped instead (someone set the
+   time), keep the synced clock and re-base the wall link. Returns the jump in ms,
+   0 when there was none. */
+const CLOCK_JUMP_MS = 250;
+function checkClockJump() {
+  if (SYNC.offset === null || SYNC.wallDelta === null) return 0;
+  const viaPerf = performance.now() + SYNC.offset;
+  const viaWall = Date.now() + SYNC.wallDelta;
+  const d = viaWall - viaPerf;
+  if (d > CLOCK_JUMP_MS) {
+    SYNC.offset = viaWall - performance.now();
+    if (SYNC.mode === "synced") SYNC.mode = "reanchored";
+    SYNC.lastAutoAt = 0;
+    return d;
+  }
+  if (d < -CLOCK_JUMP_MS) {
+    SYNC.wallDelta = viaPerf - Date.now();
+    persistSync();
+    return d;
+  }
+  return 0;
+}
 function syncAgeMs() { return SYNC.syncedAtEpoch === null ? null : Math.max(0, Date.now() - SYNC.syncedAtEpoch); }
 
 function syncStatus() {
@@ -5498,9 +5525,12 @@ function maybeAutoSync() {
    ========================================================================= */
 function showId() { return APP.show ? slugify(APP.show.title) : "default"; }
 
-function armT0(t0, source) {
-  APP.armed = { t0: t0, source: source || "manual" };
-  store(LS.armed, { t0: t0, source: APP.armed.source, showId: showId() });
+/* joinMs: song time when this phone joined a show already running (null when it
+   was armed before the music). The pilot view never tells a pilot to start a
+   burn that was already under way when they joined. */
+function armT0(t0, source, joinMs) {
+  APP.armed = { t0: t0, source: source || "manual", joinMs: typeof joinMs === "number" ? joinMs : null };
+  store(LS.armed, { t0: t0, source: APP.armed.source, showId: showId(), joinMs: APP.armed.joinMs });
   requestWakeLock();
   renderAll();
 }
@@ -5516,7 +5546,7 @@ function restoreArmed() {
   const now = syncedNow();
   if (a.t0 < now - 15 * 60 * 1000 || a.t0 > now + 6 * 60 * 60 * 1000) { drop(LS.armed); return; }
   if (APP.show && a.showId && a.showId !== showId()) { drop(LS.armed); return; }
-  APP.armed = { t0: a.t0, source: a.source || "manual" };
+  APP.armed = { t0: a.t0, source: a.source || "manual", joinMs: typeof a.joinMs === "number" ? a.joinMs : null };
 }
 
 function nextMinuteMarks(count, leadMs) {
@@ -5546,8 +5576,10 @@ async function pollT0() {
     if (APP.hold && !wasHold) { stopAudio(); renderAll(); }
     if (typeof j.t0 === "number" && !APP.hold) {
       const now = syncedNow();
-      if (j.t0 > now - 2000 && (!APP.armed || APP.armed.t0 !== j.t0)) {
-        armT0(j.t0, "auto");
+      // a phone opened late still joins, for as long as the song runs
+      const lateLimit = Math.max(2000, APP.tl ? APP.tl.audioMs : 0);
+      if (j.t0 > now - lateLimit && (!APP.armed || APP.armed.t0 !== j.t0)) {
+        armT0(j.t0, "auto", j.t0 < now - 2000 ? Math.floor(now - j.t0) : null);
       }
     }
   } catch (e) { /* offline is the normal case at showtime — stay quiet */ }
@@ -6745,6 +6777,10 @@ function renderMine(now) {
   else if (kind === "cool") { title = "Now · Cool off"; big = fmtCountdown(k.leftMs); sub = "until your next burn"; ringOn = true; }
   else if (kind === "stop") { title = "Now · Stop"; if (k.endsMs != null) { big = fmtCountdown(k.leftMs); sub = "let go of the burner · next burn in"; } else { big = "STOP"; word = true; sub = "let go of the burner"; } ringOn = true; }
   else if (kind === "ready") { title = "Now · Get ready"; big = fmtCountdown(k.leftMs); sub = k.task ? k.task.words : "your burn is coming"; glass = "glass-ready"; wash = "READY"; ringOn = true; }
+  else if ((kind === "burn" || kind === "flicker") && APP.armed.joinMs != null && k.task && k.task.atMs < APP.armed.joinMs) {
+    // joined late, in the middle of this burn: sit it out, never start it part-way
+    kind = "late"; title = "Now · Sit this one out"; big = fmtCountdown(Math.max(0, k.task.endMs - t)); sub = "you joined during this burn · wait for the next";
+  }
   else if (kind === "burn") { title = "Now · Burn"; big = fmtCountdown(k.leftMs); sub = "time left in this burn"; glass = "glass-flame"; wash = "BURN"; showBar = true; }
   else if (kind === "flicker") { title = "Now · Flicker"; big = fmtCountdown(k.leftMs); sub = k.on ? "on · burn" : "off"; glass = k.on ? "glass-flame" : "glass-ember"; wash = k.on ? "FLICKER-ON" : ""; kind = k.on ? "flicker-on" : "flicker-off"; showBar = true; }
   else if (kind === "vent") { title = "Now · Vent"; big = fmtCountdown(k.leftMs); sub = "vent now · " + (k.vent ? fmtDurS(k.vent.durMs) + " burn coming" : "a long burn is coming"); glass = "glass-vent"; wash = Math.floor(now / 500) % 2 ? "VENT" : ""; ringOn = true; }
@@ -6762,6 +6798,7 @@ function renderMine(now) {
   // corner notes: a vent warning that is not the top state, or which wave of a pattern this is
   const notes = [];
   if (!APP.hold && armed && k.vent && k.vent.chip && k.kind !== "vent") notes.push("Vent: " + fmtDurS(k.vent.durMs) + " burn in " + fmtCountdown(k.vent.msUntil));
+  if (!APP.hold && armed && APP.armed.joinMs != null && t < APP.armed.joinMs + 20000) notes.push("Joined late at " + fmtMMSS(Math.max(0, APP.armed.joinMs)));
   if (!APP.hold && armed && k.band) notes.push(patternName(k.band.pattern) + " · wave " + (k.band.band + 1) + " of " + k.band.bands);
   N.extra.classList.toggle("hidden", !notes.length);
   setTxt(N.extra, notes.join(" · "));
@@ -10406,6 +10443,7 @@ let lastFrameAt = 0;
 function loop() {
   requestAnimationFrame(loop);
   lastFrameAt = Date.now();
+  if (checkClockJump()) { maybeAutoSync(); renderChrome(); }
   const now = syncedNow();
   if (APP.screen === "pilot-run") renderPilot(now);
   else if (APP.screen === "cond-run") renderConductor(now);
@@ -10570,6 +10608,7 @@ document.addEventListener("visibilitychange", function () {
   if (document.hidden) {
     if (APP.armed && (APP.screen === "pilot-run" || APP.screen === "cond-run")) APP.leftAppFlag = true;
   } else {
+    if (checkClockJump()) maybeAutoSync();
     requestWakeLock();
     if (APP.leftAppFlag && APP.role === "pilot") {
       $("overlay-left").classList.remove("hidden");
@@ -10590,6 +10629,12 @@ function setRole(role) {
    ===== BOOT =====
    ========================================================================= */
 (function boot() {
+  // Offline shell: once loaded with signal, a reload with none still opens the app (sw.js).
+  try {
+    if ("serviceWorker" in navigator && location.protocol === "https:" && !window.GLOW_DEMO) {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
+  } catch (e) {}
   // iPhone: without this, Web Audio is muted whenever the ring/silent switch is on
   try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
   APP.workerUrl = load(LS.worker) || WORKER_URL_DEFAULT;
