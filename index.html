@@ -6540,7 +6540,13 @@ function renderMine(now) {
   }
 
   // ---- THEN (rebuilt only when it changes; rows that do not fit fold into "+ N more")
-  const thenSig = plan.then.map(function (x) { return x.index; }).join(",") + "|" + plan.more + "|" + (plan.finale ? plan.finale.index : "") + "|" + window.innerHeight + "|" + (document.documentElement.style.getPropertyValue("--bannerH") || "");
+  // The room THEN gets changes whenever the panels above it change height (a big countdown, a rhythm bar,
+  // a two-line NEXT), so the fit is redone on those heights too, not only on the window size. Without
+  // this the list kept a fit made for a shorter NOW panel and the finale row was cut off (Brian, 11-19).
+  const pv = $("pv-mine");
+  let room = pv ? pv.clientHeight : 0;
+  if (pv) Array.prototype.forEach.call(pv.children, function (c) { if (c.id !== "pm-then") room -= c.offsetHeight; });
+  const thenSig = plan.then.map(function (x) { return x.index; }).join(",") + "|" + plan.more + "|" + (plan.finale ? plan.finale.index : "") + "|" + window.innerHeight + "|" + room + "|" + (document.documentElement.style.getPropertyValue("--bannerH") || "");
   if (thenSig !== MINE.thenSig) {
     MINE.thenSig = thenSig;
     renderThen(plan);
@@ -6601,6 +6607,11 @@ function renderThen(plan) {
   while (panel.scrollHeight > panel.clientHeight + 1 && shown.length && guard++ < 6) {
     extra.unshift(shown.pop());
     build();
+  }
+  // still too tall with no rows left: the finale matters more than the "+ N more" line
+  if (panel.scrollHeight > panel.clientHeight + 1 && plan.finale) {
+    const m = box.querySelector(".then.more");
+    if (m) m.remove();
   }
 }
 
