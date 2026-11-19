@@ -1,0 +1,42 @@
+{
+  "format": "glow-pack-golden/1",
+  "note": "Each file: { show, key, pack, rows: [[tMs, expected packPlan(pack, tMs), expected packBeatPhase(pack, tMs)], ...] }. In an expected plan, now.task / next / finale are task indexes (or null) and then is a list of task indexes; everything else is exactly packPlan's answer. Compare after a JSON round trip, keys in any order, numbers exactly.",
+  "files": [
+    {
+      "file": "demo-show-1.json",
+      "show": "demo-show",
+      "key": "1",
+      "rows": 159,
+      "segments": 73,
+      "tasks": 6,
+      "haptics": 46
+    },
+    {
+      "file": "demo-groups-shapes.json",
+      "show": "demo-groups",
+      "key": "shapes",
+      "rows": 153,
+      "segments": 70,
+      "tasks": 6,
+      "haptics": 41
+    },
+    {
+      "file": "havasu-lightning-storm-5.json",
+      "show": "havasu-lightning-storm",
+      "key": "5",
+      "rows": 150,
+      "segments": 52,
+      "tasks": 11,
+      "haptics": 40
+    },
+    {
+      "file": "havasu-forest-for-the-trees-12.json",
+      "show": "havasu-forest-for-the-trees",
+      "key": "12",
+      "rows": 110,
+      "segments": 39,
+      "tasks": 9,
+      "haptics": 27
+    }
+  ]
+}

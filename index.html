@@ -188,7 +188,7 @@ button.danger{background:rgba(194,57,44,.55);border-color:rgba(255,138,122,.55);
 button.wide{width:100%}
 button.huge{min-height:76px;font-size:clamp(18px,5vw,22px);border-radius:16px}
 button.ghost{background:transparent}
-input[type=text],input[type=url],input[type=number],textarea,select{
+input[type=text],input[type=url],input[type=number],input[type=password],textarea,select{
   font:inherit;font-family:var(--f);font-size:16px;width:100%;background:rgba(0,0,0,.22);color:var(--g-text);
   border:1px solid rgba(236,231,223,.18);border-radius:10px;padding:11px 12px;min-height:48px;
 }
@@ -797,7 +797,16 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     </div>
 
     <div class="card">
-      <h3>2 &middot; Music</h3>
+      <h3>2 &middot; Pilot phones</h3>
+      <p class="small">Sends each balloon its own cue list, worked out here, so the pilot app only plays it. Pilots enter the show code and their number.</p>
+      <label class="fld"><span>Conductor PIN (6 or more characters)</span><input type="password" id="c-pin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="the first publish claims this show code"></label>
+      <button class="wide" data-act="publish-packs">Publish to phones</button>
+      <div id="c-pubstate" class="small" style="margin-top:10px"></div>
+      <div class="tiny" style="margin-top:6px">The same PIN arms and holds the show. This browser remembers it.</div>
+    </div>
+
+    <div class="card">
+      <h3>3 &middot; Music</h3>
       <div class="stack">
         <input type="file" id="c-audiofile">
         <div id="c-audiostate" class="small"></div>
@@ -810,12 +819,12 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     </div>
 
     <div class="card">
-      <h3>3 &middot; Clock sync</h3>
+      <h3>4 &middot; Clock sync</h3>
       <div id="c-syncpanel"></div>
     </div>
 
     <div class="card">
-      <h3>4 &middot; Arm the start</h3>
+      <h3>5 &middot; Arm the start</h3>
       <div id="c-armpanel"></div>
     </div>
 
@@ -1191,7 +1200,8 @@ const LS = {
   pa:        "glow.paLatencyMs",
   armed:     "glow.armed",
   editor:    "glow.editor",
-  pview:     "glow.pilotView"
+  pview:     "glow.pilotView",
+  pin:       "glow.conductorPin"
 };
 
 const SYNC_ROUNDS      = 10;
@@ -2988,8 +2998,11 @@ function pilotTasks(tl, n, gid) {
 }
 
 function pilotPlan(tl, n, gid, tMs) {
-  const tasks = pilotTasks(tl, n, gid);
-  const s = stateForPilot(tl, n, gid, tMs);
+  return _pilotPlanFrom(tl, pilotTasks(tl, n, gid), stateForPilot(tl, n, gid, tMs), tMs);
+}
+/* the body of pilotPlan, with the task list and the engine state handed in
+   (compilePack calls it thousands of times and works the tasks out once) */
+function _pilotPlanFrom(tl, tasks, s, tMs) {
   const lenMs = tl.audioMs;
   const songMs = Math.max(0, Math.min(lenMs, tMs));
   let cur = null;
@@ -3003,7 +3016,7 @@ function pilotPlan(tl, n, gid, tMs) {
 
   const ph = s.phase;
   let now;
-  if (ph === "PRESHOW") now = { kind: "start", endsMs: 0 };
+  if (ph === "PRESHOW") now = { kind: "start", endsMs: 0, task: null };
   else if (cur && cur.kind === "flicker") {
     const on = ph === "PULSE" ? !!(s.pulse && s.pulse.on) : ph === "BURN";
     now = { kind: "flicker", endsMs: cur.endMs, on: on, task: cur };
@@ -3050,6 +3063,219 @@ function showCode(show) {
   let out = "";
   for (let k = 0; k < 4; k++) { out += SHOW_CODE_ABC.charAt(h & 31); h = h >>> 5; }
   return out;
+}
+
+/* ===== CUE PACKS (glow-pack/1) ==============================================
+   One pack = ONE balloon's (or one group's) whole show, already worked out
+   and checked here, for a phone that only PLAYS it (the native pilot apps,
+   and this page's own pilot view). Spec: docs/PACK.md.
+
+   compilePack(tl, n, gid)  -> one pack
+   compileShowPacks(tl)     -> { format, code, title, by, keys, packs: { "<n or group>": pack } }
+   packPlan(pack, tMs)      -> exactly what pilotPlan(tl, n, gid, tMs) returns
+   packBeatPhase(pack, tMs) -> exactly beatAt(tl, tMs).phase, or null
+
+   compilePack samples pilotPlan() itself at every moment its answer can
+   change (every edge of every window, GET READY, STOP and VENT span, both
+   sides of each edge, and every half beat of a pulse), then merges the runs
+   that read the same. So a pack can only say what the web pilot view says;
+   the suite (test/pack-test.js) proves packPlan == pilotPlan on every pack
+   of every shipped show, and writes test/golden/ for the Swift and Kotlin
+   ports to pass.
+   ========================================================================= */
+const PACK_FORMAT = "glow-pack/1";
+/* vibration patterns, in ms: buzz, pause, buzz, ... (always starts with a buzz) */
+const PACK_HAPTICS = {
+  ready: [80, 120, 80],              // two short: get ready
+  vent:  [80, 80, 80, 80, 80],       // three short: vent now
+  burn:  [500],                      // one long: burn now
+  on:    [60],                       // one tick: flicker on
+  off:   [30, 60, 30],               // soft double: flicker off (long gaps only)
+  stop:  [250]                       // one medium: let go of the burner
+};
+const PACK_OFF_BUZZ_MIN_MS = 1000;   // a flicker-off shorter than this gets no buzz (a pulse's off-beats)
+
+function _packSig(p, s) {
+  const k = p.now;
+  return {
+    phase: p.phase,
+    kind: k.kind,
+    endsMs: k.endsMs == null ? null : k.endsMs,
+    on: k.kind === "flicker" ? !!k.on : false,
+    task: k.task ? k.task.index : null,
+    band: k.band ? { pattern: k.band.pattern, band: k.band.band, bands: k.band.bands } : null,
+    vent: s.vent ? { atMs: s.vent.cueT, durMs: k.vent.durMs, type: k.vent.type, chip: k.vent.chip } : null
+  };
+}
+function _sigKey(g) {
+  return JSON.stringify([g.phase, g.kind, g.endsMs, g.on, g.task, g.band, g.vent]);
+}
+function _isActive(g) { return g.kind === "burn" || (g.kind === "flicker" && g.on); }
+
+function _packHaptics(segs) {
+  const out = [];
+  for (let i = 1; i < segs.length; i++) {
+    const a = segs[i - 1], g = segs[i];
+    const span = i + 1 < segs.length ? segs[i + 1].at - g.at : Infinity;
+    let kind = null;
+    if (g.kind === "ready" && a.kind !== "ready") kind = "ready";
+    else if (g.kind === "vent" && a.kind !== "vent") kind = "vent";
+    else if (g.kind === "burn" && !(a.kind === "burn" && a.task === g.task)) kind = "burn";
+    else if (g.kind === "flicker" && g.on && !(a.kind === "flicker" && a.on)) kind = "on";
+    else if (g.kind === "flicker" && !g.on && a.kind === "flicker" && a.on) kind = span >= PACK_OFF_BUZZ_MIN_MS ? "off" : null;
+    else if (g.kind === "stop" && a.kind !== "stop") kind = "stop";
+    else if (_isActive(a) && !_isActive(g) && g.kind !== "flicker") kind = "stop";
+    if (kind) out.push({ at: g.at, kind: kind });
+  }
+  return out;
+}
+
+function compilePack(tl, n, gid) {
+  const hasN = n != null && tl.balloonOf && tl.balloonOf[n];
+  const b = hasN ? tl.balloonOf[n] : null;
+  const g = gid !== undefined ? gid : (b ? b.group : null);   // gid left out: the balloon's own group
+  const lane = _pilotLane(tl, b ? b.n : null, g);
+  const tasks = pilotTasks(tl, b ? b.n : null, g);
+  // every moment the plan can change, both sides of it (integer ms)
+  const cand = {};
+  const add = function (x) { if (isFinite(x)) { const f = Math.floor(x); cand[f] = 1; cand[f + 1] = 1; } };
+  add(0); add(tl.endMs); add(tl.audioMs);
+  if (lane) {
+    ["windows", "readies", "stops", "vents"].forEach(function (key) {
+      lane[key].forEach(function (w) { add(w.t); add(w.end); });
+    });
+    lane.windows.forEach(function (w) {
+      if (w.type !== "pulse" || !w.bpm) return;
+      const half = 30000 / w.bpm;
+      for (let j = 0; j * half <= w.dur + half; j++) {
+        const x = w.t + j * half, f = Math.floor(x);
+        cand[f - 1] = 1; cand[f] = 1; cand[f + 1] = 1; cand[f + 2] = 1;
+      }
+    });
+  }
+  const ts = Object.keys(cand).map(Number).sort(function (x, y) { return x - y; });
+  const sigAt = function (t) {
+    const s = stateForPilot(tl, b ? b.n : null, g, t);
+    return _packSig(_pilotPlanFrom(tl, tasks, s, t), s);
+  };
+  const segs = [];
+  let lastKey = null;
+  [ts[0] - 1].concat(ts).forEach(function (t) {
+    const sg = sigAt(t), key = _sigKey(sg);
+    if (key === lastKey) return;
+    lastKey = key;
+    sg.at = t;
+    segs.push(sg);
+  });
+  // the first and last runs stretch to minus and plus infinity: prove it
+  if (_sigKey(sigAt(ts[0] - 1 - 86400000)) !== _sigKey(segs[0]) ||
+      _sigKey(sigAt(ts[ts.length - 1] + 86400000)) !== _sigKey(segs[segs.length - 1])) {
+    throw new Error("compilePack: the plan changes outside the sampled span");
+  }
+  return {
+    format: PACK_FORMAT,
+    code: showCode(tl.show),
+    title: String(tl.show.title || ""),
+    key: b ? String(b.n) : String(g == null ? "" : g),
+    balloon: b ? b.n : null,
+    gridRef: b && tl.field ? (gridRefOf(tl.field, b.x, b.y) || null) : null,
+    label: b && b.label ? b.label : null,
+    group: g == null ? null : g,
+    groupLabel: g != null && tl.labelOf[g] != null ? _plain(tl.labelOf[g]) : null,
+    color: g != null && tl.colorOf[g] ? tl.colorOf[g] : null,
+    lenMs: tl.audioMs,
+    endMs: tl.endMs,
+    beat: tl.beat ? { bpm: tl.beat.bpm, beatMs: tl.beat.beatMs, offsetMs: tl.beat.offsetMs, beatsPerBar: tl.beat.beatsPerBar } : null,
+    tasks: JSON.parse(JSON.stringify(tasks)),
+    segments: segs.map(function (sg) {
+      return { at: sg.at, phase: sg.phase, kind: sg.kind, endsMs: sg.endsMs, on: sg.on, task: sg.task, band: sg.band, vent: sg.vent };
+    }),
+    haptics: _packHaptics(segs),
+    hapticPatterns: JSON.parse(JSON.stringify(PACK_HAPTICS))
+  };
+}
+
+function compileShowPacks(tl) {
+  const packs = {}, keys = [];
+  const byBalloon = tl.balloons && tl.balloons.length > 0;
+  if (byBalloon) tl.balloons.forEach(function (b) { keys.push(String(b.n)); packs[String(b.n)] = compilePack(tl, b.n, b.group); });
+  else tl.groupIds.forEach(function (g) { keys.push(g); packs[g] = compilePack(tl, null, g); });
+  return { format: "glow-packs/1", code: showCode(tl.show), title: String(tl.show.title || ""),
+           by: byBalloon ? "balloon" : "group", keys: keys, packs: packs };
+}
+
+/* ---- THE REFERENCE PLAYER ---------------------------------------------------
+   Swift and Kotlin port this function line for line. Plain loops only.
+   tMs = song time in whole ms (floor it): t = 0 is the first note. */
+function packPlan(pack, tMs) {
+  const segs = pack.segments, tasks = pack.tasks;
+  // the segment in force: the last one with at <= tMs (the first one also covers everything before it)
+  let lo = 0, hi = segs.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    if (segs[mid].at <= tMs) lo = mid; else hi = mid - 1;
+  }
+  const sg = segs[lo];
+
+  // tasks: the one under way, the next one, how many are left
+  let cur = null, next = null, burnsLeft = 0;
+  for (let i = 0; i < tasks.length; i++) {
+    const k = tasks[i];
+    if (tMs >= k.atMs && tMs < k.endMs) cur = k;
+    if (next === null && k.atMs > tMs) next = k;
+    if (k.endMs > tMs) burnsLeft++;
+  }
+  const last = tasks.length > 0 ? tasks[tasks.length - 1] : null;
+  const finale = last !== null && last.finale && last !== cur && last !== next && last.atMs > tMs ? last : null;
+  // THEN = the upcoming tasks after next, finale left out; the first 3 shown, the rest counted
+  const then = [], moreAt = [];
+  let moreKind = null;
+  for (let i = 0; i < tasks.length; i++) {
+    const k = tasks[i];
+    if (!(k.atMs > tMs) || k === next || k === finale) continue;
+    if (then.length < 3) { then.push(k); continue; }
+    moreAt.push(k.atMs);
+    if (moreKind === null) moreKind = k.kind; else if (moreKind !== k.kind) moreKind = "mixed";
+  }
+
+  // NOW: the segment says what; the countdown is worked out from the clock
+  const now = { kind: sg.kind, endsMs: sg.endsMs, task: sg.task === null ? null : tasks[sg.task] };
+  if (sg.kind === "flicker") now.on = sg.on;
+  now.leftMs = sg.endsMs === null ? null : Math.max(0, sg.endsMs - tMs);
+  if ((sg.kind === "burn" || sg.kind === "flicker") && now.task !== null) {
+    now.progress = Math.max(0, Math.min(1, (tMs - now.task.atMs) / Math.max(1, now.task.durMs)));
+  }
+  now.band = sg.band;
+  now.vent = sg.vent === null ? null
+    : { msUntil: sg.vent.atMs - tMs, durMs: sg.vent.durMs, type: sg.vent.type, chip: sg.vent.chip };
+
+  const marks = [];
+  for (let i = 0; i < tasks.length; i++) {
+    const k = tasks[i];
+    marks.push({ atMs: k.atMs, durMs: k.durMs, kind: k.kind, finale: k.finale,
+                 next: k === next, now: k === cur, done: k.endMs <= tMs });
+  }
+  const songMs = Math.max(0, Math.min(pack.lenMs, tMs));
+  return {
+    tMs: tMs, songMs: songMs, lenMs: pack.lenMs, leftMs: Math.max(0, pack.lenMs - songMs), phase: sg.phase,
+    now: now, next: next, then: then,
+    more: moreAt.length, moreAt: moreAt, moreKind: moreKind,
+    finale: finale,
+    burnsLeft: burnsLeft, total: tasks.length,
+    burnMarks: marks
+  };
+}
+
+/* the beat ring's fill, 0..1 (same arithmetic as beatAt), or null with no tempo */
+function packBeatPhase(pack, tMs) {
+  const g = pack.beat;
+  if (g === null) return null;
+  const rel = tMs - g.offsetMs;
+  const beat = Math.floor(rel / g.beatMs);
+  let phase = (rel - beat * g.beatMs) / g.beatMs;
+  if (!(phase >= 0)) phase = 0;
+  if (phase >= 1) phase = 0;
+  return phase;
 }
 
 /* One move of the show in plain words, for the editor's "moves in time
@@ -5312,7 +5538,7 @@ function stopT0Poll() { if (t0PollTimer) { clearInterval(t0PollTimer); t0PollTim
 async function pollT0() {
   if (!APP.workerUrl || !APP.show) return;
   try {
-    const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/t0?showId=" + encodeURIComponent(showId()), { cache: "no-store", mode: "cors" });
+    const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/t0?code=" + encodeURIComponent(showCodeNow()), { cache: "no-store", mode: "cors" });
     const j = await res.json();
     if (!j) return;
     const wasHold = APP.hold;
@@ -5327,19 +5553,50 @@ async function pollT0() {
   } catch (e) { /* offline is the normal case at showtime — stay quiet */ }
 }
 
+/* Arm / hold go to the Worker under the show's code, with the conductor PIN
+   (step 2 on the conductor's setup). The first write for a code claims it. */
+function conductorPin() { return String(load(LS.pin) || ""); }
 async function postT0(payload) {
   if (!APP.workerUrl) return { ok: false, error: "No Worker URL set — pilots must be armed over the PA." };
+  const pin = conductorPin();
+  if (pin.length < 6) return { ok: false, error: "no conductor PIN (type it in step 2, Pilot phones)" };
   try {
     const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/t0", {
       method: "POST", mode: "cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: { "Content-Type": "application/json", "X-Glow-Pin": pin },
+      body: JSON.stringify(Object.assign({ code: showCodeNow() }, payload))
     });
-    const j = await res.json();
-    if (!res.ok) return { ok: false, error: "Worker returned " + res.status };
+    const j = await res.json().catch(function () { return {}; });
+    if (!res.ok) return { ok: false, error: res.status === 403 ? "wrong PIN for show " + showCodeNow() : (j.error || "Worker returned " + res.status) };
     return { ok: true, data: j };
   } catch (e) {
     return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
+/* PUBLISH TO PHONES: every balloon's (or group's) own cue pack, one PUT. */
+async function publishPacks() {
+  const say = function (ok, msg) { APP.pubState = { ok: ok, msg: msg, code: showCodeNow() }; renderCondSetup(); };
+  if (!APP.tl) return say(false, "Load a show first.");
+  if (!APP.workerUrl) return say(false, "No Worker URL set (Settings).");
+  const pin = conductorPin();
+  if (pin.length < 6) return say(false, "Type a conductor PIN of 6 or more characters first.");
+  let packs;
+  try { packs = compileShowPacks(APP.tl); }
+  catch (e) { return say(false, "The cue lists did not compile: " + (e && e.message || e)); }
+  say(true, "Publishing…");
+  try {
+    const res = await fetch(APP.workerUrl.replace(/\/+$/, "") + "/pack/" + encodeURIComponent(packs.code), {
+      method: "PUT", mode: "cors",
+      headers: { "Content-Type": "application/json", "X-Glow-Pin": pin },
+      body: JSON.stringify(packs)
+    });
+    const j = await res.json().catch(function () { return {}; });
+    if (!res.ok) return say(false, res.status === 403 ? "Wrong PIN: show " + packs.code + " was claimed with another one." : (j.error || "Worker returned " + res.status));
+    const who = packs.by === "balloon" ? "balloons " + fmtNums(packs.keys.map(Number), 6) : packs.keys.map(function (k) { return _plain(APP.tl.labelOf[k] || k); }).join(", ");
+    say(true, "Published show " + packs.code + ": " + packs.keys.length + " cue lists (" + who + ").");
+  } catch (e) {
+    say(false, "Not published: " + String(e && e.message || e));
   }
 }
 
@@ -6430,6 +6687,20 @@ function setPanel(node, glassCls, kindCls) {
   Array.prototype.slice.call(node.classList).forEach(function (c) { if (c.indexOf("k-") === 0 && c !== kindCls) node.classList.remove(c); });
   if (kindCls) node.classList.add(kindCls);
 }
+/* The pilot view plays this balloon's cue pack (glow-pack/1) through packPlan(),
+   the same small player the native pilot apps port. The pack is compiled once
+   per show + balloon; test/pack-test.js proves packPlan == pilotPlan on every
+   pack of every shipped show, so this is the same answer, from the same data a
+   phone downloads. Song time is floored to whole ms, as the natives do. */
+function myPlan(t) {
+  const key = APP.myBalloon + "|" + APP.myGroup;
+  if (MINE.packTl !== APP.tl || MINE.packKey !== key) {
+    MINE.packTl = APP.tl; MINE.packKey = key;
+    try { MINE.pack = compilePack(APP.tl, APP.myBalloon, APP.myGroup); }
+    catch (e) { MINE.pack = null; console.error("cue pack did not compile; drawing from the timeline instead", e); }
+  }
+  return MINE.pack ? packPlan(MINE.pack, t) : pilotPlan(APP.tl, APP.myBalloon, APP.myGroup, t);
+}
 function renderMine(now) {
   const prun = $("prun");
   const N = { title: $("pm-nowtitle"), big: $("pm-nowbig"), sub: $("pm-nowsub"), extra: $("pm-nowextra"), barw: $("pm-nowbarw"), bar: $("pm-nowbar"), panel: $("pm-now"), light: $("pm-nowlight"), ring: $("pm-ring") };
@@ -6441,7 +6712,7 @@ function renderMine(now) {
   }
   const armed = !!APP.armed;
   const t = armed ? now - APP.armed.t0 : -1;
-  const plan = pilotPlan(APP.tl, APP.myBalloon, APP.myGroup, t);
+  const plan = myPlan(Math.floor(t));
 
   // ---- SONG TIME
   setTxt($("pm-songnow"), fmtMMSS(plan.songMs));
@@ -7127,6 +7398,17 @@ function renderCondSetup() {
   const pa = $("c-pa");
   pa.value = String(APP.paLatencyMs);
   setTxt($("c-palabel"), "PA latency: " + APP.paLatencyMs + " ms early");
+
+  // pilot phones: the PIN field and the last publish
+  const pinIn = $("c-pin");
+  if (pinIn && document.activeElement !== pinIn && pinIn.value !== conductorPin()) pinIn.value = conductorPin();
+  const ps = $("c-pubstate");
+  clear(ps);
+  if (APP.show) {
+    const cur = APP.pubState && APP.pubState.code === showCodeNow() ? APP.pubState : null;
+    if (cur) ps.appendChild(el("div", cur.ok ? "badge green" : "badge red", cur.msg));
+    else ps.appendChild(el("div", "badge grey", "Show " + showCodeNow() + " is not published from this browser yet."));
+  }
 
   renderSyncPanels();
   renderArmPanel($("c-armpanel"), true);
@@ -10215,6 +10497,7 @@ document.addEventListener("click", function (ev) {
       break;
     case "cond-setup": go("cond-setup"); break;
     case "hold": doHold(); break;
+    case "publish-packs": publishPacks(); break;
     case "dismiss-left": $("overlay-left").classList.add("hidden"); APP.leftAppFlag = false; requestWakeLock(); break;
     case "dismiss-fatal": $("overlay-fatal").classList.add("hidden"); break;
     case "map": openFieldMap(); break;
@@ -10276,6 +10559,7 @@ async function doHold() {
 
 $("c-audiofile").addEventListener("change", function (e) { const f = e.target.files && e.target.files[0]; e.target.value = ""; pickAudio(f); });
 edWireEvents();
+$("c-pin").addEventListener("input", function (e) { store(LS.pin, String(e.target.value || "").trim()); });
 $("c-pa").addEventListener("input", function (e) {
   APP.paLatencyMs = parseInt(e.target.value, 10) || 0;
   store(LS.pa, String(APP.paLatencyMs));
