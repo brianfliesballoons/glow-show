@@ -618,5 +618,71 @@ section('THE HAVASU DEMO SHOWS (made by the app in headless Chrome from Brian\'s
   ok(fn + ': no audio inside (the conductor loads the song locally)', !JSON.stringify(raw).match(/base64|data:audio/) && fs.statSync(fp).size < 200000);
 });
 
+section('PILOT PLAN — the Havasu demo shows, per balloon');
+{
+  const fp = path.join(__dirname, '..', 'shows', 'havasu-lightning-storm.json');
+  const tlL = C.compileShow(C.parseShowText(fs.readFileSync(fp, 'utf8')).show);
+  const n5 = 5, g5 = tlL.balloonOf[n5].group;
+  const tk = C.pilotTasks(tlL, n5, g5);
+  const ripple = tk.find(k => k.pattern === 'ripple');
+  eq('a ripple band is one full burn of the cue\'s burnMs', [ripple.kind, ripple.durMs, ripple.words, ripple.legs], ['burn', 2143, 'Full burn for 2.1 s', 1]);
+  ok('a pattern task knows its band', Number.isInteger(ripple.band) && ripple.bands === 5 && ripple.band >= 0 && ripple.band < 5, ripple);
+  // the checkerboard at 70.1 s: all 21 balloons, 1429 ms legs, 8 legs; each balloon gets 4
+  const chk = tk.find(k => k.cueIndex === 6);
+  eq('the checkerboard folds into one FLICKER for 10 s, 1.4 s on / 1.4 s off',
+     [chk.kind, chk.legs, chk.durMs, chk.words, chk.rhythm], ['flicker', 4, 10003, 'Flicker for 10 s', { onMs: 1429, offMs: 1429 }]);
+  const both = tlL.balloons.map(b => C.pilotTasks(tlL, b.n, b.group).find(k => k.cueIndex === 6)).map(k => k.atMs);
+  eq('half the field starts the checkerboard at 70.1 s, the other half one leg later',
+     [...new Set(both)].sort((a, b) => a - b), [70100, 71529]);
+  const fin = tk[tk.length - 1];
+  eq('#5\'s last instruction is the 12 s all-burn FINALE, vent first', [fin.finale, fin.vent, fin.atMs, fin.durMs, fin.words], [true, true, 186671, 12000, 'Full burn for 12 s']);
+  ok('every balloon\'s last instruction is the finale', tlL.balloons.every(b => { const t = C.pilotTasks(tlL, b.n, b.group); return t[t.length - 1].finale && t.filter(k => k.finale).length === 1; }));
+  // in the middle of the checkerboard: on a leg / between legs
+  const legOn = chk.onAt[1][0] + 300, legOff = chk.onAt[1][1] + 300;
+  let p = C.pilotPlan(tlL, n5, g5, legOn);
+  eq('mid-checkerboard, on a leg: FLICKER, on, counting to the end of the whole flicker', [p.now.kind, p.now.on, p.now.endsMs], ['flicker', true, chk.endMs]);
+  p = C.pilotPlan(tlL, n5, g5, legOff);
+  eq('mid-checkerboard, between legs: still FLICKER, off', [p.now.kind, p.now.on, p.now.endsMs], ['flicker', false, chk.endMs]);
+  // GET READY before a ripple band names the band
+  p = C.pilotPlan(tlL, n5, g5, ripple.atMs - 1000);
+  eq('GET READY before a ripple band names the band', [p.now.kind, p.now.band && p.now.band.pattern, p.now.band && p.now.band.band], ['ready', 'ripple', ripple.band]);
+  // a few moments before the finale: NEXT is the finale, no separate finale row
+  const prev = tk[tk.length - 2];
+  p = C.pilotPlan(tlL, n5, g5, prev.endMs + 100);
+  eq('after the last move before it, NEXT is the finale and it is not listed twice', [p.next.finale, p.finale, p.then.length, p.more], [true, null, 0, 0]);
+  p = C.pilotPlan(tlL, n5, g5, 55000);
+  ok('at 0:55 the finale has its own row at the end and the bar marks it', p.finale && p.finale.atMs === 186671 && p.burnMarks[p.burnMarks.length - 1].finale, p.finale);
+  eq('at 0:55: song time, length, time left', [p.songMs, p.lenMs, p.leftMs], [55000, 200098, 145098]);
+
+  // the whole show, every balloon, every 100 ms: the plan agrees with the engine
+  ['havasu-lightning-storm.json', 'havasu-forest-for-the-trees.json'].forEach(fn => {
+    const tlS = C.compileShow(C.parseShowText(fs.readFileSync(path.join(__dirname, '..', 'shows', fn), 'utf8')).show);
+    let bad = null, nS = 0;
+    tlS.balloons.forEach(b => {
+      if (bad) return;
+      const tasks = C.pilotTasks(tlS, b.n, b.group);
+      const lane = tlS.perBalloon[b.n];
+      let prevLeft = Infinity;
+      for (let t = -2000; t <= tlS.endMs + 2000 && !bad; t += 100) {
+        const p = C.pilotPlan(tlS, b.n, b.group, t), s = C.stateForPilot(tlS, b.n, b.group, t);
+        nS++;
+        const tag = [fn, b.n, t, s.phase, p.now.kind];
+        const engineOn = s.phase === 'BURN' || s.phase === 'PULSE';
+        const planOn = tasks.some(k => k.onAt.some(([a, z]) => t >= a && t < z));
+        const cur = p.now.kind === 'flicker' || p.now.kind === 'burn' ? p.now.task : null;
+        const wantNext = lane.windows.filter(w => w.t > t && !(cur && w.t < cur.endMs && w.cueIndex === cur.cueIndex)).reduce((m, w) => Math.min(m, w.t), Infinity);
+        if (engineOn !== planOn) bad = ['on differs'].concat(tag);
+        else if (engineOn && p.now.kind !== 'burn' && p.now.kind !== 'flicker') bad = ['burning but plan says ' + p.now.kind].concat(tag);
+        else if ((p.next ? p.next.atMs : Infinity) !== wantNext) bad = ['next', wantNext].concat(tag);
+        else if (p.burnsLeft > prevLeft) bad = ['burns left went up'].concat(tag);
+        else if (p.burnsLeft !== (cur ? 1 : 0) + (p.next ? 1 : 0) + p.then.length + p.more + (p.finale ? 1 : 0)) bad = ['count'].concat(tag);
+        else if (p.now.kind === 'vent' && !(p.now.endsMs > t)) bad = ['vent countdown'].concat(tag);
+        prevLeft = p.burnsLeft;
+      }
+    });
+    ok(fn + ': pilotPlan agrees with stateForPilot for all 21 balloons (' + nS + ' moments)', bad === null, bad);
+  });
+}
+
 console.log('\n================  ' + pass + ' passed, ' + fail + ' failed  ================');
 process.exit(fail ? 1 : 0);

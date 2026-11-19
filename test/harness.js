@@ -406,5 +406,132 @@ eq('the old show compiles with no beat grid and no balloons', [oldTl.beat, oldTl
 ok('beatAt on it is null everywhere', [-5000, 0, 1, 40000, 89999].every(t => C.beatAt(oldTl, t) === null));
 eq('groupOfBalloon on it is always null', [1, 7, 12].map(n => C.groupOfBalloon(oldTl, n)), [null, null, null]);
 
+// ---------------------------------------------------------------- the pilot's own view
+// pilotPlan() feeds the "My balloon" screen. Every number on it must agree with
+// the engine the phones already run (stateForPilot), so the checks below
+// re-derive what they can from the compiled lanes and stateForPilot itself.
+section('PILOT PLAN — fmtDurS / showCode / moveWords');
+eq('fmtDurS: 2143 / 3000 / 500 / 9960 / 12000 / 14000 ms',
+   [2143, 3000, 500, 9960, 12000, 14000].map(C.fmtDurS), ['2.1 s', '3 s', '0.5 s', '10 s', '12 s', '14 s']);
+const code = C.showCode(show);
+ok('showCode: 4 characters, no 0/O/1/I  [' + code + ']', /^[A-HJ-NP-Z2-9]{4}$/.test(code), code);
+eq('showCode: the same show gives the same code', C.showCode(C.parseShowText(fs.readFileSync(SHOW_PATH, 'utf8')).show), code);
+const showB = JSON.parse(JSON.stringify(show)); showB.cues[0].dur += 1;
+ok('showCode: a one-ms change gives a different code', C.showCode(showB) !== code, [C.showCode(showB), code]);
+const names = { groups: tl.labelOf, sets: {}, count: 12 };
+eq('moveWords: an all-burn', C.moveWords(show.cues[0], names), { title: 'Everyone burns together', detail: 'All balloons · one 3 s burn' });
+eq('moveWords: one group, vent forced', C.moveWords(show.cues[1], names), { title: 'North row burns together', detail: 'North row · one 12 s burn · vent first' });
+eq('moveWords: a pulse is a flicker on the beat', C.moveWords(show.cues[4], names), { title: 'Everyone flickers on the beat', detail: 'All balloons · 8 s at 128 BPM' });
+eq('moveWords: a ping-pong', C.moveWords(show.cues[5], names), { title: 'North row and South row trade burns', detail: 'Ping-pong · 1 s each · 6 s' });
+eq('moveWords: two groups pulse', C.moveWords(show.cues[7], names).title, 'North row + Special shapes flicker on the beat');
+
+section('PILOT PLAN — the demo show, balloon #1 (NORTH ROW)');
+const tasks1 = C.pilotTasks(tl, 1, 'north');
+eq('north\'s instructions, in plain words', tasks1.map(k => k.words),
+   ['Full burn for 3 s', 'Full burn for 12 s', 'Flicker for 8 s', 'Flicker for 5 s', 'Flicker for 4 s', 'Full burn for 14 s']);
+eq('the 128 BPM pulse is a flicker on half-beats', [tasks1[2].kind, tasks1[2].rhythm], ['flicker', { onMs: 234.375, offMs: 234.375 }]);
+eq('the ping-pong\'s three north legs fold into ONE flicker, 1 s on / 1 s off',
+   [tasks1[3].legs, tasks1[3].atMs, tasks1[3].endMs, tasks1[3].rhythm], [3, 52000, 57000, { onMs: 1000, offMs: 1000 }]);
+eq('south gets the other legs of the same ping-pong (53–58 s)',
+   C.pilotTasks(tl, 5, 'south').filter(k => k.cueIndex === 5).map(k => [k.atMs, k.endMs, k.legs]), [[53000, 58000, 3]]);
+eq('the last instruction is the FINALE, with a vent warning before it',
+   [tasks1[5].finale, tasks1[5].vent, tasks1[5].atMs, tasks1[5].durMs], [true, true, 70000, 14000]);
+ok('only the last instruction is the finale', tasks1.slice(0, 5).every(k => !k.finale));
+ok('the 12 s north long burn carries its vent warning', tasks1[1].vent === true && tasks1[0].vent === false);
+
+const P = t => C.pilotPlan(tl, 1, 'north', t);
+let p = P(0);
+eq('t=0: cooling off, 15 s until the opening all-burn', [p.now.kind, p.now.endsMs, p.now.leftMs], ['cool', 15000, 15000]);
+eq('t=0: NEXT = full burn for 3 s at 0:15', [p.next.words, p.next.atMs], ['Full burn for 3 s', 15000]);
+eq('t=0: THEN = the next three, one more, then the finale on its own row',
+   [p.then.map(k => k.atMs), p.more, p.moreAt, p.finale.atMs], [[24000, 40000, 52000], 1, [61000], 70000]);
+eq('t=0: 6 burns left, song 0:00 of 1:30', [p.burnsLeft, p.total, p.songMs, p.lenMs, p.leftMs], [6, 6, 0, 90000, 90000]);
+eq('t=0: the burn marks on the song bar', p.burnMarks.map(m => [m.atMs, m.kind, m.next, m.finale]),
+   [[15000, 'burn', true, false], [24000, 'burn', false, false], [40000, 'flicker', false, false], [52000, 'flicker', false, false], [61000, 'flicker', false, false], [70000, 'burn', false, true]]);
+p = P(-5000);
+eq('before the music: the start countdown', [p.now.kind, p.now.endsMs, p.now.leftMs, p.songMs], ['start', 0, 5000, 0]);
+p = P(13000);
+eq('t=13: GET READY counts to the burn', [p.phase, p.now.kind, p.now.endsMs, p.now.leftMs], ['GETREADY', 'ready', 15000, 2000]);
+p = P(16000);
+eq('t=16: BURNING, 2 s left, a third of the way in', [p.now.kind, p.now.endsMs, p.now.leftMs, Math.round(p.now.progress * 100)], ['burn', 18000, 2000, 33]);
+eq('t=16: NEXT is already the long burn', [p.next.atMs, p.next.vent], [24000, true]);
+p = P(19000);
+eq('t=19: STOP after the burn, countdown runs on to the next one', [p.phase, p.now.kind, p.now.endsMs], ['STOP', 'stop', 24000]);
+p = P(3000);
+ok('t=3: no vent warning yet', p.now.vent === null);
+p = P(7000);
+eq('t=7: VENT on top (20 s ahead of the 12 s burn at 0:24), counting to that burn',
+   [p.phase, p.now.kind, p.now.endsMs, p.now.vent.durMs, p.next.atMs], ['VENT', 'vent', 24000, 12000, 15000]);
+p = P(20000);
+ok('t=20: the vent warning for the long burn rides along as a corner note while GET READY is on top',
+   p.phase === 'GETREADY' && p.now.vent && p.now.vent.chip === true && p.now.vent.msUntil === 4000, p.now);
+p = P(41000);
+eq('t=41: inside the pulse → FLICKER, 7 s left, on/off from the engine\'s own flash grid',
+   [p.now.kind, p.now.endsMs, p.now.on], ['flicker', 48000, C.stateAt(tl, ['north'], 41000).pulse.on]);
+p = P(53500);
+eq('t=53.5: between ping-pong legs (engine says STOP) the pilot is still mid-FLICKER, off beat',
+   [p.phase, p.now.kind, p.now.on, p.now.endsMs], ['STOP', 'flicker', false, 57000]);
+p = P(54500);
+eq('t=54.5: on a leg → flicker, on', [p.phase, p.now.kind, p.now.on], ['BURN', 'flicker', true]);
+p = P(72000);
+eq('t=72: the finale is NOW: no finale row, no next, 1 burn left', [p.now.kind, p.now.endsMs, p.finale, p.next, p.burnsLeft], ['burn', 84000, null, null, 1]);
+p = P(65500);
+eq('t=65.5: the finale is NEXT, so it is not repeated as its own row', [p.next.atMs, p.next.finale, p.finale, p.then.length], [70000, true, null, 0]);
+p = P(85000);
+eq('t=85: STOP after the finale, nothing left', [p.now.kind, p.now.endsMs, p.burnsLeft], ['stop', null, 0]);
+p = P(95000);
+eq('t=95: show over', [p.now.kind, p.songMs, p.leftMs], ['ended', 90000, 0]);
+eq('no balloon and no group → nothing to show', [C.pilotTasks(tl, null, null).length, C.pilotPlan(tl, null, null, 1000).now.kind], [0, 'done']);
+
+section('PILOT PLAN — agrees with the engine, every 50 ms, every group and every balloon');
+function laneOf(tl_, n, gid) {
+  if (tl_.hasBalloonCues && n != null && tl_.balloonOf[n]) return tl_.perBalloon[n] || tl_.perGroup[tl_.balloonOf[n].group];
+  return tl_.perGroup[gid];
+}
+function sweepPlan(tl_, pilots, from, to, step) {
+  const KINDS = ['start', 'burn', 'flicker', 'ready', 'vent', 'stop', 'cool', 'done', 'ended'];
+  let bad = null, n = 0;
+  for (const [nb, gid] of pilots) {
+    const lane = laneOf(tl_, nb, gid);
+    let prevLeft = Infinity, onPlan = 0, onEngine = 0;
+    for (let t = from; t <= to && !bad; t += step) {
+      const p = C.pilotPlan(tl_, nb, gid, t), s = C.stateForPilot(tl_, nb, gid, t);
+      n++;
+      const tag = [nb, gid, t, s.phase, p.now.kind];
+      if (KINDS.indexOf(p.now.kind) < 0) bad = ['unknown kind'].concat(tag);
+      else if ((s.phase === 'BURN' || s.phase === 'PULSE') && p.now.kind !== 'burn' && p.now.kind !== 'flicker') bad = ['engine burns, plan does not'].concat(tag);
+      else if (p.now.kind === 'burn' && (s.phase !== 'BURN' || p.now.endsMs !== s.seg.end)) bad = ['burn end'].concat(tag);
+      else if (p.now.kind === 'flicker' && !(p.now.task && t >= p.now.task.atMs && t < p.now.task.endMs)) bad = ['flicker outside its task'].concat(tag);
+      else if (p.now.leftMs !== null && p.now.leftMs < 0) bad = ['negative countdown'].concat(tag);
+      else if (p.next && p.next.atMs <= t) bad = ['next in the past'].concat(tag);
+      else if ((p.now.kind === 'cool' || p.now.kind === 'ready') && (!p.next || p.now.endsMs !== p.next.atMs)) bad = ['countdown is not to the next burn'].concat(tag);
+      else if (p.now.kind === 'ready' && s.phase !== 'GETREADY') bad = ['ready without GET READY'].concat(tag);
+      else if (p.now.kind === 'vent' && s.phase !== 'VENT') bad = ['vent without VENT'].concat(tag);
+      else if (p.burnsLeft > prevLeft) bad = ['burns left went up'].concat(tag);
+      else if (p.burnsLeft !== (p.now.task && (p.now.kind === 'burn' || p.now.kind === 'flicker') ? 1 : 0) + (p.next ? 1 : 0) + p.then.length + p.more + (p.finale ? 1 : 0)) bad = ['burns left does not add up'].concat(tag);
+      else if (p.burnMarks.length !== p.total || p.burnMarks.filter(m => m.next).length !== (p.next ? 1 : 0)) bad = ['burn marks'].concat(tag);
+      else if (p.songMs < 0 || p.songMs > p.lenMs || p.leftMs !== p.lenMs - p.songMs) bad = ['song clock'].concat(tag);
+      else {
+        // the next instruction is the engine's next window, unless that window is
+        // another leg of the flicker the pilot is in right now
+        const cur = p.now.kind === 'flicker' || p.now.kind === 'burn' ? p.now.task : null;
+        const wantNext = lane ? lane.windows.filter(w => w.t > t && !(cur && w.t < cur.endMs && w.cueIndex === cur.cueIndex)).reduce((m, w) => Math.min(m, w.t), Infinity) : Infinity;
+        if ((p.next ? p.next.atMs : Infinity) !== wantNext) bad = ['next is not the engine\'s next window', wantNext].concat(tag);
+      }
+      // every instant the engine has the pilot burning lies inside one of the
+      // plan's own "on" stretches, and vice versa
+      if (s.phase === 'BURN' || s.phase === 'PULSE') onEngine++;
+      if (p.burnMarks.length && C.pilotTasks(tl_, nb, gid).some(k => k.onAt.some(([a, b]) => t >= a && t < b))) onPlan++;
+      prevLeft = p.burnsLeft;
+    }
+    if (!bad && onPlan !== onEngine) bad = ['on-time differs', nb, gid, onPlan, onEngine];
+    if (bad) break;
+  }
+  return { bad: bad, n: n };
+}
+const demoPilots = tl.groupIds.map(g => [null, g]).concat(tl.balloons.map(b => [b.n, b.group]));
+const sw = sweepPlan(tl, demoPilots, -3000, 92000, 50);
+ok('pilotPlan agrees with stateForPilot at ' + sw.n + ' moments (3 groups + 12 balloons)', sw.bad === null, sw.bad);
+
 console.log('\n================  ' + pass + ' passed, ' + fail + ' failed  ================');
 process.exit(fail ? 1 : 0);
