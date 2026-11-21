@@ -269,6 +269,9 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 .prsync.green{color:var(--good)} .prsync.yellow{color:var(--g-amber-soft)} .prsync.red{color:var(--alarm)}
 .prsync .light{background:currentColor;box-shadow:0 0 8px 2px currentColor}
 .prsync .vlink{margin-left:auto}
+/* internal testing (Brian, 11-21): start a run on this phone alone, or switch to conductor, without leaving the pilot screen */
+.prtest{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.prtest button{min-height:44px;font-size:15px;padding:6px 10px}
 .pview{flex:1 1 auto !important;min-height:0;display:flex;flex-direction:column;gap:10px}
 .pview > *{flex:0 0 auto;position:relative}
 .pnl{padding:12px 16px;display:flex;flex-direction:column}
@@ -748,6 +751,10 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <button id="pr-tab-mine" class="on" data-act="pv-mine" role="tab">My balloon</button>
       <button id="pr-tab-lane" data-act="pv-lane" role="tab">Lane</button>
       <button id="pr-tab-field" data-act="pv-field" role="tab">Whole field</button>
+    </div>
+    <div id="pr-test" class="prtest hidden">
+      <button class="primary" data-act="test-t0">Test: start in 10 s</button>
+      <button data-act="switch-role">Switch role</button>
     </div>
 
     <div id="pv-mine" class="pview">
@@ -6875,6 +6882,8 @@ function renderPilot(now) {
   $("pr-tab-lane").classList.toggle("on", lane);
   $("pr-tab-field").classList.toggle("on", field);
   renderPilotSync();
+  const over = !!APP.armed && !!APP.tl && now - APP.armed.t0 > APP.tl.endMs + 2000;
+  $("pr-test").classList.toggle("hidden", !(APP.tl && (!APP.armed || over)));
   if (field) { $("prun").className = ""; renderStage(now); }
   else if (lane) renderLane(now);
   else renderMine(now);
@@ -6997,7 +7006,7 @@ function renderMine(now) {
   let kind = k.kind, title = "", big = "", word = false, sub = "", glass = "glass-cool", wash = "";
   let showBar = false, ringOn = false;
   if (APP.hold) { kind = "hold"; title = "Now · Show hold"; big = "STOP"; word = true; sub = "Stop burning. Wait for the conductor."; glass = "glass-alarm"; wash = "HOLD"; }
-  else if (!armed) { kind = "wait"; title = "Waiting for the start"; big = fmtClockShort(now); sub = "tap here for setup: arm a start time"; }
+  else if (!armed) { kind = "wait"; title = "Waiting for the start"; big = fmtClockShort(now); sub = "the time now · tap here for setup"; }
   else if (kind === "start") { title = "Now · Starting"; big = fmtCountdown(k.leftMs); sub = "until the music starts (" + fmtClockShort(APP.armed.t0) + ")"; ringOn = true; }
   else if (kind === "cool") { title = "Now · Cool off"; big = fmtCountdown(k.leftMs); sub = "until your next burn"; ringOn = true; }
   else if (kind === "stop") { title = "Now · Stop"; if (k.endsMs != null) { big = fmtCountdown(k.leftMs); sub = "let go of the burner · next burn in"; } else { big = "STOP"; word = true; sub = "let go of the burner"; } ringOn = true; }
@@ -7351,7 +7360,7 @@ function renderLane(now) {
   const late = fr.state === "GO" && armed && APP.armed.joinMs != null && k && k.atMs < APP.armed.joinMs;
   const what = k ? fmtDurS(k.durMs) + " " + laneNoun(k) + (k.vent ? " · vent first" : "") : "";
   if (APP.hold) { kind = "hold"; cls = "glass-alarm"; capsTxt = "SHOW HOLD"; bigTxt = "STOP"; word = true; lineTxt = "Stop burning. Wait for the conductor."; warm = true; wash = "HOLD"; }
-  else if (!armed) { kind = "wait"; capsTxt = "WAITING FOR THE START"; bigTxt = fmtClockShort(now); word = true; lineTxt = "tap here for setup: arm a start time"; }
+  else if (!armed) { kind = "wait"; capsTxt = "WAITING FOR THE START"; bigTxt = fmtClockShort(now); word = true; lineTxt = "the time now · tap here for setup"; }
   else if (late) {
     kind = "late"; capsTxt = "SIT THIS ONE OUT"; bigTxt = lnShort(fr.leftMs); lineTxt = "you joined during this " + laneNoun(k);
   } else if (fr.state === "GO") {
@@ -11183,6 +11192,8 @@ function setRole(role) {
   const finish = function () {
     restoreArmed();
     if (qT0 && /^\d+$/.test(qT0)) armT0(parseInt(qT0, 10), "url");
+    const qRole = q.get("role");
+    if (qRole === "pilot" || qRole === "conductor") store(LS.role, qRole);
     const role = load(LS.role);
     edRestore();
     if (q.get("edit") !== "1" && (role === "pilot" || role === "conductor")) { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
