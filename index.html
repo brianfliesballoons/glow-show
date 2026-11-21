@@ -343,6 +343,58 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 .pm-foot b{font-size:28px;font-weight:800;letter-spacing:-.01em;text-shadow:var(--g-shadow);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .pm-foot span{white-space:nowrap;flex:none;font-size:14px;font-weight:600;color:var(--g-soft);text-shadow:var(--g-shadow);text-align:right}
 
+/* ===================== LANE (design G · Your balloon, 2026-11-21) =====================
+   Sizes are the design's at a 390 x 844 phone; the lane itself scales with the
+   room it gets (renderLane works its geometry out from the lane's own box). */
+.ln-mini{display:flex;align-items:center;gap:10px;padding:2px 2px 0;min-height:40px}
+.ln-mini b{font-size:32px;font-weight:800;line-height:1;text-shadow:var(--g-shadow);white-space:nowrap}
+.ln-mini .ref{font-size:16px;font-weight:700;color:var(--g-soft);text-shadow:var(--g-shadow);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln-mini .tm{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:var(--g-soft);text-shadow:var(--g-shadow);flex:none}
+.ln-mini .light{background:var(--good);box-shadow:0 0 8px 2px rgba(159,216,180,.55)}
+.ln-mini .light.yellow{background:var(--g-amber-soft);box-shadow:0 0 8px 2px rgba(246,192,142,.55)}
+.ln-mini .light.red{background:var(--alarm);box-shadow:0 0 8px 2px rgba(255,138,122,.6)}
+.ln-strip{position:relative;height:22px}
+.ln-strip .tr,.ln-strip .pl{position:absolute;left:0;top:10px;height:2px;border-radius:2px}
+.ln-strip .tr{right:0;background:rgba(236,231,223,.18)}
+.ln-strip .pl{width:0;background:#ECE7DF}
+.ln-strip .mk{position:absolute;top:5px;height:12px;border-radius:3px;background:#FF9A4A;box-shadow:0 0 5px rgba(255,154,74,.7)}
+.ln-strip .mk.done{background:rgba(255,154,74,.35)}
+.ln-strip .mk.fin{background:#B98CFF;box-shadow:0 0 5px rgba(185,140,255,.7)}
+.ln-strip .mk.next{top:3px;height:16px;background:#FFE2BF;box-shadow:0 0 10px rgba(255,154,74,.7)}
+.ln-strip .mk.next.fin{background:#D9C6FF;box-shadow:0 0 10px rgba(185,140,255,.8)}
+.ln-strip .nd{position:absolute;left:0;top:5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#ECE7DF;box-shadow:0 0 0 3px rgba(236,231,223,.15),0 2px 6px rgba(0,0,0,.5)}
+.ln-banner{padding:14px 16px;min-height:118px;display:flex;flex-direction:row;align-items:center;gap:16px}
+.glass-hot{background:linear-gradient(165deg,rgba(255,170,90,.62),rgba(170,72,20,.66)) !important}
+.ln-icon{position:relative;width:84px;height:84px;flex:none;border-radius:18px;background:rgba(0,0,0,.25)}
+.ln-icon > div{position:absolute;left:13px;top:3px;width:58px;height:75.4px}
+.ln-words{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ln-caps{font-size:14px;font-weight:800;letter-spacing:.14em;text-shadow:var(--g-shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln-big{font-size:66px;font-weight:800;line-height:1;letter-spacing:-.02em;white-space:nowrap}
+.ln-big.word{font-size:50px}
+.ln-line{font-size:18px;font-weight:700;text-shadow:var(--g-shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln-then{align-self:flex-start;max-width:100%;padding:8px 14px;border-radius:12px;background:rgba(18,18,24,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-size:16px;font-weight:700;text-shadow:var(--g-shadow);white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.pview > .ln-lane{flex:1 1 auto;min-height:0}
+.ln-stage{position:absolute;inset:0;overflow:hidden;border-radius:inherit}
+.ln-stage > *{position:absolute}
+.ln-shade{left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(18,18,24,.45),rgba(18,18,24,.15))}
+.ln-gl{top:0;left:0;width:1px;background:rgba(236,231,223,.06);will-change:transform}
+.ln-gl.bar{background:rgba(236,231,223,.2)}
+.ln-tick{font-size:12px;font-weight:700;color:var(--g-muted);white-space:nowrap}
+.ln-line0{height:2px;right:0;background:linear-gradient(90deg,rgba(236,231,223,.18),rgba(236,231,223,0))}
+.ln-cue,.ln-lbl{position:absolute}
+.ln-cue{left:0;top:0;width:0;height:0;will-change:transform}
+.ln-cue > div{position:absolute}
+.ln-bar{background:linear-gradient(90deg,#FFE9C8,#FFB066 25%,#FF8A3D 60%,#C9541E);box-shadow:0 0 18px rgba(255,138,61,.75)}
+.ln-bar.vent{background:linear-gradient(90deg,#EFE6FF,#B98CFF 40%,#6E46BE);box-shadow:0 0 18px rgba(185,140,255,.75)}
+.ln-trk{height:6px;border-radius:3px;background:rgba(255,154,74,.35)}
+.ln-dot{border-radius:50%;background:radial-gradient(circle at 40% 35%,#FFF3D6,#FF9A4A 55%,#C9541E);box-shadow:0 0 14px rgba(255,154,74,.8)}
+.ln-lbl{left:0;top:0;font-weight:800;line-height:1.15;color:#FFE2BF;text-shadow:0 1px 6px rgba(0,0,0,.5);white-space:pre;will-change:transform}
+.ln-lbl.vent{color:#EFE6FF}
+.ln-ring{border-radius:50%;border:3px solid rgba(255,208,138,.9);box-shadow:0 0 22px rgba(255,170,100,.5),inset 0 0 14px rgba(255,154,74,.35)}
+.ln-ring.on{border-color:#FFE2BF;background:radial-gradient(circle,rgba(255,236,210,.95),rgba(255,138,61,.85) 55%,rgba(201,84,30,.55));box-shadow:0 0 44px rgba(255,138,61,.95)}
+.ln-ring.vent.on{background:radial-gradient(circle,rgba(246,240,255,.95),rgba(185,140,255,.85) 55%,rgba(110,70,190,.55));box-shadow:0 0 44px rgba(185,140,255,.95)}
+.ln-you{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--g-amber-soft);text-align:center;white-space:nowrap;text-shadow:var(--g-shadow)}
+
 /* ===================== WHOLE FIELD: the classic glance display ===================== */
 #stage{
   position:relative;flex:1 1 auto;min-height:0;
@@ -694,6 +746,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     <div id="pr-sync" class="prsync red"><span class="light"></span><span id="pr-synctext"></span></div>
     <div class="seg" id="pr-views" role="tablist" aria-label="View">
       <button id="pr-tab-mine" class="on" data-act="pv-mine" role="tab">My balloon</button>
+      <button id="pr-tab-lane" data-act="pv-lane" role="tab">Lane</button>
       <button id="pr-tab-field" data-act="pv-field" role="tab">Whole field</button>
     </div>
 
@@ -737,6 +790,21 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
 
       <div class="pm-foot"><b id="pm-who"></b><span id="pm-burnsleft"></span></div>
       <div class="pm-note" id="pm-note"></div>
+    </div>
+
+    <!-- LANE (design G · Your balloon, Brian 2026-11-21): the next 10 s of this
+         balloon's own cues slide right to left into its balloon on the burner
+         line, under a stage manager's banner (NEXT / WARNING / STANDBY 3·2·1 /
+         GO). Fed only by laneFrame() over the same task list MY BALLOON plays. -->
+    <div id="pv-lane" class="pview hidden">
+      <div class="ln-mini"><b id="ln-num"></b><span class="ref" id="ln-ref"></span><span class="tm"><span class="light" id="ln-light"></span><span id="ln-song">0:00</span></span></div>
+      <div class="ln-strip" id="ln-strip" aria-hidden="true"><div class="tr"></div><div class="pl" id="ln-played"></div><div id="ln-marks"></div><div class="nd" id="ln-nowdot"></div></div>
+      <div class="glass ln-banner glass-cool" id="ln-banner" style="--a:210deg;--s:150px" role="status">
+        <div class="ln-icon" id="ln-icon"></div>
+        <div class="ln-words"><span class="ln-caps" id="ln-caps"></span><div class="ln-big" id="ln-big"></div><span class="ln-line" id="ln-line"></span></div>
+      </div>
+      <div class="ln-then" id="ln-then"></div>
+      <div class="glass ln-lane" id="ln-lane" style="--a:120deg;--s:140px"><div class="ln-stage" id="ln-stage" aria-hidden="true"></div></div>
     </div>
 
     <div id="stage" class="ph-IDLE glass hidden">
@@ -3276,6 +3344,155 @@ function packBeatPhase(pack, tMs) {
   if (!(phase >= 0)) phase = 0;
   if (phase >= 1) phase = 0;
   return phase;
+}
+
+/* ===== THE LANE (pilot view "Lane", design G · Your balloon, 2026-11-21) =====
+   The next 10 s of this balloon's own cues slide right to left into the
+   pilot's balloon on the burner line, under a stage manager's banner:
+     NEXT     the next cue is more than 10 s away (cool off)
+     WARNING  it is in the lane: 10 s or less
+     STANDBY  the 3-beat count-in, 3 · 2 · 1 on the show's own beats
+              (a show with no tempo: the last 3 s, one a second)
+     GO       the cue is under way, from its exact start to its exact end
+     DONE     nothing more for this balloon
+   laneFrame(tasks, tMs, beat) works that out from the SAME task list the
+   "My balloon" view plays (a cue pack's tasks, or pilotTasks()), so the two
+   views cannot disagree; test/pack-test.js checks GO, the cue under way and a
+   flicker's on-beats against packPlan() at every moment of every shipped show.
+   beat = { beatMs, offsetMs, beatsPerBar } (a pack's beat, or beatGridOf(tl)),
+   or null. Times are song ms; lane positions come back in SECONDS from now
+   (0 = the burner), so the drawing code only multiplies by its pixels per
+   second. Pure: no DOM, no clock, no randomness. */
+const LANE_AHEAD_MS = 10000;        // WARNING from here, and the width of the lane
+const LANE_DRAW_AHEAD_MS = 10800;   // a cue is drawn a little before it reaches the 10 s tick
+const LANE_BEHIND_MS = 2500;        // and slides on past the burner for 2.5 s after it ends
+const LANE_COUNT = 3;               // 3 · 2 · 1
+
+/* full = a flame bar · flicker = a row of dots · vent = a long burn the pilot
+   vents for first, drawn violet */
+function laneKind(k) { return k.kind === "flicker" ? "flicker" : (k.vent ? "vent" : "full"); }
+function laneWord(k) { return k.kind === "flicker" ? "FLICKER" : (k.finale ? "FINALE" : "FULL"); }
+
+/* a flicker's dots, in seconds after its start: one per on-leg when the legs
+   are at least a second apart (ping-pong, checkerboard), otherwise one a
+   second (a pulse on the beat is too quick to draw beat by beat) */
+function laneDots(k) {
+  const out = [];
+  if (k.kind !== "flicker") return out;
+  const legs = k.onAt || [];
+  let spaced = legs.length > 1;
+  for (let i = 1; i < legs.length; i++) if (legs[i][0] - legs[i - 1][0] < 1000) spaced = false;
+  if (spaced) {
+    for (let i = 0; i < legs.length; i++) out.push((legs[i][0] - k.atMs) / 1000);
+    return out;
+  }
+  for (let s = 0; s < k.durMs; s += 1000) out.push(s / 1000);
+  return out;
+}
+
+/* when the count-in before a cue at atMs starts. On a beat grid the numbers
+   land ON the beats: "1" is the last beat at least a quarter beat before the
+   cue, "2" and "3" the two beats before that. No tempo: a second each. */
+function laneCountStart(atMs, beat) {
+  const has = !!(beat && beat.beatMs > 0);
+  const unit = has ? beat.beatMs : 1000;
+  let one = atMs - unit;
+  if (has) {
+    const off = beat.offsetMs || 0;
+    one = off + Math.floor((atMs - 0.25 * unit - off) / unit) * unit;
+  }
+  return { fromMs: one - (LANE_COUNT - 1) * unit, oneMs: one, unitMs: unit, onBeat: has };
+}
+/* 3, 2 or 1 while counting in to a cue at atMs, else null */
+function laneCountIn(atMs, tMs, beat) {
+  const c = laneCountStart(atMs, beat);
+  if (!(tMs >= c.fromMs && tMs < atMs)) return null;
+  return tMs >= c.oneMs ? 1 : (tMs >= c.oneMs - c.unitMs ? 2 : 3);
+}
+
+/* is the burner on at tMs for this task (a full burn: all the way through;
+   a flicker: on its on-legs, or on the first half of each of its own beats) */
+function laneOn(k, tMs) {
+  if (!(tMs >= k.atMs && tMs < k.endMs)) return false;
+  if (k.kind !== "flicker") return true;
+  if (k.legs > 1) {
+    const legs = k.onAt || [];
+    for (let i = 0; i < legs.length; i++) if (tMs >= legs[i][0] && tMs < legs[i][1]) return true;
+    return false;
+  }
+  if (!k.rhythm) return false;
+  // a pulse: the same arithmetic as the engine's pulse grid (60000 / bpm = 2 x onMs, exactly)
+  const beatMs = 2 * k.rhythm.onMs, el = tMs - k.atMs;
+  const i = Math.floor(el / beatMs);
+  return (el - i * beatMs) / beatMs < 0.5;
+}
+
+function laneFrame(tasks, tMs, beat) {
+  const list = tasks || [];
+  let cur = null, next = null;
+  for (let i = 0; i < list.length; i++) {
+    const k = list[i];
+    if (tMs >= k.atMs && tMs < k.endMs) cur = k;     // the last match, as pilotPlan picks it
+    if (next === null && k.atMs > tMs) next = k;
+  }
+  const task = cur || next;
+  let after = null;
+  if (task) for (let i = 0; i < list.length; i++) if (list[i].atMs > task.atMs) { after = list[i]; break; }
+
+  let state = "DONE", count = null, msUntil = null, leftMs = null, fill = 0;
+  if (cur) { state = "GO"; leftMs = cur.endMs - tMs; fill = 1; }
+  else if (next) {
+    msUntil = next.atMs - tMs;
+    const cs = laneCountStart(next.atMs, beat);
+    count = laneCountIn(next.atMs, tMs, beat);
+    if (count !== null) { state = "STANDBY"; fill = 1; }
+    else if (msUntil <= LANE_AHEAD_MS) {
+      // WARNING: the glow fills the envelope from the throat up as the cue comes in
+      const span = next.atMs - cs.fromMs;
+      fill = Math.max(0.05, Math.min(1, 1 - (msUntil - span) / Math.max(1, LANE_AHEAD_MS - span)));
+      state = "WARNING";
+    } else state = "NEXT";
+  }
+
+  const items = [];
+  for (let i = 0; i < list.length; i++) {
+    const k = list[i];
+    if (k.atMs - tMs > LANE_DRAW_AHEAD_MS || k.endMs - tMs < -LANE_BEHIND_MS) continue;
+    items.push({ index: k.index, kind: laneKind(k), word: laneWord(k), len: fmtDurS(k.durMs), finale: !!k.finale,
+                 atS: (k.atMs - tMs) / 1000, durS: k.durMs / 1000, dots: laneDots(k), upcoming: k.atMs > tMs });
+  }
+
+  // the lane's grid: the show's beats (bar lines stronger), or one line a second with no tempo
+  const grid = [];
+  const lim = tMs + LANE_AHEAD_MS + 400;
+  if (beat && beat.beatMs > 0) {
+    const off = beat.offsetMs || 0, u = beat.beatMs, bpb = beat.beatsPerBar || 4;
+    for (let b = Math.ceil((tMs - off) / u); off + b * u <= lim; b++) {
+      grid.push({ s: (off + b * u - tMs) / 1000, bar: ((b % bpb) + bpb) % bpb === 0 });
+    }
+  } else {
+    for (let s = Math.ceil(tMs / 1000); s * 1000 <= lim; s++) grid.push({ s: (s * 1000 - tMs) / 1000, bar: s % 2 === 0 });
+  }
+
+  return {
+    tMs: tMs, state: state, task: task, after: after, kind: task ? laneKind(task) : null,
+    msUntil: msUntil, leftMs: leftMs, count: count, onBeat: !!(beat && beat.beatMs > 0),
+    on: cur ? laneOn(cur, tMs) : false, fill: fill, items: items, grid: grid
+  };
+}
+
+/* where each upcoming cue's "FULL / 3 s" label goes (px), or null when it
+   would not fit: pinned between lo and hi, never closer than gap to the label
+   before it, dropped past maxX. o = { x0, pxPerS, lo, hi, gap, maxX } */
+function laneLabels(items, o) {
+  let last = -Infinity;
+  return items.map(function (it) {
+    if (!it.upcoming) return null;
+    const lx = Math.max(Math.min(Math.max(o.x0 + it.atS * o.pxPerS, o.lo), o.hi), last + o.gap);
+    if (lx >= o.maxX) return null;
+    last = lx;
+    return lx;
+  });
 }
 
 /* One move of the show in plain words, for the editor's "moves in time
@@ -6636,11 +6853,11 @@ function renderFooter(D, now) {
 }
 
 /* ---- the pilot run screen: two views of the same moment ------------------ */
-function pilotView() { return APP.pview === "field" ? "field" : "mine"; }
+function pilotView() { return APP.pview === "field" ? "field" : APP.pview === "lane" ? "lane" : "mine"; }
 function setPilotView(v) {
-  APP.pview = v === "field" ? "field" : "mine";
+  APP.pview = v === "field" ? "field" : v === "lane" ? "lane" : "mine";
   store(LS.pview, APP.pview);
-  MINE.sig = ""; MINE.thenSig = "";
+  MINE.sig = ""; MINE.thenSig = ""; LANE.markSig = "";
   if (APP.screen === "pilot-run") renderPilot(syncedNow());
 }
 /* the show's radio-check code ("show K7QF"), worked out once per show */
@@ -6650,13 +6867,16 @@ function showCodeNow() {
   return APP.showCodeTxt;
 }
 function renderPilot(now) {
-  const field = pilotView() === "field";
-  $("pv-mine").classList.toggle("hidden", field);
+  const v = pilotView(), field = v === "field", lane = v === "lane";
+  $("pv-mine").classList.toggle("hidden", v !== "mine");
+  $("pv-lane").classList.toggle("hidden", !lane);
   $("stage").classList.toggle("hidden", !field);
-  $("pr-tab-mine").classList.toggle("on", !field);
+  $("pr-tab-mine").classList.toggle("on", v === "mine");
+  $("pr-tab-lane").classList.toggle("on", lane);
   $("pr-tab-field").classList.toggle("on", field);
   renderPilotSync();
   if (field) { $("prun").className = ""; renderStage(now); }
+  else if (lane) renderLane(now);
   else renderMine(now);
 }
 function renderPilotSync() {
@@ -6668,7 +6888,9 @@ function renderPilotSync() {
   setTxt($("pr-synctext"), (st.level === "green" ? "Synced ±" + Math.round(SYNC.uncertainty) + " ms" : st.short.charAt(0) + st.short.slice(1).toLowerCase()) +
     (code ? " · show " + code : ""));
   const b = APP.myBalloon != null && APP.tl ? APP.tl.balloonOf[APP.myBalloon] : null;
-  setTxt($("pr-tab-mine"), b ? "My balloon · #" + b.n : (APP.myGroup && APP.tl ? "My group · " + _plain(APP.tl.labelOf[APP.myGroup]) : "My balloon"));
+  // three tabs now (My balloon · Lane · Whole field): the number moved off the tab so each fits on one line
+  // at 375 px; it is still on screen in every view (My balloon's footer, the Lane's header)
+  setTxt($("pr-tab-mine"), b || !(APP.myGroup && APP.tl) ? "My balloon" : "My group");
 }
 
 /* WHOLE FIELD's live map: every balloon in its own pilot's state, mine pulsing.
@@ -6724,14 +6946,17 @@ function setPanel(node, glassCls, kindCls) {
    per show + balloon; test/pack-test.js proves packPlan == pilotPlan on every
    pack of every shipped show, so this is the same answer, from the same data a
    phone downloads. Song time is floored to whole ms, as the natives do. */
-function myPlan(t) {
+function myPack() {
   const key = APP.myBalloon + "|" + APP.myGroup;
   if (MINE.packTl !== APP.tl || MINE.packKey !== key) {
     MINE.packTl = APP.tl; MINE.packKey = key;
     try { MINE.pack = compilePack(APP.tl, APP.myBalloon, APP.myGroup); }
     catch (e) { MINE.pack = null; console.error("cue pack did not compile; drawing from the timeline instead", e); }
   }
-  return MINE.pack ? packPlan(MINE.pack, t) : pilotPlan(APP.tl, APP.myBalloon, APP.myGroup, t);
+  return MINE.pack;
+}
+function myPlan(t) {
+  return myPack() ? packPlan(MINE.pack, t) : pilotPlan(APP.tl, APP.myBalloon, APP.myGroup, t);
 }
 function renderMine(now) {
   const prun = $("prun");
@@ -6921,6 +7146,305 @@ function renderThen(plan) {
     const m = box.querySelector(".then.more");
     if (m) m.remove();
   }
+}
+
+/* ---- LANE (design G · Your balloon, Brian 2026-11-21) ----------------------
+   Draws laneFrame() and nothing else. The lane is built once per size (grid
+   pool, ticks, burner line, ring, your balloon) and each cue once as it comes
+   in; a frame then only moves things (transforms) and changes a few words, so
+   it stays smooth on a phone. The balloons are one SVG each, changed in place. */
+const LANE = { kind: "", markSig: "", geoSig: "", geo: null, els: {}, grid: [], tasksTl: null, tasksKey: "", tasks: null, look: {}, txt: {} };
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LN_ENV = "M50 4C22 4 4 24 4 50C4 72 22 88 36 100L38 106H62L64 100C78 88 96 72 96 50C96 24 78 4 50 4Z";
+const LN_GORES = "M50 4C38 30 38 78 45 105M50 4C62 30 62 78 55 105M50 4C24 26 20 70 40 103M50 4C76 26 80 70 60 103";
+const LN_HOT = { full: ["#FFF3D6", "#FFB066", "#FF8A3D", "#A8421A"], vent: ["#F6F0FF", "#CDB0FF", "#9A6BEA", "#4E3296"] };
+function lnSvg(tag, attrs, parent) {
+  const n = document.createElementNS(SVG_NS, tag);
+  Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+  if (parent) parent.appendChild(n);
+  return n;
+}
+/* one balloon (the design's balloon()): built once, changed in place by lnLook().
+   halo = the glow's blur in the balloon's own units (it scales with it). */
+function lnBalloon(id, halo) {
+  const svg = lnSvg("svg", { viewBox: "0 0 100 130", width: "100%", height: "100%", "aria-hidden": "true", focusable: "false" });
+  svg.style.overflow = "visible"; svg.style.display = "block";
+  const defs = lnSvg("defs", null, svg);
+  const gr = lnSvg("radialGradient", { id: id + "g", cx: "50%", cy: "85%", r: "85%" }, defs);
+  const stops = ["0", ".35", ".72", "1"].map(function (o) { return lnSvg("stop", { offset: o }, gr); });
+  const rect = lnSvg("rect", { x: "0", y: "4", width: "100", height: "104" }, lnSvg("clipPath", { id: id + "c" }, defs));
+  const f = lnSvg("filter", { id: id + "f", x: "-60%", y: "-60%", width: "220%", height: "220%" }, defs);
+  lnSvg("feGaussianBlur", { "in": "SourceGraphic", stdDeviation: String(halo), result: "b" }, f);
+  const mg = lnSvg("feMerge", null, f);
+  lnSvg("feMergeNode", { "in": "b" }, mg); lnSvg("feMergeNode", { "in": "SourceGraphic" }, mg);
+  const env = lnSvg("path", { d: LN_ENV, fill: "rgba(20,20,28,.82)", "stroke-width": "1.6" }, svg);
+  const lit = lnSvg("g", { filter: "url(#" + id + "f)", opacity: "0" }, svg);
+  lnSvg("path", { d: LN_ENV, "clip-path": "url(#" + id + "c)", fill: "url(#" + id + "g)" }, lit);
+  const gores = lnSvg("path", { d: LN_GORES, fill: "none", "stroke-width": "1.2" }, svg);
+  const flame = lnSvg("path", { d: "M50 116C42 108 44 98 50 86C56 98 58 108 50 116Z", fill: "#FFE9C8", opacity: "0", filter: "url(#" + id + "f)" }, svg);
+  const num = lnSvg("text", { x: "50", y: "68", "text-anchor": "middle", fill: "#FFFFFF", stroke: "rgba(40,14,0,.6)", "stroke-width": "4",
+    "font-size": "50", "font-weight": "800", "font-family": "Manrope,-apple-system,BlinkMacSystemFont,system-ui,sans-serif" }, svg);
+  num.style.paintOrder = "stroke";
+  lnSvg("path", { d: "M39 106L43 116M61 106L57 116", stroke: "rgba(236,231,223,.55)", "stroke-width": "1.3" }, svg);
+  lnSvg("rect", { x: "42", y: "116", width: "16", height: "11", rx: "2", fill: "#7A5434", stroke: "rgba(236,231,223,.35)", "stroke-width": "1" }, svg);
+  return { svg: svg, stops: stops, rect: rect, env: env, lit: lit, gores: gores, flame: flame, num: num, sig: "" };
+}
+/* o = { kind: "full"|"flicker"|"vent", lit 0..1, fill 0..1 (how far up from the throat), flame, num, cool } */
+function lnLook(B, o) {
+  const vent = o.kind === "vent";
+  const lit = Math.round((o.lit || 0) * 100) / 100;
+  const fill = o.fill == null ? 1 : Math.round(o.fill * 200) / 200;
+  const sig = (vent ? "v" : "f") + "|" + lit + "|" + fill + "|" + (o.flame ? 1 : 0) + "|" + (o.num || "") + "|" + (o.cool ? 1 : 0);
+  if (sig === B.sig) return;
+  B.sig = sig;
+  const hot = vent ? LN_HOT.vent : LN_HOT.full;
+  B.stops.forEach(function (s, i) { s.setAttribute("stop-color", hot[i]); });
+  B.rect.setAttribute("y", String(106 - 102 * fill));
+  B.rect.setAttribute("height", String(102 * fill + 2));
+  B.env.setAttribute("stroke", o.cool ? "rgba(141,184,232,.75)" : vent ? "rgba(205,176,255,.6)" : "rgba(236,231,223,.45)");
+  B.lit.setAttribute("opacity", String(lit));
+  B.gores.setAttribute("stroke", lit > 0.5 ? "rgba(110,40,10,.32)" : "rgba(236,231,223,.14)");
+  B.flame.setAttribute("opacity", o.flame ? "1" : "0");
+  if (B.num.textContent !== (o.num || "")) B.num.textContent = o.num || "";
+}
+/* this balloon's task list + beat grid: the cue pack's, the same data MY BALLOON plays */
+function laneSource() {
+  const pk = myPack();
+  if (pk) return { tasks: pk.tasks, beat: pk.beat, lenMs: pk.lenMs };
+  const key = APP.myBalloon + "|" + APP.myGroup;
+  if (LANE.tasksTl !== APP.tl || LANE.tasksKey !== key) {
+    LANE.tasksTl = APP.tl; LANE.tasksKey = key;
+    LANE.tasks = pilotTasks(APP.tl, APP.myBalloon, APP.myGroup);
+  }
+  return { tasks: LANE.tasks, beat: beatGridOf(APP.tl) || null, lenMs: APP.tl.audioMs };
+}
+function lnDiv(cls, parent, txt) { const d = el("div", cls, txt); if (parent) parent.appendChild(d); return d; }
+function lnPx(n) { return Math.round(n * 10) / 10 + "px"; }
+/* the lane's geometry, from its own box: the design's numbers at 460 px tall,
+   scaled. A short lane (a 375 x 667 phone) gives up the air above the balloon
+   first, so the balloon stays as big as it can. */
+function laneGeom(W, H) {
+  const k = Math.max(0.6, Math.min(1.15, H / 460));
+  const kb = Math.max(0.75, Math.min(1.15, H / 460));
+  const g = { W: W, H: H, k: k };
+  g.CY = Math.round(H - 124 * kb);            // the burner line
+  g.bw = Math.round(Math.max(56, Math.min(172 * Math.max(0.8, kb), (g.CY - 14) / 1.215)));   // your balloon's width
+  g.X = Math.round(g.bw / 2 + 6);             // the burner
+  g.P = (W - g.X - 6) / 10;                   // px per second
+  g.BAR = Math.round(60 * k); g.DOT = Math.round(24 * k); g.R = Math.round(30 * g.bw / 172);
+  g.LBL = Math.max(15, Math.round(20 * k));
+  g.lblTop = Math.round(g.CY - g.BAR / 2 - 58 * k);
+  g.gridTop = Math.max(0, Math.round(g.CY - 186 * k));
+  g.lab = { x0: g.X, pxPerS: g.P, lo: g.X + Math.round(92 * k), hi: W - Math.round(g.LBL * 5.4), gap: Math.round(g.LBL * 4.6), maxX: W - Math.round(g.LBL * 4.3) };
+  return g;
+}
+function laneBuild(stage, g) {
+  clear(stage);
+  LANE.els = {}; LANE.grid = []; LANE.look = {};
+  const sh = lnDiv("ln-shade", stage); sh.style.width = g.X + "px";
+  for (let i = 0; i < 48; i++) {
+    const d = lnDiv("ln-gl", stage);
+    d.style.top = g.gridTop + "px"; d.style.height = Math.max(0, g.H - 40 - g.gridTop) + "px"; d.style.display = "none";
+    LANE.grid.push(d);
+  }
+  [2, 4, 6, 8, 10].forEach(function (s) {
+    const t = lnDiv("ln-tick", stage, s + " s");
+    t.style.bottom = "12px"; t.style.left = lnPx(g.X + s * g.P - (s >= 10 ? 26 : 11));
+  });
+  const l0 = lnDiv("ln-line0", stage); l0.style.top = (g.CY - 1) + "px"; l0.style.left = g.X + "px";
+  LANE.cueLayer = lnDiv(null, stage); LANE.cueLayer.style.cssText = "inset:0";
+  LANE.lblLayer = lnDiv(null, stage); LANE.lblLayer.style.cssText = "inset:0";
+  LANE.ring = lnDiv("ln-ring", stage);
+  LANE.ring.style.cssText = "left:" + (g.X - g.R) + "px;top:" + (g.CY - g.R) + "px;width:" + 2 * g.R + "px;height:" + 2 * g.R + "px";
+  const bw = lnDiv(null, stage);
+  bw.style.cssText = "left:" + lnPx(g.X - g.bw / 2) + ";top:" + lnPx(g.CY - 1.215 * g.bw) + ";width:" + g.bw + "px;height:" + lnPx(g.bw * 1.3);
+  LANE.big = lnBalloon("lnbig", 5.2);
+  bw.appendChild(LANE.big.svg);
+  LANE.you = lnDiv("ln-you", stage);
+  LANE.you.style.cssText = "left:" + (g.X - 60) + "px;width:120px;top:" + Math.round(g.CY + g.R + 4) + "px";
+}
+function laneCue(it, g) {
+  const wrap = lnDiv("ln-cue", LANE.cueLayer);
+  const w = Math.max(4, it.durS * g.P);
+  if (it.kind === "flicker") {
+    const tr = lnDiv("ln-trk", wrap); tr.style.cssText = "left:0;top:" + (g.CY - 3) + "px;width:" + lnPx(w);
+    it.dots.forEach(function (s) {
+      const d = lnDiv("ln-dot", wrap);
+      d.style.cssText = "left:" + lnPx(s * g.P - g.DOT / 2) + ";top:" + (g.CY - g.DOT / 2) + "px;width:" + g.DOT + "px;height:" + g.DOT + "px";
+    });
+  } else {
+    const b = lnDiv("ln-bar" + (it.kind === "vent" ? " vent" : ""), wrap);
+    b.style.cssText = "left:0;top:" + (g.CY - g.BAR / 2) + "px;width:" + lnPx(w) + ";height:" + g.BAR + "px;border-radius:" + Math.round(18 * g.k) + "px";
+  }
+  const lbl = lnDiv("ln-lbl" + (it.kind === "vent" ? " vent" : ""), LANE.lblLayer, it.word + "\n" + it.len);
+  lbl.style.top = g.lblTop + "px"; lbl.style.fontSize = g.LBL + "px"; lbl.style.display = "none";
+  return { wrap: wrap, lbl: lbl, x: null, lx: null };
+}
+function lnSet(node, key, prop, val) {
+  const c = LANE.txt[key];
+  if (c === val) return;
+  LANE.txt[key] = val;
+  node.style[prop] = val;
+}
+function lnPanel(node, cls) {
+  ["glass-cool", "glass-ember", "glass-hot", "glass-alarm"].forEach(function (c) { node.classList.toggle(c, c === cls); });
+}
+function lnShort(ms) {
+  const s = Math.ceil(Math.max(0, ms) / 1000);
+  return s < 60 ? s + " s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function laneName(k) { return k.kind === "flicker" ? "FLICKER" : k.finale ? "FINALE" : "FULL BURN"; }
+function laneNoun(k) { return k.kind === "flicker" ? "flicker" : k.finale ? "finale" : "burn"; }
+function laneLong(k) { return k.kind === "flicker" ? "Flicker" : k.finale ? "Finale" : "Full burn"; }
+
+function renderLane(now) {
+  const prun = $("prun"), banner = $("ln-banner");
+  const caps = $("ln-caps"), big = $("ln-big"), line = $("ln-line");
+  if (!LANE.icon) { LANE.icon = lnBalloon("lnico", 8.6); const w = el("div"); w.appendChild(LANE.icon.svg); $("ln-icon").appendChild(w); }
+  const st = syncStatus();
+  const light = $("ln-light"), lcls = "light" + (st.level === "green" ? "" : " " + st.level);
+  if (light.className !== lcls) light.className = lcls;
+  if (!APP.tl) {
+    LANE.kind = "noshow"; prun.className = "";
+    lnPanel(banner, "glass-cool");
+    setTxt(caps, "NO SHOW LOADED"); setTxt(big, "Setup"); big.classList.add("word"); setTxt(line, "tap here to go back and load one");
+    setTxt($("ln-then"), ""); $("ln-then").style.visibility = "hidden";
+    return;
+  }
+  const src = laneSource();
+  const armed = !!APP.armed;
+  const t = armed ? Math.floor(now - APP.armed.t0) : -1;
+  const fr = laneFrame(src.tasks, t, src.beat);
+  const k = fr.task;
+
+  // ---- header: who, where, sync light, song time
+  const b = APP.myBalloon != null ? APP.tl.balloonOf[APP.myBalloon] : null;
+  const gl = APP.myGroup ? _plain(APP.tl.labelOf[APP.myGroup]) : "";
+  setTxt($("ln-num"), b ? "#" + b.n : (gl || "No group"));
+  setTxt($("ln-ref"), b ? (APP.tl.field ? (gridRefOf(APP.tl.field, b.x, b.y) || gl) : (b.label || gl)) : "");
+  const songMs = Math.max(0, Math.min(src.lenMs, t));
+  setTxt($("ln-song"), fmtMMSS(songMs));
+
+  // ---- whole-song strip: your burns, the one in focus highlighted, a playhead
+  const len = Math.max(1, src.lenMs);
+  const pct = function (ms) { return Math.max(0, Math.min(100, ms / len * 100)); };
+  const markSig = APP.show.title + "|" + APP.myBalloon + "|" + APP.myGroup + "|" + src.tasks.length + "|" + (k ? k.index : "-") + "|" +
+    src.tasks.map(function (x) { return x.endMs <= t ? "d" : ""; }).join("");
+  if (markSig !== LANE.markSig) {
+    LANE.markSig = markSig;
+    const box = $("ln-marks");
+    clear(box);
+    src.tasks.forEach(function (x) {
+      const isNext = k === x;
+      const d = el("div", "mk" + (x.vent || x.finale ? " fin" : "") + (isNext ? " next" : "") + (x.endMs <= t ? " done" : ""));
+      d.style.left = pct(x.atMs).toFixed(2) + "%";
+      d.style.width = "max(" + (isNext ? 5 : 4) + "px," + pct(x.durMs).toFixed(2) + "%)";
+      box.appendChild(d);
+    });
+  }
+  lnSet($("ln-played"), "played", "width", pct(songMs).toFixed(2) + "%");
+  lnSet($("ln-nowdot"), "nowdot", "left", pct(songMs).toFixed(2) + "%");
+
+  // ---- the banner: NEXT → WARNING → STANDBY (3 · 2 · 1) → GO
+  let kind = fr.state.toLowerCase(), cls = "glass-cool", capsTxt = "", bigTxt = "", lineTxt = "", word = false, warm = false, wash = "";
+  let icon = { kind: fr.kind || "full", lit: 0, cool: true }, mine = { kind: fr.kind || "full", lit: 0 }, ringOn = false;
+  const late = fr.state === "GO" && armed && APP.armed.joinMs != null && k && k.atMs < APP.armed.joinMs;
+  const what = k ? fmtDurS(k.durMs) + " " + laneNoun(k) + (k.vent ? " · vent first" : "") : "";
+  if (APP.hold) { kind = "hold"; cls = "glass-alarm"; capsTxt = "SHOW HOLD"; bigTxt = "STOP"; word = true; lineTxt = "Stop burning. Wait for the conductor."; warm = true; wash = "HOLD"; }
+  else if (!armed) { kind = "wait"; capsTxt = "WAITING FOR THE START"; bigTxt = fmtClockShort(now); word = true; lineTxt = "tap here for setup: arm a start time"; }
+  else if (late) {
+    kind = "late"; capsTxt = "SIT THIS ONE OUT"; bigTxt = lnShort(fr.leftMs); lineTxt = "you joined during this " + laneNoun(k);
+  } else if (fr.state === "GO") {
+    cls = "glass-hot"; warm = true; word = true;
+    capsTxt = "GO · " + laneName(k);
+    bigTxt = k.kind === "flicker" ? "FLICKER" : "BURN";
+    lineTxt = lnShort(fr.leftMs) + " left";
+    icon = { kind: fr.kind, lit: fr.on ? 1 : 0.45, flame: fr.on };
+    mine = fr.on ? { kind: fr.kind, lit: 1, flame: 1 } : { kind: fr.kind, lit: 0.45 };
+    ringOn = fr.on;
+    wash = fr.on ? (k.kind === "flicker" ? "FLICKER-ON" : "BURN") : "";
+  } else if (fr.state === "STANDBY") {
+    cls = "glass-hot"; warm = true;
+    capsTxt = "STANDBY · " + laneName(k);
+    bigTxt = String(fr.count);
+    lineTxt = (fr.onBeat ? "on the beat · " : "on the count · ") + what;
+    icon = { kind: fr.kind, lit: 0.6 };
+    mine = { kind: fr.kind, lit: 0.45, num: String(fr.count) };
+  } else if (fr.state === "WARNING") {
+    cls = "glass-ember"; warm = true;
+    capsTxt = "WARNING · " + laneName(k);
+    bigTxt = lnShort(fr.msUntil); lineTxt = what;
+    icon = { kind: fr.kind, lit: 0.9, fill: fr.fill };
+  } else if (fr.state === "NEXT") {
+    capsTxt = "NEXT · " + laneName(k);
+    bigTxt = lnShort(fr.msUntil); lineTxt = what;
+  } else {
+    const ended = t >= Math.max(src.lenMs, APP.tl.endMs || 0);
+    kind = ended ? "ended" : "done";
+    capsTxt = ended ? "SHOW COMPLETE" : "STANDING BY"; bigTxt = "Done"; word = true;
+    lineTxt = ended ? "tap here for setup" : "no more burns for you in this show";
+  }
+  LANE.kind = kind;
+  lnPanel(banner, cls);
+  setTxt(caps, capsTxt); setTxt(big, bigTxt); setTxt(line, lineTxt);
+  big.classList.toggle("word", word);
+  const cool = cls === "glass-cool";
+  lnSet(caps, "capsc", "color", kind === "hold" ? "#FFF1EE" : cool ? "var(--g-blue-text)" : cls === "glass-ember" ? "var(--g-amber-soft)" : "#FFF3E2");
+  lnSet(big, "bigc", "color", warm ? "#FFE2BF" : "#ECE7DF");
+  lnSet(big, "bigs", "textShadow", warm ? "0 2px 10px rgba(0,0,0,.45),0 0 34px rgba(255,154,74,.5)" : "0 2px 10px rgba(0,0,0,.45),0 0 34px rgba(141,184,232,.4)");
+  lnLook(LANE.icon, icon);
+  prun.className = wash ? "wash-" + wash : "";
+
+  // ---- Then …
+  const thenTxt = fr.state === "DONE" || kind === "wait" && !k ? "" :
+    fr.after ? "Then  " + laneLong(fr.after) + " · " + fmtDurS(fr.after.durMs) + (fr.after.vent ? " · vent first" : "") : (k ? "Then  nothing more" : "");
+  setTxt($("ln-then"), thenTxt);
+  lnSet($("ln-then"), "thenv", "visibility", thenTxt ? "visible" : "hidden");
+
+  // ---- the lane
+  const stage = $("ln-stage");
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (!W || !H) return;
+  const geoSig = W + "x" + H;
+  if (geoSig !== LANE.geoSig) { LANE.geoSig = geoSig; LANE.geo = laneGeom(W, H); laneBuild(stage, LANE.geo); }
+  const g = LANE.geo;
+  if (LANE.elsFor !== src.tasks) {             // another show or balloon: its cues are other cues
+    LANE.elsFor = src.tasks;
+    Object.keys(LANE.els).forEach(function (key) { LANE.els[key].wrap.remove(); LANE.els[key].lbl.remove(); });
+    LANE.els = {};
+  }
+  for (let i = 0; i < LANE.grid.length; i++) {
+    const d = LANE.grid[i], gl = fr.grid[i];
+    if (!gl) { if (d.style.display !== "none") d.style.display = "none"; continue; }
+    if (d.style.display === "none") d.style.display = "";
+    if (d._bar !== gl.bar) { d._bar = gl.bar; d.classList.toggle("bar", gl.bar); }
+    d.style.transform = "translate3d(" + (g.X + gl.s * g.P).toFixed(1) + "px,0,0)";
+  }
+  const lx = laneLabels(fr.items, g.lab);
+  const seen = {};
+  fr.items.forEach(function (it, i) {
+    seen[it.index] = 1;
+    let e = LANE.els[it.index];
+    if (!e) e = LANE.els[it.index] = laneCue(it, g);
+    const x = (g.X + it.atS * g.P).toFixed(1);
+    if (e.x !== x) { e.x = x; e.wrap.style.transform = "translate3d(" + x + "px,0,0)"; }
+    const l = lx[i] == null ? null : lx[i].toFixed(1);
+    if (e.lx !== l) {
+      e.lx = l;
+      if (l == null) e.lbl.style.display = "none";
+      else { e.lbl.style.display = ""; e.lbl.style.transform = "translate3d(" + l + "px,0,0)"; }
+    }
+  });
+  Object.keys(LANE.els).forEach(function (key) {
+    if (seen[key]) return;
+    const e = LANE.els[key];
+    e.wrap.remove(); e.lbl.remove();
+    delete LANE.els[key];
+  });
+  LANE.ring.classList.toggle("on", ringOn);
+  LANE.ring.classList.toggle("vent", fr.kind === "vent");
+  lnLook(LANE.big, mine);
+  setTxt(LANE.you, "YOU" + (b ? " · #" + b.n : gl ? " · " + gl.toUpperCase() : ""));
 }
 
 /* ============================================================================
@@ -10502,6 +11026,10 @@ document.addEventListener("click", function (ev) {
     if (APP.screen === "pilot-run" && ev.target.closest("#pm-now")) {
       if (["wait", "noshow", "start", "done", "ended", "hold"].indexOf(MINE.kind) !== -1) go("pilot-setup");
     }
+    // LANE: the same rule for its banner
+    if (APP.screen === "pilot-run" && ev.target.closest("#ln-banner")) {
+      if (["wait", "noshow", "done", "ended", "hold"].indexOf(LANE.kind) !== -1) go("pilot-setup");
+    }
     return;
   }
   if (btn.dataset.role) { setRole(btn.dataset.role); return; }
@@ -10541,6 +11069,7 @@ document.addEventListener("click", function (ev) {
     case "map": openFieldMap(); break;
     case "pv-mine": setPilotView("mine"); break;
     case "pv-field": setPilotView("field"); break;
+    case "pv-lane": setPilotView("lane"); break;
     case "dismiss-map": closeFieldMap(); break;
     case "sync": runSync().then(renderAll); break;
     case "test-t0":
@@ -10641,7 +11170,7 @@ function setRole(role) {
   APP.paLatencyMs = parseInt(load(LS.pa) || "0", 10) || 0;
   APP.myGroup = load(LS.group);
   APP.myBalloon = parseInt(load(LS.balloon) || "", 10) || null;
-  APP.pview = load(LS.pview) === "field" ? "field" : "mine";
+  APP.pview = load(LS.pview) === "field" ? "field" : load(LS.pview) === "lane" ? "lane" : "mine";
 
   const reanchored = restoreSync();
   restoreShow();

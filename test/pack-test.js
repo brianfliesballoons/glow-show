@@ -198,6 +198,127 @@ section('COMPILE COST');
   ok('a whole show\'s packs stay small for the Worker (largest ' + Math.max.apply(null, sizes) + ' bytes, limit 2,000,000)', Math.max.apply(null, sizes) < 2000000);
 }
 
+/* ------------------------------------------------------------ the Lane view */
+section('LANE — laneFrame(tasks, t, beat) agrees with packPlan, and counts 3 · 2 · 1 on the beat');
+{
+  // lockstep: the Lane can never say GO when My balloon does not, nor point at a different cue
+  let lanes = 0, moments = 0, bad = null;
+  Object.keys(compiled).forEach(name => {
+    const { tl, P } = compiled[name];
+    P.keys.forEach(key => {
+      if (bad) return;
+      const pk = JSON.parse(JSON.stringify(P.packs[key]));
+      const n = P.by === 'balloon' ? Number(key) : null;
+      const gid = n != null ? tl.balloonOf[n].group : key;
+      const times = laneTimes(tl, n, gid);
+      for (let t = -3000; t <= tl.endMs + 3000; t += 25) times.add(t);
+      lanes++;
+      for (const t of times) {
+        moments++;
+        const fr = C.laneFrame(pk.tasks, t, pk.beat), plan = C.packPlan(pk, t);
+        let cur = null;
+        plan.burnMarks.forEach((m, i) => { if (m.now) cur = i; });
+        const planOn = plan.now.kind === 'burn' || (plan.now.kind === 'flicker' && !!plan.now.on);
+        let why = null;
+        if ((fr.state === 'GO') !== (cur !== null)) why = 'GO vs the cue under way';
+        else if (cur !== null && fr.task.index !== cur) why = 'a different cue under way';
+        else if (cur !== null && fr.on !== planOn) why = 'burner on/off (flicker on-beats)';
+        else if (cur !== null && fr.leftMs !== pk.tasks[cur].endMs - t) why = 'time left';
+        else if (cur === null && plan.next && (fr.task.index !== plan.next.index || fr.msUntil !== plan.next.atMs - t)) why = 'the next cue';
+        else if (cur === null && !plan.next && fr.state !== 'DONE') why = 'DONE';
+        if (why) { bad = { name, key, t, why, lane: { state: fr.state, task: fr.task && fr.task.index, on: fr.on }, plan: { cur, now: plan.now.kind, on: plan.now.on, next: plan.next && plan.next.index } }; break; }
+      }
+    });
+  });
+  ok('Lane == My balloon (GO, the cue, burner on/off, time left, the next cue) on ' + lanes + ' packs at ' + moments + ' moments', bad === null, bad);
+}
+{
+  const { tl, P } = compiled['demo-show'];
+  const pk = P.packs['5'], beat = pk.beat;          // 120 BPM: a beat is 500 ms; #5's first burn is 3 s at 0:15
+  const F = t => C.laneFrame(pk.tasks, t, beat);
+  ok('demo #5: the first cue is a 3 s full burn at 15000 ms', pk.tasks[0].atMs === 15000 && pk.tasks[0].durMs === 3000 && C.laneKind(pk.tasks[0]) === 'full');
+  const want = [[4999, 'NEXT', null], [5000, 'WARNING', null], [13499, 'WARNING', null], [13500, 'STANDBY', 3], [13999, 'STANDBY', 3],
+                [14000, 'STANDBY', 2], [14499, 'STANDBY', 2], [14500, 'STANDBY', 1], [14999, 'STANDBY', 1], [15000, 'GO', null], [17999, 'GO', null]];
+  const got = want.map(([t]) => { const f = F(t); return [t, f.state, f.count]; });
+  ok('states at the boundaries: NEXT > 10 s · WARNING ≤ 10 s · STANDBY 3 · 2 · 1 on the last three beats · GO at the exact start', canon(got) === canon(want), got);
+  ok('GO counts down: 3000 ms left at the start, 1 ms left at its last ms', F(15000).leftMs === 3000 && F(17999).leftMs === 1);
+  ok('the moment it ends, the lane moves on to the next cue (NEXT, 13 s out)', F(18000).state === 'NEXT' && F(18000).task.atMs === 31000 && F(18000).msUntil === 13000);
+  ok('the count-in is on the show\'s own beats (each number starts where beatAt starts a beat)', [13500, 14000, 14500].every(t => C.beatAt(tl, t).phase === 0) && C.laneCountStart(15000, beat).fromMs === 13500);
+  ok('WARNING fill: the glow starts at the throat at 10 s and is full when the count-in starts', Math.abs(F(5000).fill - 0.05) < 1e-9 && F(13499).fill > 0.999 && F(9250).fill > 0.4 && F(9250).fill < 0.6 && F(4999).fill === 0);
+  ok('the banner\'s "Then" is the cue after', F(10000).after.atMs === 31000 && F(16000).after.atMs === 31000);
+  ok('the 10 s window: a cue is drawn from 10.8 s out to 2.5 s after it ends', F(15000 - 10800).items.some(i => i.index === 0) && !F(15000 - 10801).items.some(i => i.index === 0) &&
+     F(18000 + 2500).items.some(i => i.index === 0) && !F(18000 + 2501).items.some(i => i.index === 0));
+  ok('a cue\'s position is its start in seconds from now (0 = the burner)', F(10000).items[0].atS === 5 && F(15000).items[0].atS === 0 && F(16500).items[0].atS === -1.5);
+  ok('only cues still to come get a label slot (upcoming)', F(10000).items[0].upcoming && !F(15000).items[0].upcoming);
+  const g0 = F(0).grid;
+  ok('grid: every beat for the next 10 s, bar lines on each downbeat (21 lines at 120 BPM)', g0.length === 21 && g0[0].s === 0 && g0[20].s === 10 &&
+     g0.every((g, i) => g.bar === (i % 4 === 0)), g0.length);
+  const g1 = F(1250).grid;
+  ok('grid: lines sit on the beats as the song moves (first line at the next beat)', g1[0].s === 0.25 && g1[0].bar === false && g1[1].s === 0.75);
+
+  // kinds: vent burn → violet, finale, flicker
+  const p1 = P.packs['1'].tasks;
+  ok('#1: the 12 s burn at 0:24 gets a VENT warning → kind "vent" (violet), labelled FULL 12 s', C.laneKind(p1[1]) === 'vent' && C.laneFrame(p1, 20000, beat).items.find(i => i.index === 1).word === 'FULL' && C.laneFrame(p1, 20000, beat).items.find(i => i.index === 1).len === '12 s');
+  ok('#1: the finale is a vent burn too, labelled FINALE', C.laneKind(p1[5]) === 'vent' && C.laneFrame(p1, 65000, beat).items.find(i => i.index === 5).word === 'FINALE');
+  ok('pulse / ping-pong → flicker', C.laneKind(p1[2]) === 'flicker' && C.laneKind(p1[3]) === 'flicker' && C.laneKind(pk.tasks[0]) === 'full');
+  ok('a flicker on the beat (8 s pulse): one dot a second', canon(C.laneDots(p1[2])) === canon([0, 1, 2, 3, 4, 5, 6, 7]));
+  ok('a ping-pong (legs 2 s apart): one dot per on-leg', canon(C.laneDots(p1[3])) === canon([0, 2, 4]));
+  ok('a full burn has no dots', C.laneDots(p1[0]).length === 0);
+  // flicker on-beats: pulse at 128 BPM (on 234.375 ms, off 234.375 ms), then the ping-pong's legs
+  const on = (k, t) => C.laneFrame(p1, t, beat).on;
+  const pulse = p1[2], pp = p1[3];
+  ok('pulse: on for the first half of each of its own beats', on(pulse, pulse.atMs) && on(pulse, pulse.atMs + 234) && !on(pulse, pulse.atMs + 235) && !on(pulse, pulse.atMs + 468) && on(pulse, pulse.atMs + 469));
+  ok('ping-pong: on during its legs, off between them, GO throughout', on(pp, 52000) && on(pp, 52999) && !on(pp, 53000) && C.laneFrame(p1, 53000, beat).state === 'GO' && on(pp, 54000) && !on(pp, 56999 + 1));
+  ok('a full burn is on from its first to its last ms', on(pk.tasks[0], 15000) && C.laneFrame(pk.tasks, 17999, beat).on);
+  ok('after the last cue: DONE', C.laneFrame(pk.tasks, 84000, beat).state === 'DONE' && C.laneFrame(pk.tasks, 84000, beat).task === null);
+
+  // a cue off the beat: the count still lands on beats, "1" is the last beat at least a quarter beat before it
+  const syn = [{ index: 0, kind: 'burn', atMs: 10250, endMs: 12250, durMs: 2000, onAt: [[10250, 12250]], legs: 1, vent: false, finale: false }];
+  const cs = t => C.laneFrame(syn, t, { beatMs: 500, offsetMs: 0, beatsPerBar: 4 }).count;
+  ok('a cue half a beat off the grid: 3 at 9000, 2 at 9500, 1 at 10000 (on the beats), GO at 10250', cs(8999) === null && cs(9000) === 3 && cs(9500) === 2 && cs(10000) === 1 && cs(10249) === 1 &&
+     C.laneFrame(syn, 10250, { beatMs: 500, offsetMs: 0 }).state === 'GO');
+  ok('a beat offset moves the count with the grid', C.laneCountStart(10100, { beatMs: 500, offsetMs: 100 }).fromMs === 8600);
+  // purity
+  const before = JSON.stringify(pk.tasks);
+  const a = canon(C.laneFrame(pk.tasks, 14200, beat)), b = canon(C.laneFrame(pk.tasks, 14200, beat));
+  ok('pure: the same answer twice, and the task list is not touched', a === b && JSON.stringify(pk.tasks) === before);
+}
+{
+  // a show with no tempo: the count-in is the last 3 s, one a second, and the grid is one line a second
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', 'demo-show.json'), 'utf8'));
+  delete raw.audio.bpm; delete raw.audio.beatOffsetMs;
+  const v = C.validateShow(raw);
+  const tl = C.compileShow(v.show);
+  const pk = C.compilePack(tl, 5);
+  ok('no-tempo demo: the pack has no beat grid', v.ok && pk.beat === null);
+  const F = t => C.laneFrame(pk.tasks, t, pk.beat);
+  const got = [11999, 12000, 12999, 13000, 13999, 14000, 14999, 15000].map(t => [F(t).state, F(t).count]);
+  ok('no tempo: WARNING, then 3 · 2 · 1 a second each over the last 3 s, then GO', canon(got) === canon([['WARNING', null], ['STANDBY', 3], ['STANDBY', 3], ['STANDBY', 2], ['STANDBY', 2], ['STANDBY', 1], ['STANDBY', 1], ['GO', null]]), got);
+  ok('no tempo: the banner says "on the count", not "on the beat"', F(12500).onBeat === false);
+  ok('no tempo: grid lines one a second, every other one stronger', F(0).grid.length === 11 && F(0).grid[1].s === 1 && F(0).grid[0].bar && !F(0).grid[1].bar);
+}
+{
+  // labels: never on top of each other, never past the right edge
+  const { P } = compiled['havasu-lightning-storm'];
+  const o = { x0: 92, pxPerS: 26, lo: 184, hi: 250, gap: 92, maxX: 272 };
+  let bad = null, shown = 0;
+  P.keys.forEach(key => {
+    const pk = P.packs[key];
+    for (let t = -2000; t < pk.lenMs && !bad; t += 100) {
+      const fr = C.laneFrame(pk.tasks, t, pk.beat);
+      const xs = C.laneLabels(fr.items, o).filter(x => x !== null);
+      shown += xs.length;
+      for (let i = 0; i < xs.length; i++) {
+        if (xs[i] < o.lo || xs[i] >= o.maxX || (i && xs[i] - xs[i - 1] < o.gap)) { bad = { key, t, xs }; break; }
+      }
+    }
+  });
+  ok('labels never overlap (≥ ' + o.gap + ' px apart) and stay inside the lane, every 100 ms of Lightning Storm, every balloon (' + shown + ' labels)', bad === null && shown > 0, bad);
+  const its = [{ upcoming: true, atS: 1 }, { upcoming: true, atS: 1.5 }, { upcoming: true, atS: 8 }, { upcoming: false, atS: -1 }];
+  ok('labels: cues close together are pushed apart, one that would run off the edge is dropped, a cue already burning gets none',
+     canon(C.laneLabels(its, Object.assign({}, o, { maxX: 400 }))) === canon([184, 276, 368, null]) && canon(C.laneLabels(its, o)) === canon([184, null, null, null]));
+}
+
 /* ------------------------------------------------------------ golden vectors */
 section('GOLDEN VECTORS — test/golden/');
 /* expected rows carry tasks by their index (tasks[i].index), not the whole
