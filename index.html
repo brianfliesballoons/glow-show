@@ -310,8 +310,7 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 .pm-now.k-burn,.pm-now.k-flicker-on{color:#2A1205;--nowglow:rgba(255,220,180,.55)}
 .pm-now.k-burn .pm-nowbig,.pm-now.k-flicker-on .pm-nowbig{color:#1E0C02;text-shadow:0 0 22px rgba(255,240,220,.65)}
 .pm-now.k-flicker-off{color:var(--g-amber-light);--nowglow:rgba(255,154,74,.45)}
-.pm-now.k-ready{color:#FFF1DF;--nowglow:rgba(246,192,142,.6);animation:readyedge .5s steps(1,end) infinite}
-@keyframes readyedge{0%{box-shadow:0 40px 90px rgba(0,0,0,.55),inset 0 0 0 5px rgba(0,0,0,.35)}50%{box-shadow:0 40px 90px rgba(0,0,0,.55),inset 0 0 0 5px rgba(255,236,210,.75)}}
+.pm-now.k-ready{color:#FFE2BF;--nowglow:rgba(255,154,74,.5)}  /* GET READY = the lane's WARNING look: no flash, nothing burn-hot until BURN (Brian, 2026-11-22) */
 .pm-now.k-vent{color:#F3EAFF;--nowglow:rgba(185,140,255,.7)}
 .pm-now.k-hold{color:#FFF1EE;--nowglow:rgba(255,138,122,.6)}
 .pm-now.k-ended,.pm-now.k-done{color:var(--g-soft);--nowglow:rgba(236,231,223,.2)}
@@ -505,14 +504,12 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 /* phase colours — the state IS the panel */
 #stage{background:linear-gradient(165deg,rgba(255,255,255,.14),rgba(255,255,255,.05))}
 #stage.ph-PRESHOW,#stage.ph-IDLE,#stage.ph-ENDED{color:var(--g-text)}
-#stage.ph-GETREADY{background:linear-gradient(165deg,rgba(246,192,142,.86),rgba(196,120,52,.86));color:#241405}
+#stage.ph-GETREADY{background:linear-gradient(165deg,rgba(240,163,94,.30),rgba(120,62,26,.46));color:#FFE2BF}
 #stage.ph-BURN{background:linear-gradient(165deg,rgba(255,160,80,.96),rgba(226,88,20,.94));color:#1E0802}
 #stage.ph-PULSE{background:#0c0c10;color:#fff}
 #stage.ph-STOP{background:linear-gradient(165deg,rgba(141,184,232,.46),rgba(28,56,98,.8));color:var(--g-blue-text)}
 #stage.ph-VENT{background:linear-gradient(165deg,rgba(185,140,255,.7),rgba(80,40,150,.84));color:#F6F0FF}
 #stage.ph-HOLD{background:linear-gradient(165deg,rgba(255,138,122,.62),rgba(150,30,22,.86));color:#fff}
-#stage.ph-GETREADY{animation:readypulse .5s steps(1,end) infinite}
-@keyframes readypulse{0%{box-shadow:inset 0 0 0 10px rgba(0,0,0,.4)}50%{box-shadow:inset 0 0 0 10px rgba(255,236,210,.6)}}
 #stage.ph-BURN .stage-label,#stage.ph-GETREADY .stage-label{opacity:1}
 
 /* ===================== OVERLAYS ===================== */
@@ -7314,7 +7311,9 @@ function renderMine(now) {
   else if (kind === "start") { title = "Now · Starting"; big = fmtCountdown(k.leftMs); sub = "until the music starts (" + fmtClockShort(APP.armed.t0) + ")"; ringOn = true; }
   else if (kind === "cool") { title = "Now · Cool off"; big = fmtCountdown(k.leftMs); sub = "until your next burn"; ringOn = true; }
   else if (kind === "stop") { title = "Now · Stop"; if (k.endsMs != null) { big = fmtCountdown(k.leftMs); sub = "let go of the burner · next burn in"; } else { big = "STOP"; word = true; sub = "let go of the burner"; } ringOn = true; }
-  else if (kind === "ready") { title = "Now · Get ready"; big = fmtCountdown(k.leftMs); sub = k.task ? k.task.words : "your burn is coming"; glass = "glass-ready"; wash = "READY"; ringOn = true; }
+  // GET READY keeps the lane's WARNING colours (ember, no wash, no flash): nothing turns burn-hot until the burn
+  // (Brian, 2026-11-22: "let's not have it change color until it's time to actually burn" … "I want it to be consistent")
+  else if (kind === "ready") { title = "Now · Get ready"; big = fmtCountdown(k.leftMs); sub = k.task ? k.task.words : "your burn is coming"; glass = "glass-ember"; ringOn = true; }
   else if ((kind === "burn" || kind === "flicker") && APP.armed.joinMs != null && k.task && k.task.atMs < APP.armed.joinMs) {
     // joined late, in the middle of this burn: sit it out, never start it part-way
     kind = "late"; title = "Now · Sit this one out"; big = fmtCountdown(Math.max(0, k.task.endMs - t)); sub = "you joined during this burn · wait for the next";
