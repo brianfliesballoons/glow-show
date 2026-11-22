@@ -195,7 +195,8 @@ section('COMPILE COST');
   const ms = Date.now() - t0;
   ok('all ' + Object.keys(compiled).length + ' shows compile in under 2 s (' + ms + ' ms)', ms < 2000);
   const sizes = Object.keys(compiled).map(n => JSON.stringify(compiled[n].P).length);
-  ok('a whole show\'s packs stay small for the Worker (largest ' + Math.max.apply(null, sizes) + ' bytes, limit 2,000,000)', Math.max.apply(null, sizes) < 2000000);
+  const max = Number((fs.readFileSync(path.join(__dirname, '..', 'worker', 'time.js'), 'utf8').match(/const MAX_BODY = (\d+)/) || [])[1]);
+  ok('a whole show\'s packs stay small for the Worker (largest ' + Math.max.apply(null, sizes) + ' bytes, limit ' + max + ')', max > 0 && Math.max.apply(null, sizes) < max);
 }
 
 /* ------------------------------------------------------------ the Lane view */
@@ -320,20 +321,32 @@ section('LANE — laneFrame(tasks, t, beat) agrees with packPlan, and counts 3 �
 }
 
 /* ------------------------------------------------------------ field view (design K) */
-section('FIELD VIEW — pack.fieldView is display only: everyone\'s lit times are their own packs\' legs, and nothing a phone plays changes');
+section('FIELD VIEW — the field is in the bundle ONCE; each phone gets it with its own pack; nothing a phone plays changes');
 {
-  // which shows carry one: exactly the ones with a field and balloon spots
   Object.keys(compiled).forEach(name => {
     const { tl, P } = compiled[name];
     const want = !!(tl.field && tl.balloons.length);
-    const has = P.keys.map(k => !!P.packs[k].fieldView);
-    ok(name + ': ' + (want ? 'every pack carries the same fieldView' : 'no field, so no pack carries a fieldView (the key is left out)'),
-       want ? has.every(Boolean) && P.keys.every(k => canon(P.packs[k].fieldView) === canon(P.packs[P.keys[0]].fieldView))
-            : has.every(h => !h) && P.keys.every(k => !('fieldView' in P.packs[k])));
+    ok(name + ': ' + (want ? 'the bundle carries one fieldView and no pack carries its own' : 'no field, so no fieldView anywhere (the key is left out)'),
+       (want ? !!P.fieldView && canon(P.fieldView) === canon(C.fieldViewOf(tl)) : !('fieldView' in P)) && P.keys.every(k => !('fieldView' in P.packs[k])));
+    // what a phone receives: its own pack, then the field as its last key
+    let bad = null;
+    P.keys.forEach(k => {
+      if (bad) return;
+      const ph = C.phonePack(P, k), own = P.packs[k];
+      const keysOk = canon(Object.keys(ph)) === canon(Object.keys(own).concat(want ? ['fieldView'] : []));
+      const base = JSON.stringify(own);
+      const spliced = want ? base.slice(0, -1) + ',"fieldView":' + JSON.stringify(P.fieldView) + '}' : base;
+      if (!keysOk || JSON.stringify(ph) !== spliced) bad = k;
+    });
+    ok(name + ': phonePack(bundle, key) = that balloon\'s own pack + the show\'s fieldView as its last key (text-equal to splicing it on)', bad === null, bad);
   });
+  {
+    const P = compiled['demo-show'].P;
+    ok('phonePack: an unknown key or a prototype key -> null', C.phonePack(P, '99') === null && C.phonePack(P, '__proto__') === null && C.phonePack(P, 'constructor') === null);
+  }
   ['havasu-lightning-storm', 'havasu-forest-for-the-trees'].forEach(name => {
     const { tl, P } = compiled[name];
-    const fv = P.packs[P.keys[0]].fieldView;
+    const fv = P.fieldView;
     // 1. every balloon's legs == that balloon's own pack's task onAt legs, finale flagged
     let bad = null, legs = 0;
     ok(name + ': one map balloon per pack, same number and spot', fv.balloons.length === P.keys.length &&
@@ -348,18 +361,16 @@ section('FIELD VIEW — pack.fieldView is display only: everyone\'s lit times ar
     ok(name + ': the map\'s lit legs for each balloon are exactly its own pack\'s task onAt legs (' + legs + ' legs, finale flagged)', bad === null, bad);
     ok(name + ': the finale legs are flagged (the last all-burn) and only those', fv.balloons.every(b => b.legs.filter(l => l[2] === 1).length <= 1) &&
        fv.balloons.some(b => b.legs.some(l => l[2] === 1)) === P.keys.some(k => P.packs[k].tasks.some(t => t.finale)));
-    // 2. nothing else in a pack moves: the pack minus fieldView == the pack compiled with no field view
+    // 2. a pack compiled on its own is the bundle's pack, with no field in it
     let diff = null;
     P.keys.forEach(key => {
       if (diff) return;
-      const n = Number(key), with_ = JSON.parse(JSON.stringify(P.packs[key]));
-      delete with_.fieldView;
-      const without = C.compilePack(tl, n, tl.balloonOf[n].group, null);
-      if ('fieldView' in without || canon(with_) !== canon(without)) diff = key;
+      const n = Number(key), alone = C.compilePack(tl, n, tl.balloonOf[n].group);
+      if ('fieldView' in alone || canon(alone) !== canon(P.packs[key])) diff = key;
     });
-    ok(name + ': every pack minus its fieldView is byte-for-byte the pack compiled with none (tasks, segments, haptics)', diff === null, diff);
+    ok(name + ': compilePack(tl, n) alone == the bundle\'s pack, field-free (tasks, segments, haptics)', diff === null, diff);
     // 3. packPlan never reads it: with, without, and with a scrambled one, the same answer at every moment
-    const pk = JSON.parse(JSON.stringify(P.packs['5'] || P.packs['12']));
+    const pk = JSON.parse(JSON.stringify(C.phonePack(P, P.packs['5'] ? '5' : '12')));
     const bare = JSON.parse(JSON.stringify(pk)); delete bare.fieldView;
     const junk = JSON.parse(JSON.stringify(pk)); junk.fieldView = { box: 'x', balloons: [{ n: 5, legs: [[0, 1e9, 1]] }], moves: null };
     let badT = null, nT = 0;
@@ -391,12 +402,14 @@ section('FIELD VIEW — pack.fieldView is display only: everyone\'s lit times ar
        canon(fv.zones.map(z => [z.kind, z.label])) === canon([['nob', null], ['tent', 'PILOT TENT'], ['pa', 'PA']]) && fv.lines[0].label === 'ACCESS LANE');
   });
   {
-    const { tl } = compiled['havasu-lightning-storm'];
+    const { tl, P } = compiled['havasu-lightning-storm'];
     const before = JSON.stringify(tl.show);
     const a = canon(C.fieldViewOf(tl)), b = canon(C.fieldViewOf(tl));
     ok('fieldViewOf is pure: the same answer twice, the show untouched', a === b && JSON.stringify(tl.show) === before);
-    const P = compiled['havasu-lightning-storm'].P, fvSize = JSON.stringify(P.packs['5'].fieldView).length;
-    ok('the field view is small (' + fvSize + ' bytes a pack for 21 balloons)', fvSize < 12000);
+    const fvSize = JSON.stringify(P.fieldView).length, total = JSON.stringify(P).length;
+    const packs = P.keys.reduce((n, k) => n + JSON.stringify(P.packs[k]).length, 0);
+    ok('the field view is small and held once (' + fvSize + ' bytes for 21 balloons; the whole publish ' + total + ' bytes = the 21 packs (' + packs + ') + one field view + a short header)',
+       fvSize < 12000 && total - packs - fvSize > 0 && total - packs - fvSize < 2000);
   }
 }
 {
@@ -417,22 +430,128 @@ section('FIELD VIEW — pack.fieldView is display only: everyone\'s lit times ar
 
   // the caption, at the design's moments for #5 on Lightning Storm
   const { P: PS } = compiled['havasu-lightning-storm'];
-  const pk = PS.packs['5'], fv = pk.fieldView;
+  const pk = C.phonePack(PS, '5'), fv = pk.fieldView;
   const cap = t => C.fieldCaption(fv, pk.tasks, t);
   ok('caption at 1:36 (cooling off): NOW · MIRROR IN · RIGHT HALF, no "Yours" yet (14 s out)', canon(cap(96000)) === canon({ top: 'NOW · MIRROR IN · RIGHT HALF', now: true, yours: '' }), cap(96000));
   ok('caption at 1:48 (count-in): NOW · RADIAL CLOCKWISE, Yours: radial clockwise · wave 5 of 6', canon(cap(108200)) === canon({ top: 'NOW · RADIAL CLOCKWISE', now: true, yours: 'Yours: radial clockwise · wave 5 of 6' }), cap(108200));
   ok('caption: "Yours" from exactly 10 s before your cue', (() => { const k = pk.tasks.find(x => x.atMs > 100000); return cap(k.atMs - 10001).yours === '' && cap(k.atMs - 10000).yours !== ''; })());
   ok('caption: between moves it counts to the next one, in whole seconds rounded up', cap(-1).top === 'NEXT MOVE IN 2 s · RIPPLE OUT' && cap(0).top === 'NEXT MOVE IN 2 s · RIPPLE OUT' && cap(1529).now === true && cap(500000).top === '');
   ok('caption: two moves at once names the one that started last', cap(21000).top === 'NOW · RADIAL CLOCKWISE · RIGHT HALF');
+}
 
-  // the map's geometry: the box fits under the words, inside the panel, one scale
-  let badG = null;
-  [[358, 470], [358, 360], [343, 250], [390, 600], [300, 120]].forEach(([W, H]) => {
-    const g = C.fieldMapGeom(fv.box, W, H);
-    const X = x => g.ox + (x - fv.box[0]) * g.s, Y = y => g.oy + (fv.box[3] - y) * g.s;
-    if (X(fv.box[0]) < 9.999 || X(fv.box[2]) > W - 9.999 || Y(fv.box[3]) < C.FIELD_MAP_TOP - 1e-9 || Y(fv.box[1]) > H - 8 + 1e-9 || g.ew < 11 || g.ew > 20 || g.yw !== g.ew * 2.2) badG = [W, H, g];
+/* ------------------------------------------------------------ field view geometry */
+section('FIELD VIEW GEOMETRY — every mark sized from the real spacing on screen; no two balloons\' marks ever overlap');
+{
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  /* the closest call between two balloons' marks: the smallest (distance - both radii), and who */
+  function tightest(marks) {
+    let best = Infinity, who = null;
+    for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) {
+      const air = dist(marks[i], marks[j]) - marks[i].r - marks[j].r;
+      if (air < best) { best = air; who = [marks[i].n, marks[j].n]; }
+    }
+    return { air: best, who };
+  }
+  const SHOWS = [['havasu-lightning-storm', '5'], ['havasu-forest-for-the-trees', '12']];
+  // spacing: the closest pair, and yours
+  {
+    const fv = compiled['havasu-lightning-storm'].P.fieldView;
+    const sp = C.fieldSpacing(fv, 5);
+    let lo = Infinity, mine = Infinity;
+    fv.balloons.forEach((a, i) => fv.balloons.forEach((b, j) => { if (j > i) { const d = Math.hypot(a.x - b.x, a.y - b.y); lo = Math.min(lo, d); if (a.n === 5 || b.n === 5) mine = Math.min(mine, d); } }));
+    ok('fieldSpacing: the closest two spots and #5\'s closest neighbour, in field units (' + sp.all.toFixed(4) + ', ' + sp.me.toFixed(4) + ')', sp.all === lo && sp.me === mine && sp.me >= sp.all);
+    ok('fieldSpacing: nobody to measure against -> null', canon(C.fieldSpacing({ balloons: [{ n: 1, x: 0.5, y: 0.5, legs: [] }] }, 1)) === canon({ all: null, me: null }) &&
+       C.fieldSpacing(fv, 999).me === null);
+  }
+  // the map's geometry: the box fits under the words, inside the panel, one scale; marks follow the spacing
+  {
+    const fv = compiled['havasu-lightning-storm'].P.fieldView, sp = C.fieldSpacing(fv, 5);
+    let badG = null;
+    [[358, 470], [358, 360], [343, 250], [390, 600], [300, 120], [370, 300]].forEach(([W, H]) => {
+      const g = C.fieldMapGeom(fv.box, W, H, sp);
+      const X = x => g.ox + (x - fv.box[0]) * g.s, Y = y => g.oy + (fv.box[3] - y) * g.s;
+      const gap = sp.all * g.s;
+      if (X(fv.box[0]) < 9.999 || X(fv.box[2]) > W - 9.999 || Y(fv.box[3]) < C.FIELD_MAP_TOP - 1e-9 || Y(fv.box[1]) > H - 8 + 1e-9 ||
+          g.ew > 20 || g.ew < 4 || (g.ew > 4 && g.ew > C.FIELD_EW_OF_GAP * gap + 1e-9) || g.yw > 2.2 * g.ew + 1e-9 ||
+          g.you >= sp.me * g.s || Math.abs(g.lift - 0.2 * g.ew) > 1e-12 || g.reach !== g.ring + 0.6) badG = [W, H, g, gap];
+    });
+    ok('map geometry: the field fits under the two lines of words and inside the panel; envelopes at most 0.45 x the closest spacing (4–20 px); yours at most 2.2 x and its ring short of every neighbour', badG === null, badG);
+    const g = C.fieldMapGeom(fv.box, 358, 300, sp);
+    ok('on a 300 px map (390–402 pt phones, lane grown): envelopes ' + g.ew.toFixed(1) + ' px, yours ' + g.yw.toFixed(1) + ' px in a ring of ' + g.you.toFixed(1) + ' px, neighbours ' + (sp.me * g.s).toFixed(1) + ' px away',
+       g.yw > 1.5 * g.ew && g.you + g.reach + C.FIELD_AIR <= sp.me * g.s + 1e-9);
+  }
+  // the lane and the map share the room: thin 96; grown up to 200 but never leaving the map under 300; short phones give way to 140
+  {
+    const L = C.fieldLaneH;
+    ok('lane: 96 while you cool off, whatever the room', L(300, false) === 96 && L(900, false) === 96);
+    ok('lane grown: 200 with room to spare, less so the map keeps 300, never under 140', L(700, true) === 200 && L(510, true) === 200 && L(490, true) === 180 &&
+       L(450, true) === 140 && L(300, true) === 140 && 490 - 10 - L(490, true) === 300);
+  }
+  /* The three phones (the field view's Lane, map shown): the room under the banner for the lane + 10 px + the map,
+     as the iPhone app lays it out (safe areas: SE none with the status bar hidden; 390 x 844: 47 / 34; 402 x 874:
+     62 / 34) and the map panel's width (screen - 2 x 16). The other rows, top to bottom: 10 padding, the #5 header 40,
+     10, the song strip 22, 10, the banner 117, 10, [lane, 10, map], 10, the My balloon · Lane switch 48, 8 padding.
+     The screenshots (proof2/) measure these. */
+  const FIXED = 10 + 40 + 10 + 22 + 10 + 117 + 10 + 10 + 48 + 8;
+  const PHONES = [
+    { name: '375 x 667 (iPhone SE)', W: 375 - 32, avail: 667 - 0 - 0 - FIXED },
+    { name: '390 x 844', W: 390 - 32, avail: 844 - 47 - 34 - FIXED },
+    { name: '402 x 874', W: 402 - 32, avail: 874 - 62 - 34 - FIXED },
+  ];
+  PHONES.forEach(ph => {
+    ph.hot = C.fieldLaneH(ph.avail, true);
+    ph.mapThin = ph.avail - C.FIELD_LANE_GAP - C.FIELD_LANE_THIN;
+    ph.mapHot = ph.avail - C.FIELD_LANE_GAP - ph.hot;
   });
-  ok('map geometry: the field fits under the two lines of words and inside the panel at five sizes; envelopes 11–20 px, yours 2.2×', badG === null, badG);
+  ok('the three phones: the lane grows to ' + PHONES.map(p => p.hot).join(' / ') + ' px, leaving maps of ' + PHONES.map(p => p.mapHot).join(' / ') + ' px (cooling off: ' + PHONES.map(p => p.mapThin).join(' / ') + ')',
+     PHONES[0].hot === 140 && PHONES[1].mapHot >= 300 && PHONES[2].mapHot >= 300 && PHONES.every(p => p.hot >= 140 && p.hot <= 200));
+
+  SHOWS.forEach(([name, key]) => {
+    const { P } = compiled[name];
+    const fv = P.fieldView;
+    // 1. every pilot, every map size from 150 to 700 px tall on three widths, every mark at its largest (all count-in rings on)
+    let worst = { air: Infinity }, cases = 0;
+    fv.balloons.forEach(me => {
+      const sp = C.fieldSpacing(fv, me.n);
+      [343, 358, 370].forEach(W => {
+        for (let H = 150; H <= 700; H++) {
+          const g = C.fieldMapGeom(fv.box, W, H, sp);
+          const t = tightest(C.fieldMarks(fv, g, me.n, null));
+          cases++;
+          if (t.air < worst.air) worst = { air: t.air, who: t.who, me: me.n, W, H };
+        }
+      });
+    });
+    ok(name + ': every pilot as "you", every map from 150 to 700 px tall on 343 / 358 / 370 px widths, every mark at its largest: at least ' + C.FIELD_AIR + ' px between any two balloons\' marks (' + cases + ' maps; tightest ' + worst.air.toFixed(2) + ' px)',
+       worst.air >= C.FIELD_AIR - 1e-9, worst);
+    // 2. the pilot the design follows, at every moment the map changes, on the three phones, lane thin or grown as it is then
+    const pk = JSON.parse(JSON.stringify(C.phonePack(P, key)));
+    const me = pk.balloon, sp = C.fieldSpacing(fv, me);
+    const others = fv.balloons.filter(b => b.n !== me);
+    const ts = new Set([96000, 105900, 108200, 110000]);
+    const edge = x => { const f = Math.floor(x); [f - 1, f, f + 1].forEach(v => ts.add(v)); };
+    fv.balloons.forEach(b => b.legs.forEach(l => { edge(l[0]); edge(l[1]); edge(l[0] - C.FIELD_SOON_MS); edge(l[1] + C.FIELD_FADE_MS); }));
+    pk.tasks.forEach(k => { edge(k.atMs - C.FIELD_YOURS_MS); edge(k.atMs); edge(k.endMs); });
+    for (let t = -3000; t <= pk.endMs + 3000; t += 100) ts.add(t);
+    PHONES.forEach(ph => {
+      let bad = null, n = 0, tight = Infinity, ringBad = null;
+      for (const t of ts) {
+        const fr = C.laneFrame(pk.tasks, t, pk.beat);
+        const hot = fr.state === 'GO' || fr.state === 'STANDBY' || fr.state === 'WARNING';
+        const H = hot ? ph.mapHot : ph.mapThin;
+        const g = C.fieldMapGeom(fv.box, ph.W, H, sp);
+        const marks = C.fieldMarks(fv, g, me, others.map(b => C.fieldPeer(b.legs, t)));
+        const tt = tightest(marks);
+        n++;
+        tight = Math.min(tight, tt.air);
+        if (tt.air < C.FIELD_AIR - 1e-9 && !bad) bad = { t, H, hot, who: tt.who, air: tt.air };
+        const you = marks.find(m => m.n === me);
+        if (!ringBad && marks.some(m => m.n !== me && dist(m, you) <= g.you)) ringBad = { t, H };
+      }
+      ok(name + ' #' + me + ' on a ' + ph.name + ': no two balloons\' marks overlap at any of ' + n + ' moments (1:36, 1:45.9, 1:48.2 and 1:50 among them; tightest ' + tight.toFixed(2) + ' px), and your ring never reaches a neighbour\'s centre',
+         bad === null && ringBad === null, bad || ringBad);
+    });
+  });
 }
 
 /* ------------------------------------------------------------ golden vectors */
@@ -457,7 +576,7 @@ const index = { format: 'glow-pack-golden/1', note: 'Each file: { show, key, pac
 GOLD.forEach(([name, key]) => {
   const c = compiled[name];
   if (!c) { ok('golden ' + name + ' ' + key + ': show compiled', false); return; }
-  const pk = JSON.parse(JSON.stringify(c.P.packs[key]));
+  const pk = JSON.parse(JSON.stringify(C.phonePack(c.P, key)));   // what the phone receives (its pack + the show's fieldView)
   const ts = new Set();
   pk.segments.forEach(s => { ts.add(s.at - 1); ts.add(s.at); });
   pk.haptics.forEach(h => ts.add(h.at));

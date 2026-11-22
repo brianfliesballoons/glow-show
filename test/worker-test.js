@@ -86,19 +86,120 @@ function fakeKV() {
   r = await call('GET', '/pack/ABCD');
   ok('an unpublished code -> 404', r.status === 404);
 
-  section('PUT / GET /pack — a field show\'s packs carry the display-only fieldView');
+  section('PUT / GET /pack — a field show: the field is published ONCE and each phone gets it with its own pack');
+  const src2 = fs.readFileSync(path.join(__dirname, '..', 'worker', 'time.js'), 'utf8');
+  const max = Number((src2.match(/const MAX_BODY = (\d+)/) || [])[1]);
+  /* the Worker's own CPU on a request: every string it hands JSON.parse, while W.fetch runs (not the test's reads) */
+  const realParse = JSON.parse;
+  async function spied(method, p, body, pin) {
+    const seen = [];
+    JSON.parse = function (t) { seen.push(String(t).length); return realParse.apply(JSON, arguments); };
+    let res;
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (pin != null) headers['X-Glow-Pin'] = pin;
+      res = await W.fetch(new Request(BASE + p, { method, headers, body: body == null ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)) }), env);
+    } finally { JSON.parse = realParse; }
+    const text = await res.text();
+    return { status: res.status, text, parsed: seen };
+  }
   {
     const hv = C.parseShowText(fs.readFileSync(path.join(__dirname, '..', 'shows', 'havasu-lightning-storm.json'), 'utf8')).show;
     const HP = C.compileShowPacks(C.compileShow(hv));
     const body = JSON.stringify(HP);
-    const src2 = fs.readFileSync(path.join(__dirname, '..', 'worker', 'time.js'), 'utf8');
-    const max = Number((src2.match(/const MAX_BODY = (\d+)/) || [])[1]);
-    ok('Havasu (21 balloons) with fieldView in every pack stays under the Worker\'s body limit (' + body.length + ' of ' + max + ' bytes)', max > 0 && body.length < max && !!HP.packs['5'].fieldView);
+    ok('Havasu (21 balloons): the field once at the top, no pack carries its own, ' + body.length + ' bytes (limit ' + max + ')',
+       max > 0 && body.length < max && !!HP.fieldView && HP.keys.every(k => !('fieldView' in HP.packs[k])));
     r = await call('PUT', '/pack/' + HP.code, HP, 'havasu-pin-1');
-    ok('the Worker accepts it -> 200', r.status === 200 && r.j.ok, r);
-    r = await call('GET', '/pack/' + HP.code + '/5');
-    ok('GET /pack/:code/5 hands back balloon 5\'s pack with its fieldView intact', r.status === 200 && JSON.stringify(r.j) === JSON.stringify(HP.packs['5']) &&
-       r.j.fieldView.balloons.length === 21);
+    ok('the Worker accepts it -> 200 (one KV write)', r.status === 200 && r.j.ok, r);
+    const stored = env.GLOW.m.get('pack:' + HP.code).v;
+    ok('stored as one value: a header line, then every pack\'s text and the field\'s once (' + stored.length + ' bytes)',
+       stored.startsWith('{"format":"glow-packs-kv/1"') && stored.split(JSON.stringify(HP.fieldView)).length === 2 && stored.length < body.length + 2000);
+    const g5 = await spied('GET', '/pack/' + HP.code + '/5');
+    ok('GET /pack/:code/5 = phonePack(bundle, 5): balloon 5\'s own pack with the show\'s fieldView as its last key, text for text',
+       g5.status === 200 && g5.text === JSON.stringify(C.phonePack(HP, '5')) && JSON.parse(g5.text).fieldView.balloons.length === 21);
+    ok('... and it plays exactly as balloon 5\'s pack does', JSON.stringify(C.packPlan(JSON.parse(g5.text), 110000)) === JSON.stringify(C.packPlan(HP.packs['5'], 110000)));
+    r = await call('GET', '/pack/' + HP.code);
+    ok('GET /pack/:code -> the numbers only (no packs, no field)', r.status === 200 && r.j.keys.length === 21 && !r.j.packs && !r.j.fieldView && r.j.title === HP.title);
+    r = await call('GET', '/pack/' + HP.code + '/22');
+    ok('a balloon not in the show -> 404 that names it', r.status === 404 && /no balloon 22/.test(r.j.error), r.j);
+    r = await call('GET', '/pack/' + HP.code + '/__proto__');
+    ok('... and a prototype key -> 404', r.status === 404);
+    const bad = JSON.parse(body); bad.fieldView = [1, 2];
+    r = await call('PUT', '/pack/' + HP.code, bad, 'havasu-pin-1');
+    ok('a fieldView that is not an object -> 400', r.status === 400 && /fieldView/.test(r.j.error), r.j);
+  }
+  {
+    // a show stored before this change (one JSON object, the field inside every pack) is still served as it was
+    const old = { format: 'glow-packs/1', code: 'XLD2', title: 'old', by: 'balloon', keys: ['5'], published: 1,
+                  packs: { '5': Object.assign({}, P.packs['5'], { code: 'XLD2', fieldView: { box: [0, 0, 1, 1], balloons: [] } }) } };
+    env.GLOW.m.set('pack:XLD2', { v: JSON.stringify(old) });
+    r = await call('GET', '/pack/XLD2/5');
+    ok('a show stored the old way still serves its packs unchanged', r.status === 200 && JSON.stringify(r.j) === JSON.stringify(old.packs['5']));
+    r = await call('GET', '/pack/XLD2');
+    ok('... and its numbers', r.status === 200 && JSON.stringify(r.j.keys) === '["5"]');
+    // a page from before this change publishes packs that carry their own field: taken and served as they are
+    const legacy = JSON.parse(JSON.stringify(P).split('"' + code + '"').join('"XLD3"'));
+    legacy.packs['5'].fieldView = { box: [0, 0, 1, 1], balloons: [] };
+    r = await call('PUT', '/pack/XLD3', legacy, 'legacy-pin-1');
+    const l5 = await spied('GET', '/pack/XLD3/5');
+    ok('an older page\'s publish (the field inside a pack) is served exactly as sent', r.status === 200 && l5.text === JSON.stringify(legacy.packs['5']));
+  }
+
+  section('PUT / GET /pack — 300 balloons: the publish grows with the balloon count, not its square');
+  {
+    // Lightning Storm's choreography on 300 spots of the same field: every pattern re-banded over the
+    // balloons in the same part of the field (pure helpers, as the editor would)
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'shows', 'havasu-lightning-storm.json'), 'utf8'));
+    const orig = C.validateShow(JSON.parse(JSON.stringify(raw))).show;
+    const big = JSON.parse(JSON.stringify(raw));
+    const fill = C.autofillField(big.field, 300, { groupIds: big.groups.map(g => g.id), minSpacingM: 4 });
+    big.balloons = fill.balloons;
+    const all = big.balloons.map(b => b.n);
+    big.cues.forEach(c => {
+      if (c.type !== 'pattern') return;
+      let members = all;
+      if (c.target && c.target.n) {
+        const inSet = new Set(c.target.n);
+        members = big.balloons.filter(b => {
+          let best = null, bd = Infinity;
+          orig.balloons.forEach(o => { const d = Math.hypot(o.x - b.x, o.y - b.y); if (d < bd) { bd = d; best = o; } });
+          return inSet.has(best.n);
+        }).map(b => b.n);
+        c.target = { n: members };
+      }
+      c.bands = C.patternBands({ pattern: c.pattern, dir: c.dir, bandCount: c.bands.length, members, seed: c.seed }, big.balloons);
+    });
+    big.title = 'Lightning Storm on 300 balloons';
+    const v = C.validateShow(big);
+    ok('a 300-balloon show on the Havasu field validates (' + fill.fitted + ' spots, ' + (fill.spacingM || 0).toFixed(1) + ' m apart)', v.ok && v.show.balloons.length === 300, v.errors && v.errors.slice(0, 3));
+    const BP = C.compileShowPacks(C.compileShow(v.show));
+    const text = JSON.stringify(BP);
+    const fvLen = JSON.stringify(BP.fieldView).length;
+    const packsLen = BP.keys.reduce((n, k) => n + JSON.stringify(BP.packs[k]).length, 0);
+    const oldWay = packsLen + BP.keys.length * (fvLen + 13);
+    ok('its publish is ' + (text.length / 1e6).toFixed(2) + ' MB, under the Worker\'s ' + (max / 1e6).toFixed(0) + ' MB limit: 300 packs of ~' + Math.round(packsLen / 300 / 1000) + ' KB + the field once (' + Math.round(fvLen / 1000) + ' KB). With the field in every pack it would be ' + (oldWay / 1e6).toFixed(1) + ' MB',
+       text.length < max && text.length - packsLen - fvLen < 20000 && oldWay > 2 * text.length);
+    const t0 = Date.now();
+    r = await call('PUT', '/pack/' + BP.code, BP, 'big-show-pin');
+    const putMs = Date.now() - t0;
+    ok('the Worker accepts it -> 200 (one KV write; ' + putMs + ' ms here)', r.status === 200 && r.j.ok && r.j.keys.length === 300, r.j);
+    r = await call('GET', '/pack/' + BP.code);
+    ok('GET /pack/:code -> all 300 numbers', r.status === 200 && r.j.keys.length === 300 && JSON.stringify(r.j.keys) === JSON.stringify(BP.keys));
+    let badK = null, maxParsed = 0, ms = 0;
+    for (const k of BP.keys) {
+      const t1 = Date.now();
+      const g = await spied('GET', '/pack/' + BP.code + '/' + k);
+      ms += Date.now() - t1;
+      maxParsed = Math.max(maxParsed, Math.max.apply(null, g.parsed.concat([0])));
+      if (badK === null && (g.status !== 200 || g.text !== JSON.stringify(C.phonePack(BP, k)))) badK = k;
+    }
+    ok('GET /pack/:code/:n for every one of the 300 = phonePack(bundle, n): its own pack with the field, text for text (' + (ms / 300).toFixed(2) + ' ms a GET here)', badK === null, badK);
+    ok('a GET never parses the whole show: the most the Worker hands JSON.parse is its header line (' + maxParsed + ' characters of ' + env.GLOW.m.get('pack:' + BP.code).v.length + ')',
+       maxParsed > 0 && maxParsed < 30000);
+    const one = await spied('GET', '/pack/' + BP.code + '/150');
+    const pk = JSON.parse(one.text);
+    ok('balloon 150\'s phone gets its own pack (' + Math.round(one.text.length / 1000) + ' KB with the field) and plays it as the bundle\'s pack plays',
+       pk.balloon === 150 && pk.fieldView.balloons.length === 300 && JSON.stringify(C.packPlan(pk, 90000)) === JSON.stringify(C.packPlan(BP.packs['150'], 90000)));
   }
 
   section('/t0 — arm and hold need the PIN');

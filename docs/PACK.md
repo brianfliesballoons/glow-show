@@ -12,7 +12,7 @@ apps run the same player on the same data.
 
 | Where | What |
 |---|---|
-| `index.html`, PURE CORE, section *CUE PACKS* | `compilePack`, `compileShowPacks`, `packPlan`, `packBeatPhase`, `PACK_HAPTICS` (the primary copy of everything here) |
+| `index.html`, PURE CORE, section *CUE PACKS* | `compilePack`, `compileShowPacks`, `phonePack`, `packPlan`, `packBeatPhase`, `PACK_HAPTICS` (the primary copy of everything here) |
 | `test/pack-test.js` | proves `packPlan(pack, t)` == `pilotPlan(timeline, n, group, t)` for every pack of every shipped show, and writes or checks the golden vectors |
 | `test/golden/*.json` | golden vectors; the native unit tests load these same files |
 | `worker/time.js` | stores and serves packs (`/pack/...`), under the conductor PIN |
@@ -52,7 +52,7 @@ and are stored as JSON numbers (IEEE doubles; they round-trip exactly).
   "segments": [ ... ],          // §4
   "haptics":  [ ... ],          // §5
   "hapticPatterns": { ... },    // §5
-  "fieldView": { ... }          // §2a, optional: display only, for the Lane's field map
+  "fieldView": { ... }          // §2a, optional: display only, for the Lane's field map; added by the Worker
 }
 ```
 
@@ -60,11 +60,20 @@ The Worker's `PUT /pack/:code` takes a whole show's packs (`compileShowPacks`):
 
 ```jsonc
 { "format": "glow-packs/1", "code": "UKL7", "title": "...", "by": "balloon" | "group",
-  "keys": ["1", "2", ...], "packs": { "1": { pack }, "2": { pack }, ... } }
+  "keys": ["1", "2", ...],
+  "fieldView": { ... },                               // §2a, optional, ONCE for the whole show
+  "packs": { "1": { pack }, "2": { pack }, ... } }    // each pack without a fieldView
 ```
 
 `by` is `"balloon"` when the show numbers its balloons (one pack per number),
 otherwise `"group"` (one pack per group id).
+
+**What a phone receives** for its key (`GET /pack/:code/:key`) is
+`phonePack(bundle, key)`: that balloon's own pack with the show's `fieldView`
+added as its **last** key (or the pack alone when the show has no field). A
+phone stores exactly that, as before; nothing it plays changed. The web
+pilot view builds the same thing from the show it loaded (`compilePack` plus
+`fieldViewOf`), and the golden vectors' `pack` is this served form.
 
 **Versioning.** New fields may be added to `glow-pack/1`; players ignore what
 they don't know. Anything that changes the meaning of an existing field, or
@@ -74,10 +83,12 @@ don't know.
 ## 2a. `fieldView` — the field map (optional, display only)
 
 Added 2026-11-22 for the Lane's field view (design K). A show with a field
-outline **and** balloon spots gives every pack the same `fieldView`: the field
-as the crowd sees it, every balloon's spot, when each balloon is lit, and the
-show's moves for the map's top line. A show with no field (or no balloon
-spots) leaves the key out, and the Lane looks exactly as before.
+outline **and** balloon spots has one `fieldView`: the field as the crowd sees
+it, every balloon's spot, when each balloon is lit, and the show's moves for
+the map's top line. It sits **once** at the top of the published bundle, and
+the Worker adds it to each pack it hands a phone (§2, §7). A show with no
+field (or no balloon spots) leaves the key out, and the Lane looks exactly as
+before.
 
 **It is display only.** A phone never plays it: its own burns, its count-in,
 its NOW panel and its buzzes come only from its own `tasks`, `segments` and
@@ -105,10 +116,14 @@ player that doesn't know the key ignores it, so `glow-pack/1` is unchanged.
   `label` is the cue's label in plain words: the generator's section name
   ("Chorus 1 — ") is dropped, any other prefix stays ("FINALE — all burn" →
   "Finale · all burn"), and a cue with no label gets its move in words.
-- Size: about 8 KB a pack for 21 balloons (the 21-balloon Havasu show's whole
-  publish is 0.40 MB). It grows with the square of the balloon count (every
-  pack holds every balloon), so a show of about 60 balloons reaches the
-  Worker's 2 MB publish limit.
+- Size: about 8 KB for 21 balloons, roughly 0.3 KB a balloon (91 KB for
+  300). Held once, a show's publish grows with its balloon count: the
+  21-balloon Havasu show is 0.24 MB, the same choreography on 300 spots
+  3.4 MB (300 packs of ~11 KB, the field once), under the Worker's 8 MB limit.
+  A phone downloads its own pack plus the field: 19 KB for Havasu, ~100 KB
+  at 300 balloons. (Until 2026-11-22 every pack carried its own copy, so a
+  publish grew with the square of the balloon count and ~60 balloons hit the
+  old 2 MB limit.)
 
 The map's rules, in `index.html` PURE CORE (the Swift app ports them line for line):
 
@@ -116,7 +131,10 @@ The map's rules, in `index.html` PURE CORE (the Swift app ports them line for li
 |---|---|
 | `fieldPeer(legs, t)` | `{ lit, soon, fin }` for one balloon: `lit` 1 while a leg is on, then `0.6 × (1 − since / 900)` for 900 ms after one ends, else 0; `soon` = a leg starts within 1000 ms (and none is on): a thin ring; `fin` = the lit or fading leg is the finale's (violet) |
 | `fieldCaption(fv, tasks, t)` | `top`: `"NOW · <MOVE>"` for the move that started last among those under way, else `"NEXT MOVE IN n s · <MOVE>"` (n = whole seconds, rounded up), else `""`; `yours`: from 10 s before your next task (and while you do it), when it is a wave of a pattern (`bands > 1`): `"Yours: <move> · wave <band + 1> of <bands>"` |
-| `fieldMapGeom(box, W, H)` | `{ s, ox, oy, ew, yw }`: one scale `s` fitting the box into a W × H panel under 40 px of words; x → `ox + (x − box[0]) · s`, y → `oy + (box[3] − y) · s`; `ew` = a balloon's envelope width (11–20 px), `yw = 2.2 · ew` = yours |
+| `fieldSpacing(fv, me)` | `{ all, me }`: the distance between the closest two spots, and from yours to your closest neighbour, in field units (`null` with nobody to measure against) |
+| `fieldMapGeom(box, W, H, sp)` | one scale `s` fitting the box into a W × H panel under 40 px of words; x → `ox + (x − box[0]) · s`, y → `oy + (box[3] − y) · s`; and every mark's size **from the real spacing on screen** (`sp` = `fieldSpacing`): a balloon's marks centre `lift = 0.2 · ew` above its spot; envelope width `ew = 0.45 ×` the closest spacing in px (4–20), reaching `env = 0.54 · ew`; count-in ring radius `ring = 0.7 · ew` (stroke 1.2), reaching `reach`; glow radius `glow = 1.5 · ew` (light, drawn under every mark). Yours: everything inside `you` = your nearest neighbour's distance − its `reach` − 1 px (at most what a balloon 2.2 × `ew` needs), the white ring (stroke 2.2) on `youRing`, your balloon `yw` wide with its middle at the ring's centre |
+| `fieldMarks(fv, g, me, peers)` | every balloon's marks at a moment as circles `{ n, x, y, r }` (a balloon with its count-in ring on reaches `reach`, else `env`; yours `you`): the suite checks no two overlap, at any moment of either Havasu show, for every pilot, on three phones |
+| `fieldLaneH(avail, hot)` | the lane's height when lane + 10 px + map share `avail` px: 96 while you cool off; grown, up to 200 but never leaving the map under 300 px, and never under 140 (a short phone's lane gives way first) |
 
 ## 3. Tasks — what the pilot does
 
@@ -240,7 +258,7 @@ The ring shows while NOW counts down to something (`start`, `cool`, `stop`, `rea
 | `GET /time` | `{ t }`, the server clock (unchanged; phones sync against it) |
 | `PUT /pack/:code` + header `X-Glow-Pin` | stores a whole show's packs (`compileShowPacks` output). 401 no PIN, 403 wrong PIN, 400 a body that is not this code's `glow-packs/1` |
 | `GET /pack/:code` | `{ code, title, by, keys, published }`: the numbers (or groups) a pilot can pick, nothing else |
-| `GET /pack/:code/:key` | that one balloon's (or group's) pack; 404 if there is none |
+| `GET /pack/:code/:key` | that one balloon's (or group's) pack, with the show's `fieldView` added as its last key (`phonePack`); 404 if there is none |
 | `POST /t0` + header `X-Glow-Pin`, body `{ code, t0, hold }` | arm or hold the show. Same PIN rules |
 | `GET /t0?code=:code` | `{ t0, hold, updated }`; `t0: null` when nothing is armed |
 
@@ -250,10 +268,21 @@ and `SHA-256(salt:code:PIN)`. Every later write for that code needs the same
 PIN. PINs are 6 to 64 characters. Claims and packs are kept 180 days; an
 armed start is kept for a day.
 
+**Storage.** A publish is one KV value: a header line (title, keys, where
+each pack's text and the field's text sit), then every pack's JSON text and
+the field's, end to end. A `GET /pack/:code/:key` slices that balloon's text
+and the field's out of it without parsing the rest, so a pilot's download
+costs the Worker under a millisecond of CPU at 300 balloons as at 21. A show
+published before 2026-11-22 (one JSON object) is still served as it was.
+
 **Free tier.** KV allows 1,000 writes a day. Only the conductor writes (a
 publish is one write, plus one for a first claim; an arm or a hold is one
 write). Pilots only read. A new publish can take up to a minute to reach
 every Cloudflare location, so publish before the briefing, not during it.
+The free plan allows 10 ms of CPU a request; a publish is checked in full
+(about 1 ms for 21 balloons, about 10 ms for 200 and 13 ms for 300 on a
+recent Mac), which Cloudflare tolerates now and then but may refuse
+(error 1102) for a big show.
 
 ```sh
 W=https://glow-show.brianfliesballoons.workers.dev
@@ -269,7 +298,8 @@ curl -s -X POST $W/t0 -H 'Content-Type: application/json' -H "X-Glow-Pin: $PIN" 
 
 1. At the briefing (signal): sync the clock against `/time`; the pilot types
    the show code, the app lists the numbers from `GET /pack/:code`, the pilot
-   picks theirs, and the app saves `GET /pack/:code/:n` to disk.
+   picks theirs, and the app saves `GET /pack/:code/:n` to disk (its own pack,
+   with the show's field map when there is one).
 2. Show the code and the number on the screen so pilots can check them by
    radio ("show UKL7, number 5").
 3. Arming: poll `GET /t0?code=` while there is signal, or the pilot taps the
