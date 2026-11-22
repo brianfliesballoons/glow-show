@@ -458,7 +458,7 @@ section('FIELD VIEW GEOMETRY — every mark sized from the real spacing on scree
     const fv = compiled['havasu-lightning-storm'].P.fieldView;
     const sp = C.fieldSpacing(fv, 5);
     let lo = Infinity, mine = Infinity;
-    fv.balloons.forEach((a, i) => fv.balloons.forEach((b, j) => { if (j > i) { const d = Math.hypot(a.x - b.x, a.y - b.y); lo = Math.min(lo, d); if (a.n === 5 || b.n === 5) mine = Math.min(mine, d); } }));
+    fv.balloons.forEach((a, i) => fv.balloons.forEach((b, j) => { if (j > i) { const d = Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2); lo = Math.min(lo, d); if (a.n === 5 || b.n === 5) mine = Math.min(mine, d); } }));
     ok('fieldSpacing: the closest two spots and #5\'s closest neighbour, in field units (' + sp.all.toFixed(4) + ', ' + sp.me.toFixed(4) + ')', sp.all === lo && sp.me === mine && sp.me >= sp.all);
     ok('fieldSpacing: nobody to measure against -> null', canon(C.fieldSpacing({ balloons: [{ n: 1, x: 0.5, y: 0.5, legs: [] }] }, 1)) === canon({ all: null, me: null }) &&
        C.fieldSpacing(fv, 999).me === null);
@@ -489,10 +489,12 @@ section('FIELD VIEW GEOMETRY — every mark sized from the real spacing on scree
   }
   /* The three phones (the field view's Lane, map shown): the room under the banner for the lane + 10 px + the map,
      as the iPhone app lays it out (safe areas: SE none with the status bar hidden; 390 x 844: 47 / 34; 402 x 874:
-     62 / 34) and the map panel's width (screen - 2 x 16). The other rows, top to bottom: 10 padding, the #5 header 40,
-     10, the song strip 22, 10, the banner 117, 10, [lane, 10, map], 10, the My balloon · Lane switch 48, 8 padding.
-     The screenshots (proof2/) measure these. */
-  const FIXED = 10 + 40 + 10 + 22 + 10 + 117 + 10 + 10 + 48 + 8;
+     62 / 34) and the map panel's width (screen - 2 x 16). The other rows, top to bottom: padding, the #5 header,
+     the song strip, the banner, [lane, 10, map], the My balloon · Lane switch, padding and the gaps between them:
+     293 px, as measured in the app (glow-show-ios tools/field_screens.sh: on 402 x 874 the map is 379 cooling off
+     and 300 grown, on the SE 268 / 224). The web on a phone has no more room than this, and often less (Safari's
+     bars): the sweep below covers every map height from 150 px. */
+  const FIXED = 293;
   const PHONES = [
     { name: '375 x 667 (iPhone SE)', W: 375 - 32, avail: 667 - 0 - 0 - FIXED },
     { name: '390 x 844', W: 390 - 32, avail: 844 - 47 - 34 - FIXED },

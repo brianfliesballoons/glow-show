@@ -3743,7 +3743,8 @@ function fieldSpacing(fv, me) {
   let all = Infinity, mine = Infinity;
   for (let i = 0; i < b.length; i++) {
     for (let j = i + 1; j < b.length; j++) {
-      const d = Math.hypot(b[i].x - b[j].x, b[i].y - b[j].y);
+      const dx = b[i].x - b[j].x, dy = b[i].y - b[j].y;
+      const d = Math.sqrt(dx * dx + dy * dy);     // not Math.hypot: sqrt is exact to the bit on every platform
       if (d < all) all = d;
       if ((b[i].n === me || b[j].n === me) && d < mine) mine = d;
     }
