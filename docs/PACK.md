@@ -51,7 +51,8 @@ and are stored as JSON numbers (IEEE doubles; they round-trip exactly).
   "tasks":    [ ... ],          // §3
   "segments": [ ... ],          // §4
   "haptics":  [ ... ],          // §5
-  "hapticPatterns": { ... }     // §5
+  "hapticPatterns": { ... },    // §5
+  "fieldView": { ... }          // §2a, optional: display only, for the Lane's field map
 }
 ```
 
@@ -69,6 +70,53 @@ otherwise `"group"` (one pack per group id).
 they don't know. Anything that changes the meaning of an existing field, or
 how `packPlan` reads it, is `glow-pack/2`, and players refuse a format they
 don't know.
+
+## 2a. `fieldView` — the field map (optional, display only)
+
+Added 2026-11-22 for the Lane's field view (design K). A show with a field
+outline **and** balloon spots gives every pack the same `fieldView`: the field
+as the crowd sees it, every balloon's spot, when each balloon is lit, and the
+show's moves for the map's top line. A show with no field (or no balloon
+spots) leaves the key out, and the Lane looks exactly as before.
+
+**It is display only.** A phone never plays it: its own burns, its count-in,
+its NOW panel and its buzzes come only from its own `tasks`, `segments` and
+`haptics`, exactly as before. `packPlan` and `laneFrame` never read it (the
+suite proves the same answers with it, without it, and with a junk one). A
+player that doesn't know the key ignores it, so `glow-pack/1` is unchanged.
+
+```jsonc
+"fieldView": {
+  "box": [x0, y0, x1, y1],      // the view to draw, in field units; y grows away from the crowd
+  "outline": [[x, y], ...],     // the field
+  "zones": [ { "kind": "nob" | "tent" | "pa" | "keepout", "poly": [[x, y], ...],
+               "label": "PILOT TENT" | "PA" | null, "at": [x, y] } ],   // hatched; label written at "at"
+  "lines": [ { "pts": [[x, y], ...], "label": "ACCESS LANE" | null, "at": [x, y] } ],   // dotted; x already inside the box
+  "crowd": [[x, y], [x, y]] | null,   // the crowd edge, drawn green with CROWD under it
+  "balloons": [ { "n": 5, "x": 0.43, "y": 0.15,
+                  "legs": [[startMs, endMs, finale], ...] } ],   // finale: 1 on the show's last all-burn, else 0
+  "moves": [ { "t": 1529, "end": 9388, "label": "ripple out" } ]  // one per show cue, in the show's order
+}
+```
+
+- **`legs`** for balloon *n* are exactly the `onAt` spans of balloon *n*'s own
+  pack's tasks, in order (the suite checks every balloon of every shipped show).
+- **`moves[i]`** is show cue *i*, so a task's move is `moves[task.cueIndex]`.
+  `label` is the cue's label in plain words: the generator's section name
+  ("Chorus 1 — ") is dropped, any other prefix stays ("FINALE — all burn" →
+  "Finale · all burn"), and a cue with no label gets its move in words.
+- Size: about 8 KB a pack for 21 balloons (the 21-balloon Havasu show's whole
+  publish is 0.40 MB). It grows with the square of the balloon count (every
+  pack holds every balloon), so a show of about 60 balloons reaches the
+  Worker's 2 MB publish limit.
+
+The map's rules, in `index.html` PURE CORE (the Swift app ports them line for line):
+
+| Function | Answers |
+|---|---|
+| `fieldPeer(legs, t)` | `{ lit, soon, fin }` for one balloon: `lit` 1 while a leg is on, then `0.6 × (1 − since / 900)` for 900 ms after one ends, else 0; `soon` = a leg starts within 1000 ms (and none is on): a thin ring; `fin` = the lit or fading leg is the finale's (violet) |
+| `fieldCaption(fv, tasks, t)` | `top`: `"NOW · <MOVE>"` for the move that started last among those under way, else `"NEXT MOVE IN n s · <MOVE>"` (n = whole seconds, rounded up), else `""`; `yours`: from 10 s before your next task (and while you do it), when it is a wave of a pattern (`bands > 1`): `"Yours: <move> · wave <band + 1> of <bands>"` |
+| `fieldMapGeom(box, W, H)` | `{ s, ox, oy, ew, yw }`: one scale `s` fitting the box into a W × H panel under 40 px of words; x → `ox + (x − box[0]) · s`, y → `oy + (box[3] − y) · s`; `ew` = a balloon's envelope width (11–20 px), `yw = 2.2 · ew` = yours |
 
 ## 3. Tasks — what the pilot does
 

@@ -397,6 +397,34 @@ label.fld > span{display:block;font-size:12px;color:var(--g-soft);margin:0 0 6px
 .ln-ring.on{border-color:#FFE2BF;background:radial-gradient(circle,rgba(255,236,210,.95),rgba(255,138,61,.85) 55%,rgba(201,84,30,.55));box-shadow:0 0 44px rgba(255,138,61,.95)}
 .ln-ring.vent.on{background:radial-gradient(circle,rgba(246,240,255,.95),rgba(185,140,255,.85) 55%,rgba(110,70,190,.55));box-shadow:0 0 44px rgba(185,140,255,.95)}
 .ln-you{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--g-amber-soft);text-align:center;white-space:nowrap;text-shadow:var(--g-shadow)}
+/* FIELD VIEW (design K, Brian 2026-11-22): no balloon in the banner, "Then" inside it, a lane that is
+   thin while you cool off and grows from 10 s out, the field map under it. Collapsed or no field = design G. */
+.ln-thenin{display:none}
+#pv-lane.fv .ln-icon,#pv-lane.fv > .ln-then{display:none}
+#pv-lane.fv .ln-banner{min-height:0;padding:11px 16px 12px;align-items:flex-end;gap:12px}
+#pv-lane.fv .ln-words{flex:1;gap:1px}
+#pv-lane.fv .ln-caps{font-size:13px}
+#pv-lane.fv .ln-big{font-size:54px;height:54px;line-height:54px}
+#pv-lane.fv .ln-big.word{font-size:44px}
+#pv-lane.fv .ln-line{font-size:16px}
+#pv-lane.fv .ln-thenin{display:block;flex:none;max-width:128px;text-align:right;font-size:13px;font-weight:700;line-height:1.3;color:var(--g-soft);padding-bottom:2px;text-shadow:var(--g-shadow)}
+#pv-lane.fv > .ln-lane{flex:0 0 auto;height:96px;overflow:hidden;transition:height .6s ease}
+#pv-lane.fv.hot > .ln-lane{height:200px}
+#pv-lane.fv .ln-stage{bottom:auto}
+.ln-ring.thin{border-width:2px;border-color:rgba(255,226,191,.85);background:rgba(18,18,24,.55);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-weight:800;color:#FFE2BF;letter-spacing:-.02em;text-shadow:var(--g-shadow)}
+.ln-ring.thin.on{border-color:#FFE2BF}
+.ln-strike{top:0;bottom:0;width:3px;background:linear-gradient(180deg,rgba(255,208,138,0),#FFD08A 20%,#FFD08A 80%,rgba(255,208,138,0));box-shadow:0 0 14px rgba(255,154,74,.9)}
+.ln-strike.on{box-shadow:0 0 26px rgba(255,154,74,.9)}
+.pview > .ln-map{flex:1 1 auto;min-height:0;overflow:hidden}
+.ln-mapstage{position:absolute;inset:0;overflow:hidden;border-radius:inherit}
+.ln-cap,.ln-yours{position:absolute;left:14px;right:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:var(--g-shadow)}
+.ln-cap{top:11px;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--g-muted)}
+.ln-cap.now{color:#FFE2BF}
+.ln-yours{top:25px;font-size:12px;font-weight:700;color:var(--g-amber-soft)}
+.ln-hide{position:absolute;top:0;right:0;min-height:44px;min-width:44px;padding:0 12px;border:0;background:transparent;border-radius:0 18px 0 12px;
+  font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--g-muted);gap:5px}
+.ln-hide svg,.ln-mapbar svg{width:14px;height:14px;flex:none}
+.pview > .ln-mapbar{flex:0 0 auto;min-height:44px;padding:0 16px;justify-content:space-between;border:0;font-size:15px;font-weight:700;color:var(--g-soft)}
 
 /* ===================== WHOLE FIELD: the classic glance display ===================== */
 #stage{
@@ -809,9 +837,18 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <div class="glass ln-banner glass-cool" id="ln-banner" style="--a:210deg;--s:150px" role="status">
         <div class="ln-icon" id="ln-icon"></div>
         <div class="ln-words"><span class="ln-caps" id="ln-caps"></span><div class="ln-big" id="ln-big"></div><span class="ln-line" id="ln-line"></span></div>
+        <div class="ln-thenin" id="ln-thenin"></div>
       </div>
       <div class="ln-then" id="ln-then"></div>
       <div class="glass ln-lane" id="ln-lane" style="--a:120deg;--s:140px"><div class="ln-stage" id="ln-stage" aria-hidden="true"></div></div>
+      <!-- FIELD VIEW (design K, Brian 2026-11-22): the field as the crowd sees it, everyone's glow live,
+           your balloon ringed. Drawn from the pack's display-only fieldView; hidden with no field. -->
+      <div class="glass ln-map hidden" id="ln-map" style="--a:300deg;--s:160px">
+        <div class="ln-mapstage" id="ln-mapstage" aria-hidden="true"></div>
+        <div class="ln-cap" id="ln-cap"></div><div class="ln-yours" id="ln-yours"></div>
+        <button type="button" class="ln-hide" data-act="fv-hide" aria-label="Hide the field map">HIDE<svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M3 5.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <button type="button" class="glass ln-mapbar hidden" id="ln-mapbar" data-act="fv-show" style="--a:300deg" aria-label="Show the field map">Field map<svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M3 8.5l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
 
     <div id="stage" class="ph-IDLE glass hidden">
@@ -1276,6 +1313,7 @@ const LS = {
   armed:     "glow.armed",
   editor:    "glow.editor",
   pview:     "glow.pilotView",
+  fieldMap:  "glow.fieldMap",        // the Lane's field map: "hidden" or shown (the default)
   pin:       "glow.conductorPin"
 };
 
@@ -3145,8 +3183,11 @@ function showCode(show) {
    and checked here, for a phone that only PLAYS it (the native pilot apps,
    and this page's own pilot view). Spec: docs/PACK.md.
 
-   compilePack(tl, n, gid)  -> one pack
+   compilePack(tl, n, gid[, fv]) -> one pack (fv = fieldViewOf(tl), worked out here when left out)
    compileShowPacks(tl)     -> { format, code, title, by, keys, packs: { "<n or group>": pack } }
+   A show with a field and balloon spots also gets pack.fieldView: a
+   DISPLAY-ONLY copy of the field for the Lane's map (FIELD VIEW, below).
+   packPlan never reads it.
    packPlan(pack, tMs)      -> exactly what pilotPlan(tl, n, gid, tMs) returns
    packBeatPhase(pack, tMs) -> exactly beatAt(tl, tMs).phase, or null
 
@@ -3205,7 +3246,7 @@ function _packHaptics(segs) {
   return out;
 }
 
-function compilePack(tl, n, gid) {
+function compilePack(tl, n, gid, fv) {
   const hasN = n != null && tl.balloonOf && tl.balloonOf[n];
   const b = hasN ? tl.balloonOf[n] : null;
   const g = gid !== undefined ? gid : (b ? b.group : null);   // gid left out: the balloon's own group
@@ -3247,7 +3288,7 @@ function compilePack(tl, n, gid) {
       _sigKey(sigAt(ts[ts.length - 1] + 86400000)) !== _sigKey(segs[segs.length - 1])) {
     throw new Error("compilePack: the plan changes outside the sampled span");
   }
-  return {
+  const pack = {
     format: PACK_FORMAT,
     code: showCode(tl.show),
     title: String(tl.show.title || ""),
@@ -3268,13 +3309,18 @@ function compilePack(tl, n, gid) {
     haptics: _packHaptics(segs),
     hapticPatterns: JSON.parse(JSON.stringify(PACK_HAPTICS))
   };
+  // display only: the field and everyone's lit times for the Lane's map (left out with no field)
+  const view = fv === undefined ? fieldViewOf(tl) : fv;
+  if (view) pack.fieldView = JSON.parse(JSON.stringify(view));
+  return pack;
 }
 
 function compileShowPacks(tl) {
   const packs = {}, keys = [];
   const byBalloon = tl.balloons && tl.balloons.length > 0;
-  if (byBalloon) tl.balloons.forEach(function (b) { keys.push(String(b.n)); packs[String(b.n)] = compilePack(tl, b.n, b.group); });
-  else tl.groupIds.forEach(function (g) { keys.push(g); packs[g] = compilePack(tl, null, g); });
+  const fv = fieldViewOf(tl);                 // once per show, the same copy in every pack
+  if (byBalloon) tl.balloons.forEach(function (b) { keys.push(String(b.n)); packs[String(b.n)] = compilePack(tl, b.n, b.group, fv); });
+  else tl.groupIds.forEach(function (g) { keys.push(g); packs[g] = compilePack(tl, null, g, fv); });
   return { format: "glow-packs/1", code: showCode(tl.show), title: String(tl.show.title || ""),
            by: byBalloon ? "balloon" : "group", keys: keys, packs: packs };
 }
@@ -3500,6 +3546,142 @@ function laneLabels(items, o) {
     last = lx;
     return lx;
   });
+}
+
+/* ===== FIELD VIEW (design K, Brian 2026-11-22) ==============================
+   A DISPLAY-ONLY copy of the field for the pilot's Lane tab: the outline, the
+   keep-out zones, the access lane, the crowd edge, every balloon's spot and
+   when each one is lit, and the show's moves for the map's top line. It is
+   compiled once per show into every balloon's pack (pack.fieldView, optional,
+   docs/PACK.md §2a). A phone NEVER plays it: its own burns, count-in and
+   buzzes come only from its own tasks and segments, exactly as before.
+
+   fieldViewOf(tl)               -> the pack's fieldView, or null (no field, or no balloon spots)
+   fieldMoveLabel(label, cue)    -> the move in plain words: "Chorus 1 — ripple out" -> "ripple out"
+   fieldPeer(legs, tMs)          -> { lit 0..1, soon, fin }: one balloon on the map at tMs
+   fieldCaption(fv, tasks, tMs)  -> { top, now, yours }: the map's two lines
+   fieldMapGeom(box, W, H)       -> where the field goes in a W x H map panel (px)
+   The Swift app ports the last three line for line (golden rows from the web). */
+const FIELD_SOON_MS = 1000;    // a thin ring a second before a balloon lights
+const FIELD_FADE_MS = 900;     // and a short fade after it goes out
+const FIELD_YOURS_MS = 10000;  // "Yours: …" from 10 s before your cue (the lane's WARNING)
+const FIELD_MAP_TOP = 40;      // the map's two lines of words sit above the field
+const FIELD_SECTION_RE = /^(intro|verse|build|chorus|drop|breakdown|outro|bridge|section)\b/i;
+
+function fieldMoveLabel(label, cue) {
+  const s = String(label == null ? "" : label).trim();
+  const i = s.indexOf(" — ");
+  if (i > 0) {
+    const pre = s.slice(0, i).trim(), rest = s.slice(i + 3).trim();
+    // the generator's "Chorus 1 — …": the section name is not the move
+    if (rest) return FIELD_SECTION_RE.test(pre) ? rest : _plain(pre) + " · " + rest;
+  }
+  if (s) return s;
+  return cue ? moveWords(cue, {}).title : "";
+}
+function _r5(v) { return Math.round(v * 100000) / 100000; }
+
+function fieldViewOf(tl) {
+  const f = tl && tl.field;
+  if (!f || !Array.isArray(f.outline) || f.outline.length < 3 || !tl.balloons || !tl.balloons.length) return null;
+  // the view box: everything drawn (the access lane only counts up and down), crowd along the bottom
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  const take = function (p, xToo) {
+    if (xToo) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
+    y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]);
+  };
+  f.outline.forEach(function (p) { take(p, true); });
+  (f.zones || []).forEach(function (z) { z.poly.forEach(function (p) { take(p, true); }); });
+  if (f.crowd) f.crowd.forEach(function (p) { take(p, true); });
+  tl.balloons.forEach(function (b) { take([b.x, b.y], true); });
+  (f.lines || []).forEach(function (l) { l.pts.forEach(function (p) { take(p, false); }); });
+  const span = Math.max(x1 - x0, y1 - y0, 1e-6);
+  let by0 = y0 - 0.04 * span;
+  if (f.crowd) { // room for the word CROWD under the crowd edge
+    let cy = Infinity; f.crowd.forEach(function (p) { cy = Math.min(cy, p[1]); });
+    by0 = Math.min(by0, cy - 0.07 * span);
+  }
+  const box = [_r5(x0 - 0.06 * span), _r5(by0), _r5(x1 + 0.06 * span), _r5(y1 + 0.01 * span)];
+  const inX = function (x) { return Math.max(box[0] + 0.02 * span, Math.min(box[2] - 0.02 * span, x)); };
+  const zoneLabel = { tent: "PILOT TENT", pa: "PA" };
+  const zones = (f.zones || []).map(function (z) {
+    let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+    z.poly.forEach(function (p) { a = Math.min(a, p[0]); b = Math.max(b, p[0]); c = Math.min(c, p[1]); d = Math.max(d, p[1]); });
+    return { kind: z.kind, poly: z.poly.map(function (p) { return [p[0], p[1]]; }),
+             label: zoneLabel[z.kind] || null, at: [_r5((a + b) / 2), _r5((c + d) / 2)] };
+  });
+  const lines = (f.lines || []).filter(function (l) { return l.pts && l.pts.length >= 2; }).map(function (l) {
+    let lo = l.pts[0];
+    l.pts.forEach(function (p) { if (p[0] < lo[0]) lo = p; });
+    const name = String(l.name || "").split(" - ")[0].trim().toUpperCase();
+    return { pts: l.pts.map(function (p) { return [_r5(inX(p[0])), p[1]]; }), label: name || null,
+             at: [_r5(Math.max(box[0] + 0.02 * span, lo[0] - 0.1 * span)), _r5(lo[1] + 0.023 * span)] };
+  });
+  // every balloon's lit legs: exactly its own tasks' on-spans (what its own pack plays), finale flagged
+  const balloons = tl.balloons.map(function (b) {
+    const legs = [];
+    pilotTasks(tl, b.n, b.group).forEach(function (k) {
+      k.onAt.forEach(function (l) { legs.push([l[0], l[1], k.finale ? 1 : 0]); });
+    });
+    return { n: b.n, x: b.x, y: b.y, legs: legs };
+  });
+  // the moves, one per show cue in the show's order: a task's move is moves[task.cueIndex]
+  const moves = tl.show.cues.map(function (c) {
+    return { t: c.t, end: c.t + c.dur, label: fieldMoveLabel(c.label, c) };
+  });
+  return { box: box, outline: f.outline.map(function (p) { return [p[0], p[1]]; }), zones: zones, lines: lines,
+           crowd: f.crowd ? f.crowd.map(function (p) { return [p[0], p[1]]; }) : null,
+           balloons: balloons, moves: moves };
+}
+
+/* one balloon on the map: lit while a leg is on, a thin ring the second
+   before one starts, fading for FIELD_FADE_MS after one ends; fin = the leg
+   lit (or fading) is the finale's (drawn violet) */
+function fieldPeer(legs, tMs) {
+  let on = false, soon = false, fin = false, since = Infinity, finAfter = false;
+  for (let i = 0; i < legs.length; i++) {
+    const a = legs[i][0], e = legs[i][1];
+    if (tMs >= a && tMs < e) { on = true; fin = legs[i][2] === 1; }
+    else if (a > tMs) { if (a - tMs <= FIELD_SOON_MS) soon = true; }
+    else if (tMs - e < since) { since = tMs - e; finAfter = legs[i][2] === 1; }
+  }
+  const lit = on ? 1 : (since < FIELD_FADE_MS ? 0.6 * (1 - since / FIELD_FADE_MS) : 0);
+  return { lit: lit, soon: soon && !on, fin: on ? fin : (lit > 0 && finAfter) };
+}
+
+/* the map's words: top = the move on the field now (the one that started
+   last), or the next one and how far off; yours = from 10 s before your cue
+   (and while you burn it), your move and your wave, when it is a wave */
+function fieldCaption(fv, tasks, tMs) {
+  const mv = fv.moves || [];
+  let cur = null, next = null;
+  for (let i = 0; i < mv.length; i++) {
+    const m = mv[i];
+    if (tMs >= m.t && tMs < m.end) { if (cur === null || m.t >= cur.t) cur = m; }
+    else if (m.t > tMs && (next === null || m.t < next.t)) next = m;
+  }
+  let top = "", now = false;
+  if (cur !== null) { top = "NOW · " + cur.label.toUpperCase(); now = true; }
+  else if (next !== null) top = "NEXT MOVE IN " + Math.ceil((next.t - tMs) / 1000) + " s · " + next.label.toUpperCase();
+  let you = null;
+  for (let i = 0; i < tasks.length; i++) if (tasks[i].endMs > tMs) { you = tasks[i]; break; }
+  let yours = "";
+  if (you !== null && you.bands > 1 && you.atMs - tMs <= FIELD_YOURS_MS) {
+    const m = mv[you.cueIndex];
+    yours = "Yours: " + (m ? m.label : fieldMoveLabel(you.label)) + " · wave " + (you.band + 1) + " of " + you.bands;
+  }
+  return { top: top, now: now, yours: yours };
+}
+
+/* the map in a W x H panel: one scale on both axes, centred under the two
+   lines of words. ew = a balloon's envelope width, yw = yours (bigger).
+   x -> ox + (x - box[0]) * s ; y -> oy + (box[3] - y) * s (crowd at the bottom) */
+function fieldMapGeom(box, W, H) {
+  const vw = Math.max(1e-6, box[2] - box[0]), vh = Math.max(1e-6, box[3] - box[1]);
+  const s = Math.max(0, Math.min((W - 20) / vw, (H - FIELD_MAP_TOP - 8) / vh));
+  const ox = (W - vw * s) / 2, oy = FIELD_MAP_TOP + (H - FIELD_MAP_TOP - 8 - vh * s) / 2;
+  const ew = Math.max(11, Math.min(20, s * 0.052));
+  return { s: s, ox: ox, oy: oy, ew: ew, yw: ew * 2.2 };
 }
 
 /* One move of the show in plain words, for the editor's "moves in time
@@ -7162,7 +7344,8 @@ function renderThen(plan) {
    pool, ticks, burner line, ring, your balloon) and each cue once as it comes
    in; a frame then only moves things (transforms) and changes a few words, so
    it stays smooth on a phone. The balloons are one SVG each, changed in place. */
-const LANE = { kind: "", markSig: "", geoSig: "", geo: null, els: {}, grid: [], tasksTl: null, tasksKey: "", tasks: null, look: {}, txt: {} };
+const LANE = { kind: "", markSig: "", geoSig: "", geo: null, els: {}, grid: [], tasksTl: null, tasksKey: "", tasks: null, look: {}, txt: {},
+               mapOn: true, ringTxt: null, strike: null };
 const SVG_NS = "http://www.w3.org/2000/svg";
 const LN_ENV = "M50 4C22 4 4 24 4 50C4 72 22 88 36 100L38 106H62L64 100C78 88 96 72 96 50C96 24 78 4 50 4Z";
 const LN_GORES = "M50 4C38 30 38 78 45 105M50 4C62 30 62 78 55 105M50 4C24 26 20 70 40 103M50 4C76 26 80 70 60 103";
@@ -7219,13 +7402,13 @@ function lnLook(B, o) {
 /* this balloon's task list + beat grid: the cue pack's, the same data MY BALLOON plays */
 function laneSource() {
   const pk = myPack();
-  if (pk) return { tasks: pk.tasks, beat: pk.beat, lenMs: pk.lenMs };
+  if (pk) return { tasks: pk.tasks, beat: pk.beat, lenMs: pk.lenMs, fv: pk.fieldView || null, me: pk.balloon };
   const key = APP.myBalloon + "|" + APP.myGroup;
   if (LANE.tasksTl !== APP.tl || LANE.tasksKey !== key) {
     LANE.tasksTl = APP.tl; LANE.tasksKey = key;
     LANE.tasks = pilotTasks(APP.tl, APP.myBalloon, APP.myGroup);
   }
-  return { tasks: LANE.tasks, beat: beatGridOf(APP.tl) || null, lenMs: APP.tl.audioMs };
+  return { tasks: LANE.tasks, beat: beatGridOf(APP.tl) || null, lenMs: APP.tl.audioMs, fv: null, me: null };
 }
 function lnDiv(cls, parent, txt) { const d = el("div", cls, txt); if (parent) parent.appendChild(d); return d; }
 function lnPx(n) { return Math.round(n * 10) / 10 + "px"; }
@@ -7247,28 +7430,69 @@ function laneGeom(W, H) {
   g.lab = { x0: g.X, pxPerS: g.P, lo: g.X + Math.round(92 * k), hi: W - Math.round(g.LBL * 5.4), gap: Math.round(g.LBL * 4.6), maxX: W - Math.round(g.LBL * 4.3) };
   return g;
 }
+/* the field view's THIN lane (design K, while you cool off): no balloon, a
+   burner ring with your number in it, one-line labels, 5 s / 10 s along the top */
+function laneGeomThin(W, H) {
+  const g = { W: W, H: H, k: 0.64, thin: true, compact: true };
+  g.CY = Math.round(H * 0.58);                // 56 in the 96 px lane
+  g.X = 46;                                    // the burner
+  g.bw = 0;                                    // no balloon in this lane
+  g.P = (W - g.X - 6) / 10;                    // px per second
+  g.BAR = 30; g.DOT = 18; g.R = 22; g.LBL = 15;
+  g.lblTop = Math.round(g.CY - g.BAR / 2 - 22);
+  g.gridTop = 24;
+  g.lab = { x0: g.X, pxPerS: g.P, lo: g.X + 40, hi: W - 112, gap: 112, maxX: W - 100 };
+  return g;
+}
+/* the field view's GROWN lane (design K, from 10 s out through the cue): G's
+   balloon on the burner, at the design's 96 px in a 200 px lane, burner line
+   40 px off the bottom, one-line labels, 5 s / 10 s along the top */
+function laneGeomHot(W, H) {
+  const g = { W: W, H: H, k: 0.94, hot: true, compact: true };
+  g.CY = Math.round(H - 40);                  // the burner line (160 in the 200 px lane)
+  g.bw = Math.max(56, Math.min(96, Math.round((g.CY - 8) / 1.215)));   // your balloon's width
+  g.X = Math.round(g.bw / 2 + 22);             // the burner (70)
+  g.P = (W - g.X - 6) / 10;
+  g.BAR = 44; g.DOT = 22; g.R = 22; g.LBL = 15;
+  g.lblTop = Math.round(g.CY - g.BAR / 2 - 22);
+  g.gridTop = 24;
+  g.lab = { x0: g.X, pxPerS: g.P, lo: g.X + 48, hi: W - 112, gap: 112, maxX: W - 100 };
+  return g;
+}
 function laneBuild(stage, g) {
   clear(stage);
   LANE.els = {}; LANE.grid = []; LANE.look = {};
   const sh = lnDiv("ln-shade", stage); sh.style.width = g.X + "px";
   for (let i = 0; i < 48; i++) {
     const d = lnDiv("ln-gl", stage);
-    d.style.top = g.gridTop + "px"; d.style.height = Math.max(0, g.H - 40 - g.gridTop) + "px"; d.style.display = "none";
+    d.style.top = g.gridTop + "px"; d.style.height = Math.max(0, g.H - (g.compact ? 10 : 40) - g.gridTop) + "px"; d.style.display = "none";
     LANE.grid.push(d);
   }
-  [2, 4, 6, 8, 10].forEach(function (s) {
+  (g.compact ? [5, 10] : [2, 4, 6, 8, 10]).forEach(function (s) {
     const t = lnDiv("ln-tick", stage, s + " s");
-    t.style.bottom = "12px"; t.style.left = lnPx(g.X + s * g.P - (s >= 10 ? 26 : 11));
+    if (g.compact) { t.style.top = "6px"; t.style.fontSize = "11px"; } else t.style.bottom = "12px";
+    t.style.left = lnPx(g.X + s * g.P - (s >= 10 ? 26 : 11));
   });
   const l0 = lnDiv("ln-line0", stage); l0.style.top = (g.CY - 1) + "px"; l0.style.left = g.X + "px";
   LANE.cueLayer = lnDiv(null, stage); LANE.cueLayer.style.cssText = "inset:0";
   LANE.lblLayer = lnDiv(null, stage); LANE.lblLayer.style.cssText = "inset:0";
+  LANE.strike = null; LANE.ringTxt = null;
+  if (g.thin) {
+    // no balloon here (yours is on the map): the burner line, a ring with your number or the count
+    LANE.strike = lnDiv("ln-strike", stage); LANE.strike.style.left = lnPx(g.X - 1.5);
+    LANE.ring = lnDiv("ln-ring thin", stage);
+    LANE.ring.style.cssText = "left:" + (g.X - g.R) + "px;top:" + (g.CY - g.R) + "px;width:" + 2 * g.R + "px;height:" + 2 * g.R + "px";
+    LANE.ringTxt = "";
+    LANE.big = null; LANE.you = null;
+    return;
+  }
   LANE.ring = lnDiv("ln-ring", stage);
   LANE.ring.style.cssText = "left:" + (g.X - g.R) + "px;top:" + (g.CY - g.R) + "px;width:" + 2 * g.R + "px;height:" + 2 * g.R + "px";
   const bw = lnDiv(null, stage);
   bw.style.cssText = "left:" + lnPx(g.X - g.bw / 2) + ";top:" + lnPx(g.CY - 1.215 * g.bw) + ";width:" + g.bw + "px;height:" + lnPx(g.bw * 1.3);
   LANE.big = lnBalloon("lnbig", 5.2);
   bw.appendChild(LANE.big.svg);
+  if (g.compact) { LANE.you = null; return; }   // K's grown lane: you are ringed on the map instead
   LANE.you = lnDiv("ln-you", stage);
   LANE.you.style.cssText = "left:" + (g.X - 60) + "px;width:120px;top:" + Math.round(g.CY + g.R + 4) + "px";
 }
@@ -7285,7 +7509,7 @@ function laneCue(it, g) {
     const b = lnDiv("ln-bar" + (it.kind === "vent" ? " vent" : ""), wrap);
     b.style.cssText = "left:0;top:" + (g.CY - g.BAR / 2) + "px;width:" + lnPx(w) + ";height:" + g.BAR + "px;border-radius:" + Math.round(18 * g.k) + "px";
   }
-  const lbl = lnDiv("ln-lbl" + (it.kind === "vent" ? " vent" : ""), LANE.lblLayer, it.word + "\n" + it.len);
+  const lbl = lnDiv("ln-lbl" + (it.kind === "vent" ? " vent" : ""), LANE.lblLayer, it.word + (g.compact ? " " : "\n") + it.len);
   lbl.style.top = g.lblTop + "px"; lbl.style.fontSize = g.LBL + "px"; lbl.style.display = "none";
   return { wrap: wrap, lbl: lbl, x: null, lx: null };
 }
@@ -7318,6 +7542,7 @@ function renderLane(now) {
     lnPanel(banner, "glass-cool");
     setTxt(caps, "NO SHOW LOADED"); setTxt(big, "Setup"); big.classList.add("word"); setTxt(line, "tap here to go back and load one");
     setTxt($("ln-then"), ""); $("ln-then").style.visibility = "hidden";
+    fvLayout(false, false, false);
     return;
   }
   const src = laneSource();
@@ -7325,6 +7550,12 @@ function renderLane(now) {
   const t = armed ? Math.floor(now - APP.armed.t0) : -1;
   const fr = laneFrame(src.tasks, t, src.beat);
   const k = fr.task;
+  // FIELD VIEW (design K): a map when the pack carries the field and your balloon is on it, unless hidden.
+  // The lane is thin while you cool off and grows from 10 s out (WARNING) through the end of the cue.
+  const fvw = src.fv && src.me != null && src.fv.balloons.some(function (x) { return x.n === src.me; }) ? src.fv : null;
+  const showMap = !!fvw && LANE.mapOn;
+  const hot = fr.state === "GO" || fr.state === "STANDBY" || fr.state === "WARNING";
+  fvLayout(showMap, showMap && hot, !!fvw && !LANE.mapOn);
 
   // ---- header: who, where, sync light, song time
   const b = APP.myBalloon != null ? APP.tl.balloonOf[APP.myBalloon] : null;
@@ -7409,13 +7640,20 @@ function renderLane(now) {
     fr.after ? "Then  " + laneLong(fr.after) + " · " + fmtDurS(fr.after.durMs) + (fr.after.vent ? " · vent first" : "") : (k ? "Then  nothing more" : "");
   setTxt($("ln-then"), thenTxt);
   lnSet($("ln-then"), "thenv", "visibility", thenTxt ? "visible" : "hidden");
+  // K: the Then line sits inside the banner, in lower case
+  setTxt($("ln-thenin"), thenTxt ? thenTxt.replace(/^Then {2}(\S)/, function (m, c) { return "Then " + c.toLowerCase(); }) : "");
 
-  // ---- the lane
+  // ---- the field map
+  if (showMap) renderFieldMap(fvw, src, fr, t, armed, b, kind);
+
+  // ---- the lane (in K its height is set, not measured: the box animates, the drawing doesn't)
   const stage = $("ln-stage");
-  const W = stage.clientWidth, H = stage.clientHeight;
+  const thin = showMap && !hot;
+  const W = stage.clientWidth, H = showMap ? (hot ? 200 : 96) : stage.clientHeight;
+  lnSet(stage, "stageh", "height", showMap ? H + "px" : "");
   if (!W || !H) return;
-  const geoSig = W + "x" + H;
-  if (geoSig !== LANE.geoSig) { LANE.geoSig = geoSig; LANE.geo = laneGeom(W, H); laneBuild(stage, LANE.geo); }
+  const geoSig = W + "x" + H + (thin ? "t" : showMap ? "h" : "");
+  if (geoSig !== LANE.geoSig) { LANE.geoSig = geoSig; LANE.geo = thin ? laneGeomThin(W, H) : showMap ? laneGeomHot(W, H) : laneGeom(W, H); laneBuild(stage, LANE.geo); }
   const g = LANE.geo;
   if (LANE.elsFor !== src.tasks) {             // another show or balloon: its cues are other cues
     LANE.elsFor = src.tasks;
@@ -7452,8 +7690,128 @@ function renderLane(now) {
   });
   LANE.ring.classList.toggle("on", ringOn);
   LANE.ring.classList.toggle("vent", fr.kind === "vent");
+  if (g.thin) {
+    // the thin lane's ring: the count, else your number (nothing while the burner is on)
+    const rt = fr.state === "STANDBY" && kind === "standby" ? String(fr.count) : (ringOn ? "" : (b ? "#" + b.n : ""));
+    if (LANE.ringTxt !== rt) { LANE.ringTxt = rt; LANE.ring.textContent = rt; LANE.ring.style.fontSize = (rt.length <= 2 ? 22 : rt.length === 3 ? 17 : 14) + "px"; }
+    LANE.strike.classList.toggle("on", ringOn);
+    return;
+  }
   lnLook(LANE.big, mine);
-  setTxt(LANE.you, "YOU" + (b ? " · #" + b.n : gl ? " · " + gl.toUpperCase() : ""));
+  if (LANE.you) setTxt(LANE.you, "YOU" + (b ? " · #" + b.n : gl ? " · " + gl.toUpperCase() : ""));
+}
+
+/* ---- FIELD VIEW (design K) -------------------------------------------------
+   The page side of PURE CORE's fieldPeer / fieldCaption / fieldMapGeom. The
+   field is drawn once per size; a frame then only changes the few attributes
+   of the balloons whose state moved, your breathing ring and the words. */
+const FVM = { sig: "", peers: [], me: null, txt: {} };
+function setFieldMap(on) {
+  LANE.mapOn = !!on;
+  store(LS.fieldMap, on ? "shown" : "hidden");
+  LANE.geoSig = ""; FVM.sig = "";
+  if (APP.screen === "pilot-run") renderPilot(syncedNow());
+}
+/* which layout: K with the map (thin or hot), or G with the "Field map" bar, or plain G */
+function fvLayout(map, hot, bar) {
+  const pv = $("pv-lane");
+  if (pv.classList.contains("fv") !== map) { pv.classList.toggle("fv", map); LANE.geoSig = ""; }
+  if (pv.classList.contains("hot") !== hot) pv.classList.toggle("hot", hot);
+  const m = $("ln-map"), mb = $("ln-mapbar");
+  if (m.classList.contains("hidden") === map) m.classList.toggle("hidden", !map);
+  if (mb.classList.contains("hidden") === bar) mb.classList.toggle("hidden", !bar);
+}
+function fvmBuild(host, fv, me, W, H) {
+  clear(host);
+  const g = fieldMapGeom(fv.box, W, H);
+  const X = function (x) { return g.ox + (x - fv.box[0]) * g.s; }, Y = function (y) { return g.oy + (fv.box[3] - y) * g.s; };
+  const pts = function (p) { return p.map(function (q) { return X(q[0]).toFixed(1) + "," + Y(q[1]).toFixed(1); }).join(" "); };
+  const svg = lnSvg("svg", { width: String(W), height: String(H), "aria-hidden": "true", focusable: "false" });
+  svg.style.cssText = "position:absolute;left:0;top:0;overflow:visible";
+  const defs = lnSvg("defs", null, svg);
+  const grad = function (id, attrs, stops) {
+    const r = lnSvg("radialGradient", Object.assign({ id: id }, attrs || {}), defs);
+    stops.forEach(function (st) { lnSvg("stop", { offset: st[0], "stop-color": st[1] }, r); });
+  };
+  grad("fvmh", null, [["0", "rgba(255,190,120,.85)"], [".45", "rgba(255,138,61,.35)"], ["1", "rgba(255,138,61,0)"]]);
+  grad("fvmv", null, [["0", "rgba(205,176,255,.85)"], ["1", "rgba(140,90,230,0)"]]);
+  grad("fvmg", { cx: "50%", cy: "85%", r: "85%" }, [["0", "#FFF3D6"], [".4", "#FFB066"], [".75", "#FF8A3D"], ["1", "#A8421A"]]);
+  const pat = lnSvg("pattern", { id: "fvmx", width: "7", height: "7", patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  lnSvg("line", { x1: "0", y1: "0", x2: "0", y2: "7", stroke: "rgba(236,231,223,.08)", "stroke-width": "2" }, pat);
+  fv.zones.forEach(function (z) { lnSvg("polygon", { points: pts(z.poly), fill: "url(#fvmx)", stroke: "rgba(236,231,223,.14)", "stroke-dasharray": "3 4" }, svg); });
+  lnSvg("polygon", { points: pts(fv.outline), fill: "rgba(236,231,223,.045)", stroke: "rgba(236,231,223,.3)", "stroke-width": "1.2" }, svg);
+  fv.lines.forEach(function (l) { lnSvg("polyline", { points: pts(l.pts), fill: "none", stroke: "rgba(236,231,223,.22)", "stroke-width": "5", "stroke-linecap": "round", "stroke-dasharray": "1 9" }, svg); });
+  if (fv.crowd) lnSvg("polyline", { points: pts(fv.crowd), fill: "none", stroke: "rgba(159,216,180,.55)", "stroke-width": "3", "stroke-linecap": "round" }, svg);
+  const lab = function (x, y, txt, col, anchor) {
+    const n = lnSvg("text", { x: x.toFixed(1), y: y.toFixed(1), "text-anchor": anchor || "middle", fill: col }, svg);
+    n.style.cssText = "font:800 9px " + MAP_FONT + ";letter-spacing:.14em"; n.textContent = txt;
+  };
+  if (fv.crowd) {
+    let cy = -Infinity; fv.crowd.forEach(function (q) { cy = Math.max(cy, Y(q[1])); });
+    lab((X(fv.crowd[0][0]) + X(fv.crowd[fv.crowd.length - 1][0])) / 2, cy + 14, "CROWD", "rgba(159,216,180,.8)");
+  }
+  fv.lines.forEach(function (l) { if (l.label) lab(X(l.at[0]), Y(l.at[1]) - 8, l.label, "rgba(236,231,223,.4)", "start"); });
+  fv.zones.forEach(function (z) { if (z.label) lab(X(z.at[0]), Y(z.at[1]), z.label, "rgba(236,231,223,.34)"); });
+  // everyone else: a small envelope each, with its glow and its count-in ring (hidden until needed)
+  const ew = g.ew, peers = [];
+  let mine = null;
+  fv.balloons.forEach(function (b) {
+    const cx = X(b.x), cy = Y(b.y);
+    if (b.n === me) { mine = b; return; }
+    const glow = lnSvg("circle", { cx: cx.toFixed(1), cy: (cy - ew * 0.2).toFixed(1), r: (ew * 1.5).toFixed(1), fill: "url(#fvmh)" }, svg);
+    glow.style.display = "none";
+    const soon = lnSvg("circle", { cx: cx.toFixed(1), cy: (cy - ew * 0.2).toFixed(1), r: (ew * 0.82).toFixed(1), fill: "none", stroke: "rgba(255,226,191,.75)", "stroke-width": "1.2" }, svg);
+    soon.style.display = "none";
+    const gr = lnSvg("g", { transform: "translate(" + (cx - ew / 2).toFixed(1) + "," + (cy - ew * 0.75).toFixed(1) + ") scale(" + (ew / 100).toFixed(4) + ")" }, svg);
+    const env = lnSvg("path", { d: LN_ENV, fill: "rgba(26,26,34,.9)", stroke: "rgba(236,231,223,.38)", "stroke-width": "6" }, gr);
+    peers.push({ legs: b.legs, glow: glow, soon: soon, env: env, sig: "" });
+  });
+  // you: bigger, a white ring that breathes slowly, your balloon (number, 3 · 2 · 1, glow) on top
+  const mx = X(mine.x), my = Y(mine.y), yw = g.yw;
+  const breathe = lnSvg("circle", { cx: mx.toFixed(1), cy: (my - yw * 0.2).toFixed(1), fill: "none", "stroke-width": "1.5" }, svg);
+  lnSvg("circle", { cx: mx.toFixed(1), cy: (my - yw * 0.2).toFixed(1), r: (yw * 0.78).toFixed(1), fill: "none", stroke: "#FFFFFF", "stroke-width": "2.2" }, svg);
+  host.appendChild(svg);
+  const bw = el("div");
+  bw.style.cssText = "position:absolute;left:" + lnPx(mx - yw / 2) + ";top:" + lnPx(my + yw * 0.62 - 1.215 * yw) + ";width:" + lnPx(yw) + ";height:" + lnPx(yw * 1.3);
+  const me_ = lnBalloon("fvme", 6);
+  bw.appendChild(me_.svg); host.appendChild(bw);
+  FVM.peers = peers; FVM.me = me_; FVM.breathe = breathe; FVM.yw = yw;
+}
+function renderFieldMap(fv, src, fr, t, armed, b, kind) {
+  const host = $("ln-mapstage");
+  const W = host.clientWidth, H = host.clientHeight;
+  if (!W || !H) return;
+  const sig = W + "x" + H + "|" + src.me;
+  if (sig !== FVM.sig || FVM.fv !== fv) { FVM.sig = sig; FVM.fv = fv; fvmBuild(host, fv, src.me, W, H); }
+  for (let i = 0; i < FVM.peers.length; i++) {
+    const p = FVM.peers[i], st = fieldPeer(p.legs, t);
+    const lit = Math.round(st.lit * 50) / 50;
+    const ps = lit + "|" + (st.soon ? 1 : 0) + "|" + (st.fin ? 1 : 0);
+    if (ps === p.sig) continue;
+    p.sig = ps;
+    if (lit > 0) { p.glow.style.display = ""; p.glow.setAttribute("opacity", String(lit)); p.glow.setAttribute("fill", st.fin ? "url(#fvmv)" : "url(#fvmh)"); }
+    else p.glow.style.display = "none";
+    p.soon.style.display = st.soon ? "" : "none";
+    const warm = lit > 0.05;
+    p.env.setAttribute("fill", warm ? "url(#fvmg)" : "rgba(26,26,34,.9)");
+    p.env.setAttribute("fill-opacity", warm ? String(Math.max(lit, 0.35)) : "1");
+    p.env.setAttribute("stroke", warm ? "rgba(255,226,191,.9)" : "rgba(236,231,223,.38)");
+  }
+  // your ring breathes about every 3 s; your balloon follows the lane: 3 · 2 · 1, then lit while the burner is on
+  const br = 0.5 + 0.5 * Math.sin(t / 1000 * 2.2);
+  FVM.breathe.setAttribute("r", (FVM.yw * 0.95 + br * 3).toFixed(1));
+  FVM.breathe.setAttribute("stroke", "rgba(255,255,255," + (0.35 + 0.35 * br).toFixed(2) + ")");
+  const num = String(src.me);
+  const look = kind === "go" ? (fr.on ? { kind: fr.kind, lit: 1, flame: 1 } : { kind: fr.kind, lit: 0.45, num: num })
+    : kind === "standby" ? { kind: fr.kind, lit: 0.45, num: String(fr.count) }
+    : { kind: fr.kind || "full", lit: 0, num: num, cool: true };
+  lnLook(FVM.me, look);
+  // the words: the move on the field now, and yours from 10 s out
+  const cap = armed ? fieldCaption(fv, src.tasks, t) : { top: "FIELD MAP · " + fv.balloons.length + " BALLOONS", now: false, yours: "" };
+  const ce = $("ln-cap");
+  setTxt(ce, cap.top);
+  if (ce.classList.contains("now") !== cap.now) ce.classList.toggle("now", cap.now);
+  setTxt($("ln-yours"), cap.yours);
 }
 
 /* ============================================================================
@@ -11078,6 +11436,7 @@ document.addEventListener("click", function (ev) {
     case "map": openFieldMap(); break;
     case "pv-mine": setPilotView("mine"); break;
     case "pv-field": setPilotView("field"); break;
+    case "fv-hide": case "fv-show": setFieldMap(act === "fv-show"); break;
     case "pv-lane": setPilotView("lane"); break;
     case "dismiss-map": closeFieldMap(); break;
     case "sync": runSync().then(renderAll); break;
@@ -11180,6 +11539,7 @@ function setRole(role) {
   APP.myGroup = load(LS.group);
   APP.myBalloon = parseInt(load(LS.balloon) || "", 10) || null;
   APP.pview = load(LS.pview) === "field" ? "field" : load(LS.pview) === "lane" ? "lane" : "mine";
+  LANE.mapOn = load(LS.fieldMap) !== "hidden";
 
   const reanchored = restoreSync();
   restoreShow();

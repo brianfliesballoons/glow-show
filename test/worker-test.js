@@ -86,6 +86,21 @@ function fakeKV() {
   r = await call('GET', '/pack/ABCD');
   ok('an unpublished code -> 404', r.status === 404);
 
+  section('PUT / GET /pack — a field show\'s packs carry the display-only fieldView');
+  {
+    const hv = C.parseShowText(fs.readFileSync(path.join(__dirname, '..', 'shows', 'havasu-lightning-storm.json'), 'utf8')).show;
+    const HP = C.compileShowPacks(C.compileShow(hv));
+    const body = JSON.stringify(HP);
+    const src2 = fs.readFileSync(path.join(__dirname, '..', 'worker', 'time.js'), 'utf8');
+    const max = Number((src2.match(/const MAX_BODY = (\d+)/) || [])[1]);
+    ok('Havasu (21 balloons) with fieldView in every pack stays under the Worker\'s body limit (' + body.length + ' of ' + max + ' bytes)', max > 0 && body.length < max && !!HP.packs['5'].fieldView);
+    r = await call('PUT', '/pack/' + HP.code, HP, 'havasu-pin-1');
+    ok('the Worker accepts it -> 200', r.status === 200 && r.j.ok, r);
+    r = await call('GET', '/pack/' + HP.code + '/5');
+    ok('GET /pack/:code/5 hands back balloon 5\'s pack with its fieldView intact', r.status === 200 && JSON.stringify(r.j) === JSON.stringify(HP.packs['5']) &&
+       r.j.fieldView.balloons.length === 21);
+  }
+
   section('/t0 — arm and hold need the PIN');
   const t0 = Date.now() + 120000;
   r = await call('POST', '/t0', { code, t0, hold: false });

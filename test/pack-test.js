@@ -319,6 +319,122 @@ section('LANE — laneFrame(tasks, t, beat) agrees with packPlan, and counts 3 �
      canon(C.laneLabels(its, Object.assign({}, o, { maxX: 400 }))) === canon([184, 276, 368, null]) && canon(C.laneLabels(its, o)) === canon([184, null, null, null]));
 }
 
+/* ------------------------------------------------------------ field view (design K) */
+section('FIELD VIEW — pack.fieldView is display only: everyone\'s lit times are their own packs\' legs, and nothing a phone plays changes');
+{
+  // which shows carry one: exactly the ones with a field and balloon spots
+  Object.keys(compiled).forEach(name => {
+    const { tl, P } = compiled[name];
+    const want = !!(tl.field && tl.balloons.length);
+    const has = P.keys.map(k => !!P.packs[k].fieldView);
+    ok(name + ': ' + (want ? 'every pack carries the same fieldView' : 'no field, so no pack carries a fieldView (the key is left out)'),
+       want ? has.every(Boolean) && P.keys.every(k => canon(P.packs[k].fieldView) === canon(P.packs[P.keys[0]].fieldView))
+            : has.every(h => !h) && P.keys.every(k => !('fieldView' in P.packs[k])));
+  });
+  ['havasu-lightning-storm', 'havasu-forest-for-the-trees'].forEach(name => {
+    const { tl, P } = compiled[name];
+    const fv = P.packs[P.keys[0]].fieldView;
+    // 1. every balloon's legs == that balloon's own pack's task onAt legs, finale flagged
+    let bad = null, legs = 0;
+    ok(name + ': one map balloon per pack, same number and spot', fv.balloons.length === P.keys.length &&
+       fv.balloons.every(b => P.packs[String(b.n)] && tl.balloonOf[b.n].x === b.x && tl.balloonOf[b.n].y === b.y));
+    fv.balloons.forEach(b => {
+      if (bad) return;
+      const own = [];
+      P.packs[String(b.n)].tasks.forEach(k => k.onAt.forEach(l => own.push([l[0], l[1], k.finale ? 1 : 0])));
+      legs += own.length;
+      if (canon(own) !== canon(b.legs)) bad = { n: b.n, own: own.slice(0, 4), fv: b.legs.slice(0, 4) };
+    });
+    ok(name + ': the map\'s lit legs for each balloon are exactly its own pack\'s task onAt legs (' + legs + ' legs, finale flagged)', bad === null, bad);
+    ok(name + ': the finale legs are flagged (the last all-burn) and only those', fv.balloons.every(b => b.legs.filter(l => l[2] === 1).length <= 1) &&
+       fv.balloons.some(b => b.legs.some(l => l[2] === 1)) === P.keys.some(k => P.packs[k].tasks.some(t => t.finale)));
+    // 2. nothing else in a pack moves: the pack minus fieldView == the pack compiled with no field view
+    let diff = null;
+    P.keys.forEach(key => {
+      if (diff) return;
+      const n = Number(key), with_ = JSON.parse(JSON.stringify(P.packs[key]));
+      delete with_.fieldView;
+      const without = C.compilePack(tl, n, tl.balloonOf[n].group, null);
+      if ('fieldView' in without || canon(with_) !== canon(without)) diff = key;
+    });
+    ok(name + ': every pack minus its fieldView is byte-for-byte the pack compiled with none (tasks, segments, haptics)', diff === null, diff);
+    // 3. packPlan never reads it: with, without, and with a scrambled one, the same answer at every moment
+    const pk = JSON.parse(JSON.stringify(P.packs['5'] || P.packs['12']));
+    const bare = JSON.parse(JSON.stringify(pk)); delete bare.fieldView;
+    const junk = JSON.parse(JSON.stringify(pk)); junk.fieldView = { box: 'x', balloons: [{ n: 5, legs: [[0, 1e9, 1]] }], moves: null };
+    let badT = null, nT = 0;
+    const ts = new Set();
+    pk.segments.forEach(s => { ts.add(s.at - 1); ts.add(s.at); });
+    for (let t = -3000; t <= pk.endMs + 3000; t += 20) ts.add(t);
+    for (const t of ts) {
+      nT++;
+      const a = canon(C.packPlan(pk, t));
+      if (a !== canon(C.packPlan(bare, t)) || a !== canon(C.packPlan(junk, t)) ||
+          C.packBeatPhase(pk, t) !== C.packBeatPhase(bare, t) ||
+          canon(C.laneFrame(pk.tasks, t, pk.beat)) !== canon(C.laneFrame(bare.tasks, t, bare.beat))) { badT = t; break; }
+    }
+    ok(name + ' #' + pk.key + ': packPlan, packBeatPhase and laneFrame are identical with the fieldView, without it, and with a junk one (' + nT + ' moments)', badT === null, badT);
+    // 4. a task's move is moves[task.cueIndex]
+    let badM = null;
+    P.keys.forEach(key => P.packs[key].tasks.forEach(k => {
+      if (!badM && k.label && fv.moves[k.cueIndex].label !== C.fieldMoveLabel(k.label)) badM = { key, k: k.index, label: k.label, move: fv.moves[k.cueIndex] };
+    }));
+    ok(name + ': moves are the show\'s cues in order, so a task\'s move is moves[task.cueIndex]', fv.moves.length === tl.show.cues.length && badM === null &&
+       fv.moves.every((m, i) => m.t === tl.show.cues[i].t && m.end === tl.show.cues[i].t + tl.show.cues[i].dur && m.label), badM);
+    // 5. the view box holds everything drawn; zones and lines carry their words
+    const [bx0, by0, bx1, by1] = fv.box;
+    const inside = p => p[0] >= bx0 && p[0] <= bx1 && p[1] >= by0 && p[1] <= by1;
+    ok(name + ': the view box holds the outline, zones, crowd edge, every balloon and the access lane',
+       fv.outline.every(inside) && fv.zones.every(z => z.poly.every(inside)) && fv.crowd.every(inside) &&
+       fv.balloons.every(b => inside([b.x, b.y])) && fv.lines.every(l => l.pts.every(inside)));
+    ok(name + ': zone words PILOT TENT and PA, the access lane named, no words on the no-balloons zone',
+       canon(fv.zones.map(z => [z.kind, z.label])) === canon([['nob', null], ['tent', 'PILOT TENT'], ['pa', 'PA']]) && fv.lines[0].label === 'ACCESS LANE');
+  });
+  {
+    const { tl } = compiled['havasu-lightning-storm'];
+    const before = JSON.stringify(tl.show);
+    const a = canon(C.fieldViewOf(tl)), b = canon(C.fieldViewOf(tl));
+    ok('fieldViewOf is pure: the same answer twice, the show untouched', a === b && JSON.stringify(tl.show) === before);
+    const P = compiled['havasu-lightning-storm'].P, fvSize = JSON.stringify(P.packs['5'].fieldView).length;
+    ok('the field view is small (' + fvSize + ' bytes a pack for 21 balloons)', fvSize < 12000);
+  }
+}
+{
+  // the words on the map
+  ok('move words: the generator\'s section name is dropped', C.fieldMoveLabel('Chorus 1 — radial clockwise · right half') === 'radial clockwise · right half' &&
+     C.fieldMoveLabel('Verse 2 — sweep front→back') === 'sweep front→back' && C.fieldMoveLabel('Outro 3 — radial clockwise') === 'radial clockwise');
+  ok('move words: anything else before the dash stays, in plain case', C.fieldMoveLabel('FINALE — all burn') === 'Finale · all burn' && C.fieldMoveLabel('Opening all-burn') === 'Opening all-burn');
+  ok('move words: no label falls back to the move in plain words', C.fieldMoveLabel('', { type: 'burn', dur: 3000, target: { all: true } }) === 'Everyone burns together');
+
+  // one balloon on the map
+  const L = [[10000, 12000, 0], [20000, 21000, 1]];
+  const P = t => C.fieldPeer(L, t);
+  ok('peer: dim at rest', canon(P(5000)) === canon({ lit: 0, soon: false, fin: false }));
+  ok('peer: a thin ring from 1 s before it lights (not before)', P(8999).soon === false && P(9000).soon === true && P(9999).soon === true && P(9999).lit === 0);
+  ok('peer: lit while a leg is on, the ring gone', canon(P(10000)) === canon({ lit: 1, soon: false, fin: false }) && P(11999).lit === 1);
+  ok('peer: a 0.9 s fade after, from 0.6 down to nothing', P(12000).lit === 0.6 && Math.abs(P(12450).lit - 0.3) < 1e-12 && P(12900).lit === 0 && P(12899).lit > 0);
+  ok('peer: the finale leg is flagged while lit and while it fades', P(20500).fin === true && P(21300).fin === true && P(22000).fin === false && P(19500).fin === false);
+
+  // the caption, at the design's moments for #5 on Lightning Storm
+  const { P: PS } = compiled['havasu-lightning-storm'];
+  const pk = PS.packs['5'], fv = pk.fieldView;
+  const cap = t => C.fieldCaption(fv, pk.tasks, t);
+  ok('caption at 1:36 (cooling off): NOW · MIRROR IN · RIGHT HALF, no "Yours" yet (14 s out)', canon(cap(96000)) === canon({ top: 'NOW · MIRROR IN · RIGHT HALF', now: true, yours: '' }), cap(96000));
+  ok('caption at 1:48 (count-in): NOW · RADIAL CLOCKWISE, Yours: radial clockwise · wave 5 of 6', canon(cap(108200)) === canon({ top: 'NOW · RADIAL CLOCKWISE', now: true, yours: 'Yours: radial clockwise · wave 5 of 6' }), cap(108200));
+  ok('caption: "Yours" from exactly 10 s before your cue', (() => { const k = pk.tasks.find(x => x.atMs > 100000); return cap(k.atMs - 10001).yours === '' && cap(k.atMs - 10000).yours !== ''; })());
+  ok('caption: between moves it counts to the next one, in whole seconds rounded up', cap(-1).top === 'NEXT MOVE IN 2 s · RIPPLE OUT' && cap(0).top === 'NEXT MOVE IN 2 s · RIPPLE OUT' && cap(1529).now === true && cap(500000).top === '');
+  ok('caption: two moves at once names the one that started last', cap(21000).top === 'NOW · RADIAL CLOCKWISE · RIGHT HALF');
+
+  // the map's geometry: the box fits under the words, inside the panel, one scale
+  let badG = null;
+  [[358, 470], [358, 360], [343, 250], [390, 600], [300, 120]].forEach(([W, H]) => {
+    const g = C.fieldMapGeom(fv.box, W, H);
+    const X = x => g.ox + (x - fv.box[0]) * g.s, Y = y => g.oy + (fv.box[3] - y) * g.s;
+    if (X(fv.box[0]) < 9.999 || X(fv.box[2]) > W - 9.999 || Y(fv.box[3]) < C.FIELD_MAP_TOP - 1e-9 || Y(fv.box[1]) > H - 8 + 1e-9 || g.ew < 11 || g.ew > 20 || g.yw !== g.ew * 2.2) badG = [W, H, g];
+  });
+  ok('map geometry: the field fits under the two lines of words and inside the panel at five sizes; envelopes 11–20 px, yours 2.2×', badG === null, badG);
+}
+
 /* ------------------------------------------------------------ golden vectors */
 section('GOLDEN VECTORS — test/golden/');
 /* expected rows carry tasks by their index (tasks[i].index), not the whole
