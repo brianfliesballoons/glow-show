@@ -7736,12 +7736,14 @@ function renderLane(now) {
     ringOn = fr.on;
     wash = fr.on ? (k.kind === "flicker" ? "FLICKER-ON" : "BURN") : "";
   } else if (fr.state === "STANDBY") {
-    cls = "glass-hot"; warm = true;
+    // 3 · 2 · 1 keeps the WARNING colours: nothing turns burn-hot until GO, so nobody burns early
+    // (Brian, 2026-11-22: "let's not have it change color until it's time to actually burn")
+    cls = "glass-ember"; warm = true;
     capsTxt = "STANDBY · " + laneName(k);
     bigTxt = String(fr.count);
     lineTxt = (fr.onBeat ? "on the beat · " : "on the count · ") + what;
-    icon = { kind: fr.kind, lit: 0.6 };
-    mine = { kind: fr.kind, lit: 0.45, num: String(fr.count) };
+    icon = { kind: fr.kind, lit: 0.9, fill: fr.fill };
+    mine = { kind: fr.kind, lit: 0, num: String(fr.count) };
   } else if (fr.state === "WARNING") {
     cls = "glass-ember"; warm = true;
     capsTxt = "WARNING · " + laneName(k);
@@ -7960,12 +7962,12 @@ function renderFieldMap(fv, src, fr, t, armed, b, kind) {
     p.env.setAttribute("stroke", warm ? "rgba(255,226,191,.9)" : "rgba(236,231,223,.38)");
   }
   // your ring breathes about every 3 s (its brightness: it never grows into a neighbour); your balloon
-  // follows the lane: 3 · 2 · 1, then lit while the burner is on
+  // follows the lane: 3 · 2 · 1 (still unlit), then lit while the burner is on
   const br = 0.5 + 0.5 * Math.sin(t / 1000 * 2.2);
   FVM.ring.setAttribute("stroke-opacity", (0.7 + 0.3 * br).toFixed(2));
   const num = String(src.me);
   const look = kind === "go" ? (fr.on ? { kind: fr.kind, lit: 1, flame: 1 } : { kind: fr.kind, lit: 0.45, num: num })
-    : kind === "standby" ? { kind: fr.kind, lit: 0.45, num: String(fr.count) }
+    : kind === "standby" ? { kind: fr.kind, lit: 0, num: String(fr.count), cool: true }
     : { kind: fr.kind || "full", lit: 0, num: num, cool: true };
   lnLook(FVM.me, look);
   // the words: the move on the field now, and yours from 10 s out
