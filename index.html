@@ -702,6 +702,80 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
 @media (max-width:640px){
   .edtrans button{min-height:42px;padding:7px 11px;font-size:13.5px}
 }
+
+/* ===== SHOW EDITING (board "Glow Show Show Editing", 11-27) ===== */
+.gx-head{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.gx-meta{font-weight:700;font-size:13.5px;color:var(--g-soft)}
+.gx-undo{min-height:40px;padding:4px 12px;font-size:13.5px;max-width:52%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto;flex:none}
+.gx-note{margin:0 0 10px;padding:8px 12px;border-radius:12px;background:rgba(240,163,94,.14);border:1px solid rgba(240,163,94,.4);font-size:13px;font-weight:700;color:var(--g-amber-light)}
+.gx-lbl{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--g-soft);margin:6px 0 2px}
+#gx-over,#gx-map,#gx-strip,#gx-pickmap{display:block;width:100%;touch-action:none}
+#gx-map{width:78%;max-width:340px;margin:0 auto}
+#gx-pickmap{width:62%;max-width:300px;margin:0 auto}
+.gx-rules{width:100%;margin-top:10px;min-height:44px;justify-content:flex-start;font-size:14px}
+.gx-rules.ok{color:var(--good)}
+.gx-rules.amber{color:var(--g-amber-light)}
+.gx-rules.red{background:rgba(194,57,44,.35);color:#FFD7CF;border-color:var(--alarm)}
+.gx-bar{position:sticky;bottom:0;z-index:20;padding:10px var(--pad) calc(10px + env(safe-area-inset-bottom));margin-top:8px;
+  background:rgba(22,20,28,.97);border-top:1px solid rgba(255,255,255,.10);box-shadow:0 -14px 28px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:8px}
+.gx-bar button{min-height:44px;font-size:13.5px;padding:4px 6px;white-space:nowrap;background:#2B2731}
+.gx-bar .gx-pickbtn{min-height:48px;font-size:15.5px;background:linear-gradient(180deg,#F6C08E,#F0A35E)}
+.gx-bar3{display:grid;grid-template-columns:.95fr 1.5fr .95fr;gap:8px}
+#gx-pubbtn:disabled{opacity:.45}
+body.gx-noscroll{overflow:hidden}
+.gx-sheetwrap{position:fixed;inset:0;z-index:60}
+.gx-scrim{position:absolute;inset:0;background:rgba(0,0,0,.58)}
+.gx-sheet{position:absolute;left:0;right:0;bottom:0;max-height:92vh;max-width:640px;margin:0 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  box-sizing:border-box;padding:8px 16px calc(18px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;border:1.3px solid transparent;border-bottom:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03)) padding-box,linear-gradient(#1d1a22,#1d1a22) padding-box,conic-gradient(from 210deg,var(--film)) border-box;
+  box-shadow:0 -20px 50px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:10px;color:var(--g-text)}
+.gx-grab{width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.3);margin:2px auto 2px;flex:none}
+.gx-shead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.gx-shead h2{margin:0 0 2px;font-size:20px;line-height:1.2}
+.gx-back,.gx-mark{min-height:40px;padding:4px 14px;font-size:13.5px;flex:none}
+.gx-mark.on{background:rgba(255,138,122,.22);border-color:var(--alarm);color:#FFD7CF}
+.gx-btnrow{display:flex;gap:10px;margin-top:4px}
+.gx-btnrow button{flex:1;min-height:48px}
+.gx-card{padding:12px;border-radius:14px;background:rgba(18,18,24,.5);border:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;gap:6px}
+.gx-card h3{margin:0;font-size:15px;line-height:1.3;text-transform:none;letter-spacing:0}
+.gx-card.alarm{background:linear-gradient(165deg,rgba(255,138,122,.18),rgba(150,30,22,.28));border-color:rgba(255,138,122,.5)}
+.gx-kind{font-size:11px;font-weight:800;letter-spacing:.1em}
+.gx-kind.bad,.gx-rule b.bad,.gx-prow .v.bad{color:var(--alarm)}
+.gx-kind.warn,.gx-rule b.warn{color:var(--g-amber-soft)}
+.gx-rule b.ok,.gx-prow .v.ok{color:var(--good)}
+.gx-rule{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px;font-weight:600;min-height:26px}
+.gx-fix{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;padding:10px 12px;border-radius:13px;min-height:0;height:auto;font-size:14px}
+.gx-fix span{font-size:12.5px;font-weight:600;line-height:1.35;color:var(--g-soft)}
+.gx-stripwrap{margin:0 -4px}
+.gx-range{font-weight:800;font-size:14px;color:var(--g-amber-light);text-align:center}
+.gx-turn{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid var(--line)}
+.gx-turn h3{margin:6px 0 0;font-size:16px;text-transform:none;letter-spacing:0}
+.gx-target{align-self:flex-start;min-height:36px;padding:4px 12px;font-size:13px}
+.gx-pickfield{position:relative}
+.gx-clock{position:absolute;right:0;top:0;font-weight:800;font-size:13px;color:var(--g-amber-light);font-variant-numeric:tabular-nums;text-shadow:var(--g-shadow);background:rgba(18,18,24,.7);padding:2px 8px;border-radius:8px}
+.gx-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gx-opts .opt{min-height:40px;padding:0 4px;font-size:13px;border:none;border-bottom:2px solid transparent;border-radius:10px 10px 4px 4px;background:rgba(255,255,255,.06);color:var(--g-soft);box-shadow:none}
+.gx-opts .opt.on{color:var(--g-amber-light);background:rgba(240,163,94,.16);border-bottom-color:var(--g-amber)}
+.gx-opts .tiny{grid-column:1/-1}
+.gx-explain{min-height:2.6em}
+.gx-sug{display:flex;flex-direction:column;gap:6px;padding:11px 12px;border-radius:13px;background:rgba(18,18,24,.5);border:1px solid rgba(255,255,255,.14)}
+.gx-sug.change .gx-kind{color:var(--g-amber-soft)}
+.gx-sug.keep .gx-kind{color:var(--good)}
+.gx-sug.think .gx-kind{color:var(--g-blue)}
+.gx-sug b{font-size:14.5px;line-height:1.25}
+.gx-done{font-weight:800;font-size:13px;color:var(--good)}
+.gx-stale{color:var(--g-amber-soft)}
+.gx-ask{width:100%;box-sizing:border-box;min-height:60px}
+.gx-prow{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.gx-prow:first-child{border-top:none}
+.gx-prow .k{width:92px;flex:none;font-size:12.5px;font-weight:700;color:var(--g-muted);padding-top:1px}
+.gx-prow .v{font-size:14px;font-weight:700;line-height:1.35;min-width:0}
+.gx-prow .v span{display:block;font-size:12.5px;font-weight:600;color:var(--g-muted)}
+.gx-mine{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:8px 10px;border-radius:12px;background:rgba(240,163,94,.14);border:1px solid rgba(240,163,94,.45);margin:0 0 10px;font-size:13px}
+.gx-mine span{color:var(--g-soft)}
+.gx-yours{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid var(--line)}
+.gx-yours:first-of-type{border-top:none}
+.gx-yours span{font-size:12.5px;color:var(--g-muted);font-weight:600}
 </style>
 </head>
 <body>
@@ -914,6 +988,7 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <label class="fld"><span>or paste show JSON</span><textarea id="c-showjson" placeholder='{"format":"glow-show/1", ...}'></textarea></label>
         <button class="wide" data-act="load-paste">Load pasted JSON</button>
       </div>
+      <button class="wide primary" id="c-editbtn" data-act="cond-edit" style="margin-top:12px;flex-direction:column;gap:2px">Edit the show<small style="display:block;font-weight:600;color:#3a2a1a">pick a stretch, make it a wave · the app checks it · publish</small></button>
     </div>
 
     <div class="card">
@@ -1058,7 +1133,12 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
       <b id="ew-title"></b>
       <span id="ew-state" class="badge grey"></span>
     </div>
-    <div class="row" style="margin:-4px 0 10px;flex-wrap:nowrap"><button class="linkbtn" data-act="ed-setup">&larr; Setup</button><span class="tiny" id="ew-where" style="margin-left:auto"></span></div>
+    <div class="row" style="margin:-4px 0 6px;flex-wrap:nowrap"><button class="linkbtn hidden" id="gx-tocond" data-act="gx-tocond">&larr; Conductor</button><button class="linkbtn" data-act="ed-setup">&larr; Setup</button><span class="tiny" id="ew-where" style="margin-left:auto"></span></div>
+    <div class="gx-head">
+      <div style="min-width:0"><div class="gx-meta" id="gx-meta"></div><div class="tiny" id="gx-count"></div></div>
+      <button class="gx-undo" id="gx-undo" data-act="gx-undo" disabled>Undo</button>
+    </div>
+    <div class="gx-note hidden" id="gx-note" role="status"></div>
 
     <div class="seg edtabs">
       <button id="ew-tabbtn-timeline" class="on" data-act="ed-tab-timeline">Timeline</button>
@@ -1072,6 +1152,10 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <button id="ew-addpat" class="patbtn" data-act="ed-addpattern" style="margin-left:auto">+ Pattern</button>
       </div>
 
+      <div class="card gx-overcard" style="--a:60deg;padding:10px 12px 6px">
+        <div class="gx-lbl" style="margin:0 0 4px">Whole song <span class="tiny" style="text-transform:none;letter-spacing:0">· tap to jump · amber = yours</span></div>
+        <canvas id="gx-over" onpointerdown="gxOverDown(event)" onpointermove="gxOverMove(event)" onpointerup="gxOverUp(event)" onpointercancel="gxOverUp(event)"></canvas>
+      </div>
       <div class="card" style="--a:120deg;padding:12px">
         <div class="row" style="justify-content:space-between;margin:0 0 8px;flex-wrap:nowrap">
           <h3 style="margin:0" id="ew-songhead">The song</h3>
@@ -1087,6 +1171,16 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
           <canvas id="ew-cursor"></canvas>
         </div>
         <div class="tiny edhint" id="ew-hint"></div>
+      </div>
+
+      <div class="card gx-fieldcard" style="--a:200deg;padding:12px">
+        <div class="row" style="justify-content:space-between;margin:0 0 6px;flex-wrap:nowrap">
+          <div class="gx-lbl" style="margin:0">Field as the crowd sees it</div>
+          <button id="gx-play" data-act="ed-play" style="min-height:36px;padding:4px 12px">&#9654; Play</button>
+        </div>
+        <canvas id="gx-map"></canvas>
+        <div class="tiny" id="gx-at" style="margin-top:4px"></div>
+        <button class="gx-rules ok" id="gx-rules" data-act="gx-problems">Rules check</button>
       </div>
 
       <div class="card" id="ew-movescard" style="--a:250deg">
@@ -1213,6 +1307,18 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
     </div>
     <div class="footlinks"><button class="linkbtn" data-act="switch-role">Switch role</button></div>
   </div>
+  <div class="gx-bar" id="gx-bar">
+    <button class="primary gx-pickbtn" data-act="gx-pick">Pick a stretch to change</button>
+    <div class="gx-bar3">
+      <button data-act="gx-rebuild">Rebuild&hellip;</button>
+      <button data-act="gx-claude">Check with Claude</button>
+      <button id="gx-pubbtn" data-act="gx-publish">Publish</button>
+    </div>
+  </div>
+  <div class="gx-sheetwrap hidden" id="gx-sheetwrap">
+    <div class="gx-scrim" data-act="gx-close"></div>
+    <div class="gx-sheet" id="gx-sheet" role="dialog" aria-modal="true"></div>
+  </div>
 </section>
 
 <!-- ===================== SETTINGS ===================== -->
@@ -1229,6 +1335,12 @@ canvas#qr{width:min(70vw,260px);height:min(70vw,260px);image-rendering:pixelated
         <button class="grow" data-act="test-worker">Test</button>
       </div>
       <div id="s-workerstate" class="small" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>Your Claude</h3>
+      <p class="small">Check with Claude sends the show to your own Claude on your Mac (your plan, not the paid API). The iPhone app fills this in; on another device, paste your Mac's address.</p>
+      <label class="fld"><span>Your Mac's address</span><input type="url" id="s-claude" placeholder="https://your-mac.your-tailnet.ts.net:8824" inputmode="url"></label>
+      <button class="wide" data-act="save-claude">Save</button>
     </div>
     <div class="card">
       <h3>Reset</h3>
@@ -1320,6 +1432,7 @@ const LS = {
   pa:        "glow.paLatencyMs",
   armed:     "glow.armed",
   editor:    "glow.editor",
+  claudeUrl: "glow.claudeUrl",       // the conductor's own Mac (mac-claude/), set per device
   pview:     "glow.pilotView",
   fieldMap:  "glow.fieldMap",        // the Lane's field map: "hidden" or shown (the default)
   pin:       "glow.conductorPin"
@@ -1667,6 +1780,8 @@ function validateShow(raw) {
   }
   // same rule for the field and the sets: absent in, absent out
   if (field) show.field = field;
+  // a show edited after publishing keeps the code its pilots joined with
+  if (typeof raw.code === "string" && /^[A-Z2-9]{4}$/.test(raw.code)) show.code = raw.code;
   if (sets.length) {
     show.sets = sets.map(function (s) {
       const seen = {}, m = [];
@@ -3178,6 +3293,7 @@ function _pilotPlanFrom(tl, tasks, s, tMs) {
    K7QF"). FNV-1a over the validated show; no 0/O or 1/I to misread. */
 const SHOW_CODE_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function showCode(show) {
+  if (show && typeof show.code === "string" && /^[A-Z2-9]{4}$/.test(show.code)) return show.code;
   const str = JSON.stringify(show || null);
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
@@ -8810,6 +8926,8 @@ function drawCondMirror(t) {
    ========================================================================= */
 function renderSettings() {
   $("s-worker").value = APP.workerUrl;
+  const sc = $("s-claude");
+  if (sc && document.activeElement !== sc) sc.value = String(load(LS.claudeUrl) || "");
   const st = $("s-workerstate");
   clear(st);
   st.appendChild(APP.workerUrl ? el("span", "badge grey", APP.workerUrl) : el("span", "badge yellow", "No Worker URL — wall-clock fallback"));
@@ -9360,6 +9478,9 @@ function renderEditorWork() {
   setTxt($("ew-hint"), "Tap a cue to edit it · drag it to move · drag an edge to stretch · tap empty lane space to add a burn · + PATTERN puts a wave across the field at the playhead (orange stepped blocks in the ALL lane: one step per band) · tap a coloured section band to relabel or regenerate it · drag the waveform to scrub, drag the ruler strip to pan.");
   const ap = $("ew-addpat");
   if (ap) ap.classList.toggle("hidden", !(ED.balloons && ED.balloons.length));
+  const bc = $("gx-tocond");
+  if (bc) bc.classList.toggle("hidden", !ED.fromConductor);
+  requestAnimationFrame(gxRefresh);
 }
 
 /* ---- TIMELINE / MAP tabs -------------------------------------------------- */
@@ -10220,10 +10341,11 @@ function edDrawBalloonCue(c, g, cue, ci, bad, warn) {
     c.strokeRect(xa + 0.5, y + 0.5, Math.max(2, xb - xa - 1), h - 1); c.setLineDash([]);
   }
   if (bad || warn) { c.fillStyle = bad ? "#FF8A7A" : "#F6C08E"; c.fillRect(xa, y, Math.max(2, xb - xa), 3); }
+  if (cue.mine && !sel) { c.strokeStyle = "#F0A35E"; c.lineWidth = 2; c.strokeRect(xa + 1, y + 1, Math.max(2, xb - xa - 2), h - 2); }
   if (sel) { c.strokeStyle = "#FFE2BF"; c.lineWidth = 2; c.strokeRect(xa + 1, y + 1, Math.max(2, xb - xa - 2), h - 2); }
   else if (bad) { c.strokeStyle = "#FF8A7A"; c.lineWidth = 1.5; c.strokeRect(xa + 0.5, y + 0.5, Math.max(2, xb - xa - 1), h - 1); }
   if (x1 - x0 > 54) {
-    const t = (cue.type === "pattern" ? patternWord(cue.pattern) + " · " : "SET · ") + cue.label;
+    const t = (cue.mine ? "🔒 " : "") + (cue.type === "pattern" ? patternWord(cue.pattern) + " · " : "SET · ") + cue.label;
     c.lineWidth = 3; c.strokeStyle = "rgba(0,0,0,.8)";
     c.strokeText(t.slice(0, Math.floor((x1 - x0) / 6.4)), Math.max(2, x0) + 5, g.laneY(0) + EDG.laneH / 2);
     c.fillStyle = "#fff6ee";
@@ -10301,6 +10423,7 @@ function edPointerDown(ev) {
     ED.drag.cue = hit.i;
     ED.drag.origT = cue.t;
     ED.drag.origDur = cue.dur;
+    ED.drag.snap = JSON.stringify(ED.cues);
   } else {
     ED.drag.mode = "add";
     ED.drag.lane = Math.floor((p.y - g.laneTop) / (EDG.laneH + EDG.laneGap));
@@ -10352,6 +10475,12 @@ function edPointerUp(ev) {
   } else if (d.mode === "add" && !d.moved) {
     edAddCue(d.lane, d.startT);
   } else if (d.mode === "move" || d.mode === "left" || d.mode === "right") {
+    if (d.moved && d.snap) {
+      ED.undo = ED.undo || [];
+      ED.undo.push({ label: "move " + (ED.cues[d.cue] ? ED.cues[d.cue].label : "cue"), cues: d.snap });
+      if (ED.undo.length > 40) ED.undo.shift();
+      gxMakeMine(ED.cues[d.cue]);
+    }
     edSave();
     edRenderInspector();
     edRenderProblems();
@@ -10379,7 +10508,8 @@ function edAddCue(lane, t) {
   const beat = edHasGrid() ? edBeatMs() : 500;
   const dur = Math.round(beat * 2);
   const start = Math.max(0, Math.min(ED.durationMs - dur, edSnap(t)));
-  const cue = { t: start, dur: dur, type: "burn",
+  gxPush("add a burn");
+  const cue = { t: start, dur: dur, type: "burn", mine: true,
                 groups: lane === 0 ? ["all"] : [lanes[lane].id],
                 label: (lane === 0 ? "ALL burn" : lanes[lane].label + " burn") + " " + (ED.cues.length + 1) };
   ED.cues.push(cue);
@@ -10401,7 +10531,8 @@ function edAddPattern() {
   const o = Object.assign(edDefaultOptions(), ED.options || {});
   const stepB = Math.max(1, Math.round(o.bandStepMs / beat)), burnB = Math.max(2, Math.round(o.bandBurnMs / beat));
   const sel = ED.selSet && ED.selSet.length ? ED.selSet.slice() : null;
-  const cue = { t: 0, dur: 1000, type: "pattern", target: sel ? { n: sel } : { all: true },
+  gxPush("add a pattern");
+  const cue = { t: 0, dur: 1000, type: "pattern", mine: true, target: sel ? { n: sel } : { all: true },
                 label: "Sweep " + (ED.cues.filter(function (c) { return c.type === "pattern"; }).length + 1),
                 pattern: "sweep", dir: "lr", bandCount: o.bands || 4,
                 stepMs: Math.round(stepB * beat), burnMs: Math.round(burnB * beat), bands: [] };
@@ -10455,7 +10586,7 @@ function edTargetKey(t) {
   if (t.set) return "s:" + t.set;
   return "n";
 }
-function edPatChanged() { edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave(); }
+function edPatChanged() { if (ED.sel && ED.sel.kind === "cue") gxMakeMine(ED.cues[ED.sel.i]); edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave(); }
 function edRenderPatternInspector(box, i, cue) {
   const beat = edHasGrid() ? edBeatMs() : 500;
   const secs = function (ms) { return (Math.round(ms / 100) / 10) + " s"; };
@@ -10740,6 +10871,15 @@ function edRenderInspector() {
   if (ED.sel.kind === "section") return edRenderSectionInspector(box);
   const i = ED.sel.i, cue = ED.cues[i];
   if (!cue) { ED.sel = null; return edRenderInspector(); }
+  if (cue.mine) {
+    const y = el("div", "gx-mine");
+    y.appendChild(el("b", null, "🔒 Yours"));
+    y.appendChild(el("span", null, "Rebuild never changes it."));
+    const hb = el("button", "linkbtn", "Let the app redo this");
+    hb.onclick = function () { gxHandBack(i); };
+    y.appendChild(hb);
+    box.appendChild(y);
+  }
   if (cue.type === "pattern") return edRenderPatternInspector(box, i, cue);
   const beat = edHasGrid() ? edBeatMs() : 500;
 
@@ -10947,6 +11087,7 @@ function edRenderSectionInspector(box) {
 
 function edDeleteSelected() {
   if (!ED.sel || ED.sel.kind !== "cue") return;
+  gxPush("delete " + (ED.cues[ED.sel.i] ? ED.cues[ED.sel.i].label : "move"));
   ED.cues.splice(ED.sel.i, 1);
   ED.sel = null;
   edRevalidate(); edRenderInspector(); edRenderProblems(); edDraw(); edSave();
@@ -10957,6 +11098,7 @@ function edRenderProblems() {
   const box = $("ew-problems");
   if (!box) return;
   clear(box);
+  gxRenderRules(); gxRenderHead(); gxDrawOver(); GX.mapAt = -1;
   edStateBadge();
   edRenderMoves();
   const v = ED.valid || validateShow(edShowObject());
@@ -11043,7 +11185,7 @@ function edRenderMoves() {
     mt.appendChild(el("small", null, (i + 1) + (si >= 0 ? " · " + edSections()[si].label : "")));
     row.appendChild(mt);
     const w = moveWords(cue, names), mw = el("div", "mw");
-    mw.appendChild(el("b", null, w.title));
+    mw.appendChild(el("b", null, (cue.mine ? "🔒 " : "") + w.title));
     mw.appendChild(el("span", null, w.detail));
     row.appendChild(mw);
     row.appendChild(el("span", "chev", "›"));
@@ -11209,6 +11351,7 @@ function edFrame() {
   edUpdateTransport();
   edRenderMirror();
   edMarkMovesNow();
+  gxFrame();
 }
 
 /* ---- export / import / persistence ---------------------------------------- */
@@ -11289,6 +11432,8 @@ function edImportText(text) {
   ED.balloons = normalizeBalloons(show.balloons, ED.groups.map(function (g) { return g.id; }));
   ED.field = show.field || null;
   ED.sets = normalizeSets(show.sets, ED.balloons);
+  ED.code = show.code || null;
+  ED.undo = [];
   ED.selSet = []; ED.fillReport = null; ED.fieldMsg = null;
   ED.selBalloon = null;
   ED.advisories = [];
@@ -11300,6 +11445,1101 @@ function edImportText(text) {
   renderEditorSetup();
   edOpenWork();
 }
+/* ============================================================================
+   ===== SHOW EDITING =====
+   Built from the board "Glow Show Show Editing" on Brian's 11-27 go ("These
+   designs look fantastic. Go for build."). His ask: "an automated choreography
+   that starts out as the foundation, but then be able to make manual edits for
+   certain parts of the song… the AI could tell us if there's any problems with
+   like burner time".
+     1 the show the app built: header + Undo, the whole song, the field at the playhead
+     2 pick a stretch (snaps to bars) and turn it into a move (live field preview)
+     3 YOURS: anything the conductor made or changed is locked (amber); Rebuild
+       the rest re-makes the app's moves around it
+     4 problems with one-tap fixes; every fix runs through the same check first
+     5 Check with Claude: his own Claude on his Mac (mac-claude/, tailnet only)
+     6 publish: one last summary, then the packs go up under the SAME show code
+   ========================================================================= */
+const GX = { sheet: null, st: null, pick: null, drag: null, anchor: 0, claude: null, pub: null,
+             mark: null, mapAt: -1, overDrag: false, note: null };
+const GX_NAMES = { sweep: "Sweep", ripple: "Ripple", mirror: "Mirror", chase: "Chase", fill: "Fill",
+                   alternate: "Checkerboard", radial: "Radial", sparkle: "Sparkle" };
+
+function gxT(t) {
+  const d = Math.floor(Math.max(0, t) / 100), m = Math.floor(d / 600), r = d - m * 600, s = Math.floor(r / 10);
+  return m + ":" + (s < 10 ? "0" : "") + s + "." + (r % 10);
+}
+function gxS(ms) { return (Math.round(ms / 100) / 10) + " s"; }
+function gxBeat() { return edHasGrid() ? edBeatMs() : 500; }
+function gxBarMs() { return gxBeat() * ((ED.options && ED.options.beatsPerBar) || 4); }
+function gxBar0() { return edHasGrid() ? edBeatT0() : 0; }
+function gxSnapBar(t) {
+  const b = gxBarMs(), z = gxBar0();
+  return Math.max(0, Math.min(ED.durationMs, Math.round(z + Math.round((t - z) / b) * b)));
+}
+function gxBarOf(t) { return Math.floor((t - gxBar0()) / gxBarMs() + 1e-6) + 1; }
+function gxNames() {
+  const n = { groups: {}, sets: {}, count: (ED.balloons || []).length };
+  (ED.groups || []).forEach(function (g) { n.groups[g.id] = g.label; });
+  (ED.sets || []).forEach(function (s) { n.sets[s.id] = s.name; });
+  return n;
+}
+function gxWho(cue) {
+  if (!cue) return "";
+  const w = moveWords(cue, gxNames());
+  return w.detail.split(" · ")[0];
+}
+/* the flicker length: about 2.1 s, on the beat */
+function gxFlickMs() { const b = gxBeat(); return Math.round(Math.max(1, Math.round(2100 / b)) * b); }
+function gxHoldMs() { return Math.max(6000, (ED.options && ED.options.longBurnMs) || 6000); }
+function gxStepMs() { const b = gxBeat(); return Math.round(Math.max(1, Math.round(1400 / b)) * b); }
+/* a move made from a stretch remembers the stretch, so flicker <-> hold re-fits its bands to it */
+function gxSetBurn(c, burn) {
+  c.burnMs = burn;
+  if (c.stretchMs && c.stepMs) c.bandCount = Math.max(2, Math.min(8, Math.floor((c.stretchMs - burn) / c.stepMs) + 1));
+}
+function gxMineCount() { return ED.cues.filter(function (c) { return c.mine; }).length; }
+
+/* ---- undo ---------------------------------------------------------------- */
+function gxPush(label) {
+  ED.undo = ED.undo || [];
+  ED.undo.push({ label: label, cues: JSON.stringify(ED.cues) });
+  if (ED.undo.length > 40) ED.undo.shift();
+}
+function gxUndo() {
+  const u = (ED.undo || []).pop();
+  if (!u) return;
+  ED.cues = JSON.parse(u.cues);
+  ED.sel = null;
+  GX.note = "Undone: " + u.label;
+  gxChanged();
+}
+/* every edit ends here: re-check, save, redraw everything that shows the show */
+function gxChanged() {
+  edRevalidate();
+  edSave();
+  edDraw();
+  edRenderInspector();
+  edRenderProblems();
+  gxRefresh();
+}
+/* a hand edit makes the move the conductor's own */
+function gxMakeMine(cue) { if (cue) cue.mine = true; }
+
+/* ---- 1 · the main screen -------------------------------------------------- */
+function gxRefresh() {
+  if (!ED.ready) return;
+  gxRenderHead();
+  gxDrawOver();
+  GX.mapAt = -1;
+  gxDrawField();
+  gxRenderRules();
+  if (GX.sheet && GX.sheet !== "pick") gxRenderSheet();
+}
+function gxRenderHead() {
+  const meta = $("gx-meta");
+  if (!meta) return;
+  const nb = (ED.balloons || []).length;
+  const bits = [fmtMMSS(ED.durationMs || 0)];
+  if (edBpm()) bits.push(Math.round(edBpm()) + " BPM");
+  if (nb) bits.push(nb + " balloons");
+  bits.push("show " + gxCode());
+  const mine = gxMineCount();
+  setTxt(meta, bits.join(" · "));
+  setTxt($("gx-count"), (ED.cues.length - mine) + " moves by the app" + (mine ? " · " + mine + " yours" : ""));
+  const u = $("gx-undo"), last = (ED.undo || [])[(ED.undo || []).length - 1];
+  if (u) { u.disabled = !last; setTxt(u, last ? "Undo: " + last.label : "Undo"); }
+  const note = $("gx-note");
+  if (note) { note.classList.toggle("hidden", !GX.note); setTxt(note, GX.note || ""); }
+}
+/* the code the pilots join with: kept across edits (see showCode) */
+function gxCode() {
+  if (ED.code) return ED.code;
+  try { return showCode(edShowObject()); } catch (e) { return "—"; }
+}
+function gxCanvas(cv, h) {
+  const w = Math.max(200, cv.clientWidth || (cv.parentNode && cv.parentNode.clientWidth) || 340);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  cv.style.height = h + "px";
+  const c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  return { c: c, w: w, h: h };
+}
+function gxCueColor(cue, i) {
+  const issues = (ED.audit && ED.audit.perCue[i]) || [];
+  if (issues.some(function (x) { return x.severity === "block"; })) return "rgba(255,138,122,.9)";
+  return cue.mine ? "#F0A35E" : "rgba(141,184,232,.5)";
+}
+function gxDrawOver() {
+  const cv = $("gx-over");
+  if (!cv || cv.offsetParent === null) return;
+  const k = gxCanvas(cv, 58), c = k.c, w = k.w;
+  const D = ED.durationMs || 1, X = function (t) { return 6 + (w - 12) * t / D; };
+  c.fillStyle = "rgba(255,255,255,.05)";
+  c.fillRect(6, 6, w - 12, 26);
+  ED.cues.forEach(function (cue, i) {
+    const x0 = X(cue.t), x1 = Math.max(x0 + 2, X(cue.t + cue.dur));
+    c.fillStyle = gxCueColor(cue, i);
+    c.fillRect(x0, cue.mine ? 7 : 10, x1 - x0, cue.mine ? 24 : 18);
+  });
+  // the stretch the conductor is picking
+  if (GX.st) {
+    c.fillStyle = "rgba(240,163,94,.22)";
+    c.fillRect(X(GX.st.a), 3, X(GX.st.b) - X(GX.st.a), 32);
+  }
+  // the part the song strip below is showing
+  const g = edGeom(), v0 = X(ED.view.t0), v1 = X(Math.min(D, edT(g.w)));
+  c.strokeStyle = "rgba(255,226,191,.85)"; c.lineWidth = 1.5;
+  c.strokeRect(v0 + 0.75, 2.75, Math.max(4, v1 - v0 - 1.5), 32.5);
+  // playhead
+  c.fillStyle = "#FFE2BF";
+  c.fillRect(X(ED.playheadMs) - 1, 0, 2, 38);
+  // minutes
+  c.fillStyle = "rgba(218,212,203,.75)"; c.font = "600 10.5px Manrope,system-ui,sans-serif"; c.textBaseline = "top";
+  for (let m = 0; m * 60000 <= D; m++) {
+    const x = X(m * 60000), s = m + ":00";
+    c.textAlign = m === 0 ? "left" : "center";
+    if (x < w - 40) c.fillText(s, x, 42);
+  }
+  c.textAlign = "right"; c.fillText(fmtMMSS(D), w - 6, 42);
+}
+function gxOverAt(ev) {
+  const cv = $("gx-over"), r = cv.getBoundingClientRect();
+  const x = Math.max(6, Math.min(r.width - 6, ev.clientX - r.left));
+  return (x - 6) / (r.width - 12) * (ED.durationMs || 1);
+}
+function gxOverDown(ev) {
+  if (!ED.ready) return;
+  GX.overDrag = true;
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  gxOverGo(gxOverAt(ev));
+}
+function gxOverMove(ev) { if (GX.overDrag) gxOverGo(gxOverAt(ev)); }
+function gxOverUp() { GX.overDrag = false; }
+function gxOverGo(t) {
+  const g = edGeom(), span = g.w * ED.view.msPerPx;
+  ED.view.t0 = t - span / 2;
+  edClampView();
+  edScrubTo(t);
+  edDraw();
+  gxDrawOver();
+  gxDrawField();
+}
+/* the field as the crowd sees it, at the playhead */
+function gxCueAt(t) {
+  let best = -1;
+  ED.cues.forEach(function (c, i) { if (t >= c.t && t < c.t + c.dur) best = i; });
+  return best;
+}
+function gxDrawField() {
+  const cv = $("gx-map");
+  if (!cv || cv.offsetParent === null) return;
+  if (GX.mapAt === ED.playheadMs && !ED.play.on) return;
+  GX.mapAt = ED.playheadMs;
+  drawFieldMap(cv, { balloons: ED.balloons, colorOf: edColorOf(), field: ED.field, cache: true,
+    stateByN: ED.tl ? mapBalloonStatesAt(ED.tl, ED.playheadMs) : null, nowMs: ED.playheadMs });
+  const i = gxCueAt(ED.playheadMs), cue = ED.cues[i];
+  setTxt($("gx-at"), "At " + gxT(ED.playheadMs) + (cue ? " · " + cue.label + (cue.mine ? " · yours" : "") : " · nothing lit"));
+  setTxt($("gx-play"), ED.play.on ? "❚❚ Pause" : "▶ Play");
+}
+function gxFrame() {
+  if (ED.tab === "map" || APP.screen !== "editor-work") return;
+  gxDrawField();
+  if (ED.play.on) gxDrawOver();
+  if (GX.sheet === "pick") gxPickFrame();
+}
+/* A gap between two moves is reported on BOTH of them ("would get only… before"
+   on the first, "gets only… after" on the second). The sheet shows it once, on
+   the later move, whose fixes can change either. */
+function gxDup(x) { return (x.code === "rest" || x.code === "runway") && /would get only/.test(x.text); }
+function gxIssues(perCue) {
+  return (perCue || []).map(function (l) { return l.filter(function (x) { return !gxDup(x); }); });
+}
+function gxProblemCounts() {
+  let red = 0, amber = 0;
+  const v = ED.valid;
+  if (v && !v.ok) red += v.errors.length;
+  gxIssues(ED.audit && ED.audit.perCue).forEach(function (l) { l.forEach(function (x) { if (x.severity === "block") red++; else amber++; }); });
+  return { red: red, amber: amber };
+}
+function gxRenderRules() {
+  const b = $("gx-rules");
+  if (!b) return;
+  const n = gxProblemCounts();
+  b.className = "gx-rules " + (n.red ? "red" : n.amber ? "amber" : "ok");
+  setTxt(b, n.red ? "Rules check: " + n.red + " red · Publish is off ›"
+    : n.amber ? "Rules check: " + n.amber + " amber, nothing red ›" : "Rules check: 0 problems ›");
+  const pb = $("gx-pubbtn");
+  if (pb) pb.disabled = n.red > 0;
+}
+
+/* ---- sheets ----------------------------------------------------------------- */
+function gxOpen(kind) {
+  if (!ED.ready) return;
+  if (kind === "pick" && !(ED.balloons && ED.balloons.length)) {
+    showFatal("NO BALLOONS ON THE FIELD YET", "", ["A move runs across numbered balloons.", "Open the Map tab and place the balloons first."]);
+    return;
+  }
+  GX.sheet = kind;
+  if (kind === "pick") gxPickStart();
+  $("gx-sheetwrap").classList.remove("hidden");
+  document.body.classList.add("gx-noscroll");
+  gxRenderSheet();
+  const s = $("gx-sheet");
+  if (s) s.scrollTop = 0;
+}
+function gxClose() {
+  if (GX.sheet === "pick") { GX.st = null; GX.mark = null; }
+  GX.sheet = null;
+  $("gx-sheetwrap").classList.add("hidden");
+  document.body.classList.remove("gx-noscroll");
+  gxRefresh();
+}
+function gxRenderSheet() {
+  const box = $("gx-sheet");
+  if (!box || !GX.sheet) return;
+  clear(box);
+  box.appendChild(el("div", "gx-grab"));
+  if (GX.sheet === "pick") gxRenderPick(box);
+  else if (GX.sheet === "rebuild") gxRenderRebuild(box);
+  else if (GX.sheet === "problems") gxRenderProblemsSheet(box);
+  else if (GX.sheet === "claude") gxRenderClaude(box);
+  else if (GX.sheet === "publish") gxRenderPublish(box);
+}
+function gxSheetHead(box, title, sub) {
+  const h = el("div", "gx-shead");
+  const t = el("div");
+  t.appendChild(el("h2", null, title));
+  if (sub) t.appendChild(el("div", "tiny", sub));
+  h.appendChild(t);
+  const b = el("button", "gx-back", "Back");
+  b.onclick = gxClose;
+  h.appendChild(b);
+  box.appendChild(h);
+}
+function gxBtnRow(box, items) {
+  const r = el("div", "gx-btnrow");
+  items.forEach(function (it) {
+    const b = el("button", it.primary ? "primary" : "", it.label);
+    if (it.disabled) b.disabled = true;
+    b.onclick = it.on;
+    r.appendChild(b);
+  });
+  box.appendChild(r);
+  return r;
+}
+
+/* ---- 2 · pick a stretch, make it a move ------------------------------------- */
+function gxPickStart() {
+  const bar = gxBarMs();
+  const a = gxSnapBar(Math.max(0, ED.playheadMs - bar / 2));
+  GX.st = { a: a, b: Math.min(ED.durationMs, a + 3 * bar) };
+  if (GX.st.b - GX.st.a < bar) GX.st.a = Math.max(0, GX.st.b - bar);
+  const t = ED.balloons.length;
+  GX.pick = { pattern: "sweep", dir: "lr", mode: "flicker", tkey: "all", t0: performance.now() };
+  GX.mark = null;
+  if (t) GX.pick.n = t;
+}
+function gxPickTargets() { return edTargets(); }
+function gxPickTarget() {
+  const all = gxPickTargets();
+  return all.filter(function (o) { return o.key === GX.pick.tkey; })[0] || all[0];
+}
+/* the move the sheet would make, fitted into the stretch */
+function gxBuildMove() {
+  const st = GX.st, P = GX.pick;
+  const L = Math.max(600, st.b - st.a);
+  const tg = gxPickTarget();
+  const hold = P.mode === "hold";
+  const burn = hold ? gxHoldMs() : gxFlickMs();
+  const step = gxStepMs();
+  const cue = { t: st.a, dur: 1000, type: "pattern", target: copyTarget(tg.target), pattern: P.pattern,
+                label: GX_NAMES[P.pattern] + (P.dir && DIR_LABEL[P.dir] ? " " + _plain(edDirLabel(P.pattern, P.dir)).toLowerCase() : ""),
+                bands: [], mine: true, stretchMs: Math.round(L) };
+  if (PATTERN_DIRS[P.pattern] && PATTERN_DIRS[P.pattern].length) cue.dir = P.dir; else delete cue.dir;
+  if (P.pattern === "sparkle") cue.seed = 1;
+  if (P.pattern === "alternate") {
+    cue.stepMs = Math.max(gxBeat(), hold ? gxBarMs() : 2 * gxBeat());
+    cue.bandCount = 2;
+    cue.dur = Math.max(2 * cue.stepMs, Math.round(L));
+  } else {
+    cue.stepMs = step;
+    cue.burnMs = burn;
+    cue.bandCount = Math.max(2, Math.min(8, Math.floor((L - burn) / step) + 1));
+  }
+  const members = resolveTargetNums(cue.target, ED.balloons, ED.sets);
+  cue.bands = patternBands({ pattern: cue.pattern, dir: cue.dir, bandCount: cue.bandCount, center: cue.center,
+                             seed: cue.seed, members: members }, ED.balloons);
+  if (cue.pattern !== "alternate") cue.dur = Math.max(100, patternDur(cue));
+  cue.t = Math.max(0, Math.min(ED.durationMs - cue.dur, cue.t));
+  return cue;
+}
+/* the app's (or older) moves the new one replaces */
+function gxReplaced(a, end) {
+  const out = [];
+  ED.cues.forEach(function (c, i) { if (c.t < end && c.t + c.dur > a) out.push(i); });
+  return out;
+}
+function gxRenderPick(box) {
+  const st = GX.st, P = GX.pick;
+  const head = el("div", "gx-shead");
+  const ht = el("div");
+  ht.appendChild(el("h2", null, "Pick a stretch"));
+  ht.appendChild(el("div", "tiny", "Drag the ends. They snap to bars."));
+  head.appendChild(ht);
+  const mk = el("button", "gx-mark" + (GX.mark ? " on" : ""), GX.mark === "end" ? "Tap at the end" : GX.mark === "start" ? "Tap where it starts" : "● Mark while listening");
+  mk.onclick = gxMarkTap;
+  head.appendChild(mk);
+  box.appendChild(head);
+
+  const sw = el("div", "gx-stripwrap");
+  const cv = el("canvas"); cv.id = "gx-strip";
+  cv.onpointerdown = gxStripDown; cv.onpointermove = gxStripMove; cv.onpointerup = gxStripUp; cv.onpointercancel = gxStripUp;
+  sw.appendChild(cv);
+  box.appendChild(sw);
+  const rng = el("div", "gx-range"); rng.id = "gx-range";
+  box.appendChild(rng);
+
+  const card = el("div", "gx-turn");
+  card.appendChild(el("h3", null, ""));
+  card.firstChild.id = "gx-turnhead";
+  const rep = el("div", "tiny"); rep.id = "gx-replaces";
+  card.appendChild(rep);
+  const tgb = el("button", "gx-target", "");
+  tgb.id = "gx-tgt";
+  tgb.onclick = function () {
+    const all = gxPickTargets(), k = all.map(function (o) { return o.key; }).indexOf(P.tkey);
+    P.tkey = all[(k + 1) % all.length].key;
+    gxPickChanged();
+  };
+  card.appendChild(tgb);
+
+  const fw = el("div", "gx-pickfield");
+  const pm = el("canvas"); pm.id = "gx-pickmap";
+  fw.appendChild(pm);
+  const clk = el("div", "gx-clock"); clk.id = "gx-pickclock";
+  fw.appendChild(clk);
+  card.appendChild(fw);
+
+  const dl = el("div", "gx-lbl", "Direction");
+  card.appendChild(dl);
+  const dirs = el("div", "gx-opts"); dirs.id = "gx-dirs";
+  card.appendChild(dirs);
+  const ex = el("div", "tiny gx-explain"); ex.id = "gx-explain";
+  card.appendChild(ex);
+  const pats = el("div", "gx-opts gx-pats"); pats.id = "gx-pats";
+  card.appendChild(pats);
+  const md = el("div", "seg gx-mode"); md.id = "gx-mode";
+  card.appendChild(md);
+  box.appendChild(card);
+
+  gxBtnRow(box, [{ label: "Cancel", on: gxClose }, { label: "Use this", primary: true, on: gxUsePick }]);
+  gxPickChanged();
+}
+function gxPickChanged() {
+  const st = GX.st, P = GX.pick;
+  if (!st) return;
+  const cue = gxBuildMove();
+  GX.cand = cue;
+  GX.pick.t0 = performance.now();
+  const b1 = gxBarOf(st.a), b2 = gxBarOf(st.b - 1);
+  setTxt($("gx-range"), gxT(st.a) + " – " + gxT(st.b) + " · " + (b1 === b2 ? "bar " + b1 : "bars " + b1 + "–" + b2) + " · " + gxS(st.b - st.a));
+  setTxt($("gx-turnhead"), "Turn " + gxT(st.a) + " – " + gxT(st.b) + " into…");
+  const rep = gxReplaced(cue.t, Math.max(st.b, cue.t + cue.dur));
+  setTxt($("gx-replaces"), rep.length
+    ? "Replaces " + rep.map(function (i) { return "“" + ED.cues[i].label + "”" + (ED.cues[i].mine ? " (yours)" : ""); }).join(", ") + " in that stretch."
+    : "Nothing is lit in that stretch yet.");
+  const tg = gxPickTarget();
+  setTxt($("gx-tgt"), (tg.key === "all" ? "All " + tg.n + " balloons" : _plain(tg.label) + " · " + tg.n) + " ›");
+  // directions
+  const dirs = $("gx-dirs");
+  if (dirs) {
+    clear(dirs);
+    const list = PATTERN_DIRS[P.pattern] || [];
+    if (!list.length) dirs.appendChild(el("div", "tiny", "This pattern has no direction."));
+    list.forEach(function (d) {
+      const b = el("button", "opt" + (P.dir === d ? " on" : ""), _plain(edDirLabel(P.pattern, d)).replace("COUNTER-CLOCKWISE", "↺").replace("CLOCKWISE", "↻"));
+      b.onclick = function () { P.dir = d; gxPickChanged(); };
+      dirs.appendChild(b);
+    });
+  }
+  setTxt($("gx-explain"), PATTERN_EXPLAIN[P.pattern] || "");
+  const pats = $("gx-pats");
+  if (pats) {
+    clear(pats);
+    PATTERNS.forEach(function (p) {
+      const b = el("button", "opt" + (P.pattern === p ? " on" : ""), GX_NAMES[p]);
+      b.onclick = function () {
+        P.pattern = p;
+        const list = PATTERN_DIRS[p] || [];
+        if (list.indexOf(P.dir) === -1) P.dir = PATTERN_DEFAULT_DIR[p] || null;
+        gxPickChanged();
+      };
+      pats.appendChild(b);
+    });
+  }
+  const md = $("gx-mode");
+  if (md) {
+    clear(md);
+    [["flicker", "Flicker " + gxS(gxFlickMs()) + " each"], ["hold", "Hold " + gxS(gxHoldMs()) + " each"]].forEach(function (m) {
+      const b = el("button", P.mode === m[0] ? "on" : "", m[1]);
+      b.onclick = function () { P.mode = m[0]; gxPickChanged(); };
+      md.appendChild(b);
+    });
+  }
+  gxDrawStrip();
+  gxPickFrame(true);
+  gxDrawOver();
+}
+/* the zoomed song strip in the sheet: bars, the moves, the stretch with handles */
+function gxStripWin() {
+  const st = GX.st, L = st.b - st.a, pad = Math.max(L, 2 * gxBarMs(), 6000);
+  let w0 = st.a - pad, w1 = st.b + pad;
+  if (w0 < 0) { w1 -= w0; w0 = 0; }
+  if (w1 > ED.durationMs) { w0 = Math.max(0, w0 - (w1 - ED.durationMs)); w1 = ED.durationMs; }
+  return { w0: w0, w1: w1 };
+}
+function gxDrawStrip() {
+  const cv = $("gx-strip");
+  if (!cv || !GX.st) return;
+  const k = gxCanvas(cv, 132), c = k.c, w = k.w;
+  const win = GX.win && GX.drag ? GX.win : (GX.win = gxStripWin());
+  const X = function (t) { return 10 + (w - 20) * (t - win.w0) / (win.w1 - win.w0); };
+  const bar = gxBarMs();
+  c.font = "600 10.5px Manrope,system-ui,sans-serif"; c.textBaseline = "top";
+  // bar ticks + numbers
+  const z = gxBar0();
+  for (let t = z + Math.ceil((win.w0 - z) / bar) * bar; t <= win.w1; t += bar) {
+    const x = X(t);
+    c.fillStyle = "rgba(255,255,255,.09)"; c.fillRect(x, 16, 1, 84);
+    c.fillStyle = "rgba(218,212,203,.6)"; c.textAlign = "center";
+    c.fillText(String(gxBarOf(t + 1)), x + (X(t + bar) - x) / 2, 104);
+  }
+  // time labels
+  c.fillStyle = "rgba(218,212,203,.8)";
+  c.textAlign = "left"; c.fillText(fmtMMSS(win.w0), 10, 0);
+  c.textAlign = "right"; c.fillText(fmtMMSS(win.w1), w - 10, 0);
+  // moves: two rows so overlapping app moves stay readable
+  ED.cues.forEach(function (cue, i) {
+    if (cue.t + cue.dur < win.w0 || cue.t > win.w1) return;
+    const x0 = Math.max(10, X(cue.t)), x1 = Math.min(w - 10, X(cue.t + cue.dur));
+    const y = 24 + (i % 2) * 34;
+    c.fillStyle = cue.mine ? "rgba(240,163,94,.35)" : "rgba(141,184,232,.22)";
+    c.strokeStyle = cue.mine ? "rgba(246,192,142,.8)" : "rgba(141,184,232,.5)";
+    c.fillRect(x0, y, Math.max(2, x1 - x0), 28);
+    c.strokeRect(x0 + 0.5, y + 0.5, Math.max(1, x1 - x0 - 1), 27);
+    if (x1 - x0 > 40) {
+      c.save(); c.beginPath(); c.rect(x0, y, x1 - x0, 28); c.clip();
+      c.fillStyle = "#ECE7DF"; c.textAlign = "left"; c.font = "700 11px Manrope,system-ui,sans-serif";
+      c.fillText((cue.mine ? "🔒 " : "") + cue.label, x0 + 5, y + 8);
+      c.restore(); c.font = "600 10.5px Manrope,system-ui,sans-serif";
+    }
+  });
+  // the new move's own length (it can run past the stretch with long holds)
+  if (GX.cand) {
+    c.fillStyle = "rgba(255,226,191,.5)";
+    c.fillRect(X(GX.cand.t), 94, Math.max(2, X(GX.cand.t + GX.cand.dur) - X(GX.cand.t)), 4);
+  }
+  // the stretch
+  const a = X(GX.st.a), b = X(GX.st.b);
+  c.fillStyle = "rgba(240,163,94,.20)"; c.fillRect(a, 16, b - a, 84);
+  c.strokeStyle = "#F0A35E"; c.lineWidth = 2; c.strokeRect(a, 16, b - a, 84);
+  [a, b].forEach(function (x) {
+    c.fillStyle = "#F6C08E";
+    c.beginPath(); c.roundRect ? c.roundRect(x - 7, 40, 14, 36, 6) : c.rect(x - 7, 40, 14, 36); c.fill();
+    c.fillStyle = "#1A130D"; c.fillRect(x - 1.5, 50, 1, 16); c.fillRect(x + 0.5, 50, 1, 16);
+  });
+  // playhead while marking
+  if (GX.mark && ED.playheadMs >= win.w0 && ED.playheadMs <= win.w1) { c.fillStyle = "#FFE2BF"; c.fillRect(X(ED.playheadMs) - 1, 12, 2, 92); }
+  GX.stripX = X;
+}
+function gxStripT(ev) {
+  const cv = $("gx-strip"), r = cv.getBoundingClientRect(), win = GX.win;
+  return win.w0 + (ev.clientX - r.left - 10) / (r.width - 20) * (win.w1 - win.w0);
+}
+function gxStripDown(ev) {
+  if (!GX.st) return;
+  ev.preventDefault();
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  const r = ev.currentTarget.getBoundingClientRect(), x = ev.clientX - r.left;
+  const xa = GX.stripX(GX.st.a), xb = GX.stripX(GX.st.b), t = gxStripT(ev);
+  const mode = Math.abs(x - xa) < 22 ? "a" : Math.abs(x - xb) < 22 ? "b" : (x > xa && x < xb) ? "move" : "new";
+  GX.drag = { mode: mode, t: t, a: GX.st.a, b: GX.st.b };
+  if (mode === "new") { const s = gxSnapBar(t); GX.st = { a: s, b: Math.min(ED.durationMs, s + gxBarMs()) }; GX.drag = { mode: "b", t: t, a: GX.st.a, b: GX.st.b }; gxPickChanged(); }
+}
+function gxStripMove(ev) {
+  const d = GX.drag;
+  if (!d) return;
+  const t = gxStripT(ev), bar = gxBarMs();
+  if (d.mode === "a") GX.st.a = Math.min(gxSnapBar(t), GX.st.b - bar);
+  else if (d.mode === "b") GX.st.b = Math.max(gxSnapBar(t), GX.st.a + bar);
+  else {
+    const L = d.b - d.a;
+    const a = Math.max(0, Math.min(ED.durationMs - L, gxSnapBar(d.a + (t - d.t))));
+    GX.st.a = a; GX.st.b = a + L;
+  }
+  GX.st.a = Math.max(0, GX.st.a); GX.st.b = Math.min(ED.durationMs, GX.st.b);
+  gxPickChanged();
+}
+function gxStripUp() { if (GX.drag) { GX.drag = null; GX.win = null; gxDrawStrip(); } }
+/* tap once where it should start and once where it should end while the song plays */
+function gxMarkTap() {
+  if (!GX.mark) {
+    GX.mark = "start";
+    if (!ED.play.on) edPlayPause();
+  } else if (GX.mark === "start") {
+    const a = gxSnapBar(ED.playheadMs);
+    GX.st = { a: a, b: Math.min(ED.durationMs, a + gxBarMs()) };
+    GX.mark = "end";
+  } else {
+    GX.st.b = Math.max(GX.st.a + gxBarMs(), gxSnapBar(ED.playheadMs));
+    GX.mark = null;
+    if (ED.play.on) edPlayPause();
+  }
+  GX.win = null;
+  gxRenderSheet();
+}
+/* the preview loops the new move on its own little field */
+function gxPickFrame(force) {
+  const cv = $("gx-pickmap"), cue = GX.cand;
+  if (!cv || !cue) return;
+  if (GX.mark) { gxDrawStrip(); setTxt($("gx-pickclock"), gxT(ED.playheadMs)); return; }
+  const sp = edPatSpan(cue);
+  const now = performance.now();
+  const p = ((now - GX.pick.t0) % sp.total) / sp.total;
+  const tau = -sp.lead + p * sp.total;
+  let center = null;
+  if (cue.pattern === "ripple" || cue.pattern === "radial") {
+    const mem = resolveTargetNums(cue.target, ED.balloons, ED.sets), byN = {};
+    ED.balloons.forEach(function (b) { byN[b.n] = b; });
+    let sx = 0, sy = 0;
+    mem.forEach(function (n) { sx += byN[n].x; sy += byN[n].y; });
+    if (mem.length) center = [sx / mem.length, sy / mem.length];
+  }
+  drawFieldMap(cv, { balloons: ED.balloons, colorOf: edColorOf(), field: ED.field, cache: true,
+    stateByN: edPatStates(cue, tau), nowMs: now, center: center });
+  const at = cue.t + tau;
+  setTxt($("gx-pickclock"), at < cue.t ? "get ready" : gxT(at));
+}
+function gxUsePick() {
+  const cue = gxBuildMove();
+  const end = Math.max(GX.st.b, cue.t + cue.dur);
+  gxPush((GX_NAMES[cue.pattern] || "move").toLowerCase() + " at " + gxT(cue.t));
+  const rep = gxReplaced(cue.t, end);
+  ED.cues = ED.cues.filter(function (c, i) { return rep.indexOf(i) === -1; });
+  ED.cues.push(cue);
+  ED.cues.sort(function (a, b) { return a.t - b.t; });
+  GX.st = null; GX.mark = null;
+  GX.sheet = null;
+  $("gx-sheetwrap").classList.add("hidden");
+  document.body.classList.remove("gx-noscroll");
+  ED.sel = { kind: "cue", i: ED.cues.indexOf(cue) };
+  const n = gxProblemCountsAfter();
+  GX.note = "Yours: " + cue.label + " at " + gxT(cue.t) + (n.red ? " · " + n.red + " red to fix" : "");
+  gxChanged();
+  if (gxProblemCounts().red) gxOpen("problems");
+}
+function gxProblemCountsAfter() { edRevalidate(); return gxProblemCounts(); }
+
+/* ---- 3 · yours, and rebuilding the rest ----------------------------------------- */
+function gxMoveLine(cue) {
+  const w = moveWords(cue, gxNames());
+  return { title: w.title, detail: gxT(cue.t) + " – " + gxT(cue.t + cue.dur) + " · " + w.detail };
+}
+function gxRenderRebuild(box) {
+  gxSheetHead(box, "Rebuild the rest of the song?", "The app re-makes its moves around yours, under the same rules.");
+  const mine = ED.cues.filter(function (c) { return c.mine; });
+  const card = el("div", "gx-card");
+  if (mine.length) {
+    card.appendChild(el("div", "gx-lbl", "Yours stays exactly as it is"));
+    mine.forEach(function (c) {
+      const l = gxMoveLine(c), r = el("div", "gx-yours");
+      r.appendChild(el("b", null, "🔒 " + c.label));
+      r.appendChild(el("span", null, l.detail));
+      card.appendChild(r);
+    });
+  } else card.appendChild(el("div", "small", "You have no moves of your own yet, so the whole song is rebuilt."));
+  box.appendChild(card);
+  const bl = el("div", "gx-lbl", "How busy");
+  box.appendChild(bl);
+  const seg = el("div", "seg gx-busy");
+  const cur = (ED.options && ED.options.intensity) || 0.6;
+  [[0.6, "Calmer · 60%"], [0.8, "80%"], [1, "Very dynamic · 100%"]].forEach(function (o) {
+    const b = el("button", Math.abs(cur - o[0]) < 0.05 ? "on" : "", o[1]);
+    b.onclick = function () { ED.options.intensity = o[0]; edSave(); gxRenderSheet(); };
+    seg.appendChild(b);
+  });
+  box.appendChild(seg);
+  box.appendChild(el("div", "tiny", "Undo puts the old moves back."));
+  gxBtnRow(box, [{ label: "Cancel", on: gxClose }, { label: mine.length ? "Rebuild the rest" : "Rebuild the song", primary: true, on: gxRebuild }]);
+}
+function gxRebuild() {
+  // an imported show has no analysis: its own tempo is enough for the choreographer
+  const summary = ED.summary || { durationMs: ED.durationMs, bpm: edBpm() || 120, beatOffsetMs: edBeatT0() };
+  const mine = ED.cues.filter(function (c) { return c.mine; });
+  gxPush("rebuild");
+  const opts = edOpt();
+  opts.keepCues = mine.map(function (c) { return JSON.parse(JSON.stringify(c)); });
+  const title = ED.title;
+  let r;
+  try { r = choreograph(summary, opts); }
+  catch (e) { ED.undo.pop(); showFatal("COULD NOT REBUILD", "", [String(e && e.message || e)]); return; }
+  const keyOf = function (c) { return c.t + "|" + c.type + "|" + String(c.label).trim(); };
+  const mk = {};
+  mine.forEach(function (c) { mk[keyOf(c)] = 1; });
+  ED.cues = r.cues.map(function (c) { const o = JSON.parse(JSON.stringify(c)); if (mk[keyOf(o)]) o.mine = true; return o; });
+  // anything of the conductor's the rebuild could not place goes back in as it was
+  mine.forEach(function (m) { if (!ED.cues.some(function (c) { return c.mine && keyOf(c) === keyOf(m); })) ED.cues.push(JSON.parse(JSON.stringify(m))); });
+  ED.cues.sort(function (a, b) { return a.t - b.t; });
+  ED.advisories = r.advisories;
+  ED.title = title;
+  ED.sel = null;
+  GX.note = "Rebuilt: " + (ED.cues.length - gxMineCount()) + " moves by the app around " + gxMineCount() + " of yours";
+  GX.sheet = null;
+  $("gx-sheetwrap").classList.add("hidden");
+  document.body.classList.remove("gx-noscroll");
+  gxChanged();
+}
+function gxHandBack(i) {
+  const c = ED.cues[i];
+  if (!c) return;
+  gxPush("hand back " + c.label);
+  delete c.mine;
+  GX.note = "“" + c.label + "” is the app's again: Rebuild may change it.";
+  gxChanged();
+}
+
+/* ---- 4 · problems with one-tap fixes ---------------------------------------------- */
+/* run a changed copy of the cue list through exactly the checks the editor uses */
+function gxEvaluate(cues) {
+  const list = cues.map(function (c) { return JSON.parse(JSON.stringify(c)); });
+  list.forEach(function (c) {
+    if (c.type !== "pattern") return;
+    const members = resolveTargetNums(c.target, ED.balloons, ED.sets);
+    c.bands = patternBands({ pattern: c.pattern, dir: c.dir, bandCount: c.bandCount || (c.bands && c.bands.length) || 4,
+                             center: c.center, seed: c.seed, members: members }, ED.balloons);
+    if (c.pattern !== "alternate") c.dur = Math.max(100, patternDur(c));
+    else c.dur = Math.max(c.stepMs || 100, c.dur || 0);
+  });
+  const o = chOptions(edOpt());
+  const v = validateShow(chBuildShow(list, o, { durationMs: ED.durationMs || 1000, bpm: edBpm(), beatOffsetMs: edBeatT0() }));
+  const audit = chAudit(list, edOpt(), ED.durationMs || 1000);
+  let red = v.ok ? 0 : v.errors.length, amber = 0;
+  gxIssues(audit.perCue).forEach(function (l) { l.forEach(function (x) { if (x.severity === "block") red++; else amber++; }); });
+  return { cues: list, red: red, amber: amber, audit: audit, valid: v };
+}
+function gxNumsIn(text) {
+  const out = [];
+  String(text).replace(/#(\d+)/g, function (m, n) { out.push(parseInt(n, 10)); return m; });
+  return out;
+}
+/* every candidate fix for move i: each is a change to a copy of the show */
+function gxFixCandidates(i) {
+  const cue = ED.cues[i], out = [];
+  if (!cue) return out;
+  const issues = (ED.audit && ED.audit.perCue[i]) || [];
+  const long = (ED.options && ED.options.longBurnMs) || 6000;
+  const bar = gxBarMs();
+  const edit = function (title, sub, fn) { out.push({ title: title, sub: sub, fn: fn }); };
+  if (cue.type === "pattern" && cue.pattern !== "alternate" && cue.pattern !== "fill" && cue.burnMs >= long) {
+    edit("Flicker " + gxS(gxFlickMs()) + " instead of holding", "A flicker needs no VENT warning.",
+      function (cs) { gxSetBurn(cs[i], gxFlickMs()); });
+  }
+  if (cue.type === "burn" && cue.dur >= long) {
+    const d = Math.max(1000, long - 1000);
+    edit("Burn " + gxS(d) + " instead of " + gxS(cue.dur), "Under " + gxS(long) + " no VENT warning is needed.", function (cs) { cs[i].dur = d; });
+  }
+  // the balloons the problem names: leave them out of this move, or out of the move before
+  const nums = [];
+  issues.forEach(function (x) { gxNumsIn(x.text).forEach(function (n) { if (nums.indexOf(n) === -1) nums.push(n); }); });
+  if (nums.length && nums.length <= 6 && isBalloonCue(cue)) {
+    const mem = resolveTargetNums(cue.target, ED.balloons, ED.sets).filter(function (n) { return nums.indexOf(n) === -1; });
+    if (mem.length >= 2) edit("Leave " + fmtNums(nums, 4) + " out of this move", "The rest of the move stays as it is.",
+      function (cs) { cs[i].target = { n: mem }; });
+    // the move just before that uses them
+    let prev = -1;
+    ED.cues.forEach(function (c, j) {
+      if (j === i || c.t >= cue.t || !isBalloonCue(c)) return;
+      const m = resolveTargetNums(c.target, ED.balloons, ED.sets);
+      if (nums.some(function (n) { return m.indexOf(n) !== -1; }) && (prev < 0 || c.t > ED.cues[prev].t)) prev = j;
+    });
+    if (prev >= 0) {
+      const pc = ED.cues[prev];
+      const m2 = resolveTargetNums(pc.target, ED.balloons, ED.sets).filter(function (n) { return nums.indexOf(n) === -1; });
+      if (m2.length >= 2) edit("Leave " + fmtNums(nums, 4) + " out of “" + pc.label + "” at " + gxT(pc.t),
+        "That move becomes yours too.", function (cs) { cs[prev].target = { n: m2 }; cs[prev].mine = true; });
+      const pt = Math.round(pc.t - bar);
+      if (pt >= 0) edit("Start “" + pc.label + "” 1 bar earlier, at " + gxT(pt), "That move becomes yours too.",
+        function (cs) { cs[prev].t = pt; cs[prev].mine = true; });
+    }
+  }
+  [[1, "Start it 1 bar later"], [-1, "Start it 1 bar earlier"], [2, "Start it 2 bars later"]].forEach(function (s) {
+    const t = Math.round(cue.t + s[0] * bar);
+    if (t < 0 || t + cue.dur > ED.durationMs) return;
+    edit(s[1] + ", at " + gxT(t), "", function (cs) { cs[i].t = t; });
+  });
+  if (cue.type === "pattern" && cue.pattern !== "alternate" && (cue.bandCount || cue.bands.length) > 2) {
+    const bc = (cue.bandCount || cue.bands.length) - 1;
+    edit("Use " + bc + " bands instead of " + (bc + 1), "The move ends sooner.", function (cs) { cs[i].bandCount = bc; });
+  }
+  edit("Take this move out", cue.mine ? "Your move goes; Undo brings it back." : "The app's move goes; Rebuild can fill the gap.",
+    function (cs) { cs.splice(i, 1); });
+  return out;
+}
+/* keep the fixes that clear this move's problem without adding red; say what else changes */
+function gxCheckedFixes(i) {
+  const before = gxProblemCounts();
+  const cue = ED.cues[i];
+  const sevBefore = (gxIssues(ED.audit && ED.audit.perCue)[i] || []).some(function (x) { return x.severity === "block"; }) ? "block" : "warn";
+  const out = [];
+  gxFixCandidates(i).forEach(function (f) {
+    const cs = ED.cues.map(function (c) { return JSON.parse(JSON.stringify(c)); });
+    f.fn(cs);
+    if (cs[i] && cs[i] !== undefined && cs.length === ED.cues.length) cs[i].mine = true;
+    const r = gxEvaluate(cs);
+    // where the move is now (it may have moved or gone)
+    const j = cs.length === ED.cues.length ? i : -1;
+    const left = j >= 0 ? (gxIssues(r.audit.perCue)[j] || []) : [];
+    const cleared = sevBefore === "block" ? !left.some(function (x) { return x.severity === "block"; }) : !left.length;
+    if (!cleared || r.red > before.red - (sevBefore === "block" ? 1 : 0)) return;
+    const newAmber = r.amber - before.amber + (sevBefore === "warn" ? 1 : 0);
+    f.result = r.red === 0 && newAmber <= 0 ? "Clears it. Nothing new." + (f.sub ? " " + f.sub : "")
+      : newAmber > 0 ? "Clears it, but adds " + newAmber + " amber (advice, not a block)." + (f.sub ? " " + f.sub : "")
+      : "Clears it." + (f.sub ? " " + f.sub : "");
+    f.cues = r.cues;
+    f.score = (r.red * 100) + Math.max(0, newAmber) + (f.title.indexOf("Take this move out") === 0 ? 50 : 0);
+    out.push(f);
+  });
+  out.sort(function (a, b) { return a.score - b.score; });
+  return out.slice(0, 4);
+}
+function gxApplyFix(i, f) {
+  gxPush("fix " + (ED.cues[i] ? ED.cues[i].label : "move"));
+  const keepMine = ED.cues.map(function (c) { return !!c.mine; });
+  ED.cues = f.cues.map(function (c, j) { if (j < keepMine.length && keepMine[j]) c.mine = true; return c; });
+  if (ED.cues[i] && ED.cues.length === keepMine.length) ED.cues[i].mine = true;
+  GX.note = "Fixed: " + f.title;
+  gxChanged();
+}
+function gxRuleRows() {
+  const rows = [
+    { code: ["runway"], label: gxS(((ED.options.stopMs || 2000) + (ED.options.ventLeadMs || 5000) + (ED.options.getReadyMs || 5000))) + " of clear air before a long burn" },
+    { code: ["rest"], label: gxS(ED.options.minRestMs || 8000) + " of rest between moves" },
+    { code: ["budget"], label: "Burn budget, " + gxS(ED.options.burnBudgetMs || 90000) + " each" },
+    { code: ["maxburn"], label: "No burn over " + gxS(ED.options.maxBurnMs || 12000) },
+    { code: ["overlap", "shape", "groups", "bounds"], label: "Moves fit the song and don't overlap" }
+  ];
+  rows.forEach(function (r) { r.red = 0; r.amber = 0; });
+  gxIssues(ED.audit && ED.audit.perCue).forEach(function (l) {
+    l.forEach(function (x) {
+      const r = rows.filter(function (q) { return q.code.indexOf(x.code) !== -1; })[0] || rows[4];
+      if (x.severity === "block") r.red++; else r.amber++;
+    });
+  });
+  if (ED.valid && !ED.valid.ok) rows[4].red += ED.valid.errors.length;
+  return rows;
+}
+function gxRenderProblemsSheet(box) {
+  const n = gxProblemCounts();
+  gxSheetHead(box, "Problems", n.red ? n.red + " red · Publish is off until they're fixed" : n.amber ? n.amber + " amber · advice, Publish still works" : "Nothing to fix");
+  const card = el("div", "gx-card");
+  card.appendChild(el("div", "gx-lbl", "Instant check · on this phone · works offline"));
+  gxRuleRows().forEach(function (r) {
+    const row = el("div", "gx-rule");
+    row.appendChild(el("span", null, r.label));
+    row.appendChild(el("b", r.red ? "bad" : r.amber ? "warn" : "ok", r.red ? r.red + " red" : r.amber ? r.amber + " amber" : "OK"));
+    card.appendChild(row);
+  });
+  box.appendChild(card);
+  if (ED.valid && !ED.valid.ok) {
+    const c = el("div", "gx-card alarm");
+    c.appendChild(el("div", "gx-kind bad", "RED · THE APP WOULD REFUSE THIS SHOW"));
+    ED.valid.errors.slice(0, 6).forEach(function (e) { c.appendChild(el("div", "small", e)); });
+    box.appendChild(c);
+  }
+  const order = [], shown = gxIssues(ED.audit && ED.audit.perCue);
+  shown.forEach(function (l, i) {
+    if (!l.length) return;
+    order.push({ i: i, red: l.some(function (x) { return x.severity === "block"; }) });
+  });
+  order.sort(function (a, b) { return (b.red - a.red) || (ED.cues[a.i].t - ED.cues[b.i].t); });
+  order.slice(0, 8).forEach(function (o) {
+    const cue = ED.cues[o.i], l = shown[o.i];
+    const c = el("div", "gx-card" + (o.red ? " alarm" : ""));
+    c.appendChild(el("div", "gx-kind " + (o.red ? "bad" : "warn"), o.red ? "RED · BLOCKS PUBLISH" : "AMBER · ADVICE"));
+    c.appendChild(el("h3", null, "“" + cue.label + "” at " + gxT(cue.t) + (cue.mine ? " · yours" : "")));
+    l.forEach(function (x) { c.appendChild(el("div", "small", x.text + ".")); });
+    const fixes = gxCheckedFixes(o.i);
+    c.appendChild(el("div", "gx-lbl", fixes.length ? "Fixes · each one is checked before it's offered" : "No one-tap fix clears this. Change it by hand below the song strip."));
+    fixes.forEach(function (f) {
+      const b = el("button", "gx-fix");
+      b.appendChild(el("b", null, f.title));
+      b.appendChild(el("span", null, f.result));
+      b.onclick = function () { gxApplyFix(o.i, f); };
+      c.appendChild(b);
+    });
+    const go = el("button", "linkbtn", "Show it on the song ›");
+    go.onclick = function () { gxClose(); edSelect({ kind: "cue", i: o.i }); gxOverGo(cue.t); };
+    c.appendChild(go);
+    box.appendChild(c);
+  });
+  if (order.length > 8) box.appendChild(el("div", "tiny", "…and " + (order.length - 8) + " more moves with problems. Fix these first; the list updates."));
+  if (!order.length && !(ED.valid && !ED.valid.ok)) box.appendChild(el("div", "edok", "✓ Every rule passes for every balloon."));
+  const p = el("div", "tiny");
+  p.style.marginTop = "10px";
+  p.textContent = "Publish · " + (n.red ? "off while anything is red" : "ready");
+  box.appendChild(p);
+}
+
+/* ---- 5 · check with Claude (his own Claude on his Mac) ------------------------------ */
+function gxClaudeUrl() { return String(load(LS.claudeUrl) || "").replace(/\/+$/, ""); }
+function gxShowHash() { try { return showCode(edShowObject()) + ":" + ED.cues.length; } catch (e) { return ""; } }
+/* the show in plain words, numbered, for Claude */
+function gxBrief() {
+  const nm = gxNames(), L = [];
+  const nb = (ED.balloons || []).length;
+  L.push("Show: " + (ED.title || "untitled") + " · " + fmtMMSS(ED.durationMs) + (edBpm() ? " · " + Math.round(edBpm()) + " BPM (one bar = " + gxS(gxBarMs()) + ")" : "") +
+         " · " + nb + " balloons on the field. Left and right are as the crowd sees it.");
+  const secs = edSections();
+  if (secs.length > 1) L.push("Song sections the app heard: " + secs.map(function (s) { return s.label + " " + fmtMMSS(s.startMs) + "–" + fmtMMSS(s.endMs); }).join(", ") + ".");
+  else L.push("The app heard the whole song as one section (no verse/chorus marks).");
+  L.push("");
+  L.push("Moves in time order:");
+  ED.cues.forEach(function (c, i) {
+    const w = moveWords(c, nm);
+    let s = "#" + (i + 1) + " " + gxT(c.t) + "–" + gxT(c.t + c.dur) + " " + w.title + " · " + w.detail;
+    if (c.type === "pattern") s += " · pattern " + c.pattern + (c.dir ? " " + c.dir : "") + ", " + (c.bands ? c.bands.length : 0) + " bands" +
+      (c.pattern === "alternate" ? ", legs of " + gxS(c.stepMs) : ", " + gxS(c.stepMs || 0) + " apart, " + gxS(c.burnMs || 0) + " burn each");
+    s += c.mine ? " [YOURS: Brian made or changed this]" : " [made by the app]";
+    L.push(s);
+  });
+  L.push("");
+  const n = gxProblemCounts();
+  L.push("Instant safety check: " + n.red + " red, " + n.amber + " amber.");
+  (ED.audit ? ED.audit.perCue : []).forEach(function (l, i) {
+    l.forEach(function (x) { L.push("- " + (x.severity === "block" ? "RED" : "AMBER") + " #" + (i + 1) + " “" + ED.cues[i].label + "”: " + x.text); });
+  });
+  if (ED.valid && !ED.valid.ok) ED.valid.errors.slice(0, 6).forEach(function (e) { L.push("- RED: " + e); });
+  const o = ED.options || {};
+  L.push("");
+  L.push("Rules in force: " + gxS(o.minRestMs || 8000) + " rest between a balloon's moves; burn budget " + gxS(o.burnBudgetMs || 90000) +
+         " per balloon; a burn of " + gxS(o.longBurnMs || 6000) + " or more needs " + gxS((o.stopMs || 2000) + (o.ventLeadMs || 5000) + (o.getReadyMs || 5000)) +
+         " clear before it; no burn over " + gxS(o.maxBurnMs || 12000) + ".");
+  return L.join("\n");
+}
+async function gxClaudeSend(question) {
+  const url = gxClaudeUrl(), pin = conductorPin();
+  // Claude answers in move numbers; pin each number to its move, so an accepted
+  // removal can't make a later suggestion land on the wrong move
+  ED.cues.forEach(function (c) { if (!c.gid) c.gid = Math.random().toString(36).slice(2, 10); });
+  GX.claude = { state: "sending", forHash: gxShowHash(), decided: {}, question: question || "",
+                ids: ED.cues.map(function (c) { return c.gid; }) };
+  gxRenderSheet();
+  if (!url) { GX.claude = { state: "error", error: "This phone doesn't know your Mac's address yet. Open Glow Show from the iPhone app, or set “Your Claude” in Settings." }; gxRenderSheet(); return; }
+  if (pin.length < 6) { GX.claude = { state: "error", error: "Type your conductor PIN on the Publish screen first: your Mac checks it." }; gxRenderSheet(); return; }
+  try {
+    const res = await fetch(url + "/check", { method: "POST", mode: "cors", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: pin, brief: gxBrief(), question: question || "" }) });
+    const j = await res.json().catch(function () { return {}; });
+    if (!res.ok || !j.job) throw new Error(j.error || ("your Mac answered " + res.status));
+    GX.claude.state = "running"; GX.claude.job = j.job; GX.claude.started = Date.now();
+    gxRenderSheet();
+    gxClaudePoll();
+  } catch (e) {
+    GX.claude = { state: "error", error: "Couldn't reach your Mac: " + String(e && e.message || e) + ". It needs the Mac awake and this phone on Tailscale. The instant check still works." };
+    gxRenderSheet();
+  }
+}
+async function gxClaudePoll() {
+  const C = GX.claude;
+  if (!C || C.state !== "running") return;
+  try {
+    const res = await fetch(gxClaudeUrl() + "/check/" + encodeURIComponent(C.job), { mode: "cors", headers: { "X-Glow-Pin": conductorPin() } });
+    const j = await res.json().catch(function () { return {}; });
+    if (GX.claude !== C) return;
+    if (j.state === "done") { C.state = "done"; C.result = j.result; gxRenderSheet(); return; }
+    if (j.state === "error" || !res.ok) { C.state = "error"; C.error = j.error || ("your Mac answered " + res.status); gxRenderSheet(); return; }
+  } catch (e) { /* a blip: keep waiting */ }
+  if (Date.now() - C.started > 300000) { C.state = "error"; C.error = "Your Claude took more than 5 minutes. Try again."; gxRenderSheet(); return; }
+  setTimeout(gxClaudePoll, 3000);
+  const s = $("gx-wait");
+  if (s) setTxt(s, "Your Claude is reading the show · " + Math.round((Date.now() - C.started) / 1000) + " s");
+}
+/* turn one of Claude's fix objects into a change to a copy of the show */
+function gxClaudeFix(fix) {
+  if (!fix || typeof fix !== "object") return null;
+  const id = ((GX.claude && GX.claude.ids) || [])[(fix.move | 0) - 1];
+  const i = id ? ED.cues.map(function (c) { return c.gid; }).indexOf(id) : -1, cue = ED.cues[i];
+  if (!cue) return null;
+  const bar = gxBarMs();
+  if (fix.op === "flicker" && cue.type === "pattern" && cue.pattern !== "alternate") return { i: i, fn: function (cs) { gxSetBurn(cs[i], gxFlickMs()); } };
+  if (fix.op === "hold" && cue.type === "pattern" && cue.pattern !== "alternate") return { i: i, fn: function (cs) { gxSetBurn(cs[i], gxHoldMs()); } };
+  if (fix.op === "shift" && Math.abs(fix.bars | 0) >= 1 && Math.abs(fix.bars | 0) <= 4) {
+    const t = Math.round(cue.t + (fix.bars | 0) * bar);
+    if (t < 0 || t + cue.dur > ED.durationMs) return null;
+    return { i: i, fn: function (cs) { cs[i].t = t; } };
+  }
+  if (fix.op === "remove") return { i: i, gone: true, fn: function (cs) { cs.splice(i, 1); } };
+  if (fix.op === "pattern" && cue.type === "pattern" && PATTERNS.indexOf(fix.pattern) !== -1 && fix.pattern !== "alternate") {
+    const dirs = PATTERN_DIRS[fix.pattern] || [];
+    const dir = dirs.indexOf(fix.dir) !== -1 ? fix.dir : (PATTERN_DEFAULT_DIR[fix.pattern] || null);
+    return { i: i, fn: function (cs) {
+      cs[i].pattern = fix.pattern;
+      if (dir) cs[i].dir = dir; else delete cs[i].dir;
+      if (fix.pattern === "sparkle") cs[i].seed = 1;
+      cs[i].label = GX_NAMES[fix.pattern] + (dir && DIR_LABEL[dir] ? " " + _plain(edDirLabel(fix.pattern, dir)).toLowerCase() : "");
+    } };
+  }
+  if (fix.op === "bands" && cue.type === "pattern" && cue.pattern !== "alternate" && fix.count >= 2 && fix.count <= 8) {
+    return { i: i, fn: function (cs) { cs[i].bandCount = fix.count | 0; } };
+  }
+  return null;
+}
+function gxClaudeAccept(k) {
+  const C = GX.claude, it = C && C.result && C.result.items[k];
+  const fx = it && gxClaudeFix(it.fix);
+  if (!fx) return;
+  const before = gxProblemCounts();
+  const cs = ED.cues.map(function (c) { return JSON.parse(JSON.stringify(c)); });
+  fx.fn(cs);
+  if (!fx.gone && cs[fx.i]) cs[fx.i].mine = true;
+  const r = gxEvaluate(cs);
+  if (r.red > before.red) { C.decided[k] = "Not applied: it would make " + (r.red - before.red) + " new red problem" + (r.red - before.red > 1 ? "s" : "") + "."; gxRenderSheet(); return; }
+  gxPush("Claude: " + it.title);
+  const keep = ED.cues.map(function (c) { return !!c.mine; });
+  ED.cues = r.cues.map(function (c, j) { if (!fx.gone && j < keep.length && keep[j]) c.mine = true; return c; });
+  C.decided[k] = "Accepted · " + (r.red ? r.red + " red now" : r.amber ? r.amber + " amber, nothing red" : "0 problems now");
+  C.stale = true;
+  gxChanged();
+}
+function gxRenderClaude(box) {
+  gxSheetHead(box, "Check with Claude", (ED.title || "This show") + " · as it is now");
+  const info = el("div", "gx-card");
+  info.appendChild(el("b", null, "Answered by your Claude on your Mac"));
+  info.appendChild(el("div", "tiny", "Your own Claude plan, not the paid API, and only you can use it. Needs your Mac awake and this phone on Tailscale; the instant check works without it. Claude suggests; nothing changes until you tap Accept, and every change passes the instant check first."));
+  box.appendChild(info);
+  const C = GX.claude;
+  const ask = function (label) {
+    const q = el("textarea", "gx-ask");
+    q.placeholder = "Anything to tell Claude? e.g. the organisers want the big moment at 2:10";
+    q.rows = 2;
+    q.value = (C && C.question) || "";
+    box.appendChild(q);
+    gxBtnRow(box, [{ label: label, primary: true, on: function () { gxClaudeSend(q.value.trim()); } }]);
+  };
+  if (!C || C.state === "idle") { ask("Send to your Claude"); return; }
+  if (C.state === "sending" || C.state === "running") {
+    const w = el("div", "gx-card gx-wait");
+    w.id = "gx-wait";
+    w.textContent = C.state === "sending" ? "Sending the show to your Mac…" : "Your Claude is reading the show · about a minute";
+    box.appendChild(w);
+    return;
+  }
+  if (C.state === "error") {
+    const e = el("div", "gx-card alarm");
+    e.appendChild(el("div", "small", C.error));
+    box.appendChild(e);
+    ask("Try again");
+    return;
+  }
+  const R = C.result || { read: "", items: [] };
+  if (C.forHash !== gxShowHash() && !C.stale) box.appendChild(el("div", "tiny gx-stale", "The show has changed since Claude looked. Send it again for a fresh read."));
+  const rd = el("div", "gx-card");
+  rd.appendChild(el("div", "gx-lbl", "Claude's read"));
+  rd.appendChild(el("div", "small", R.read || ""));
+  box.appendChild(rd);
+  (R.items || []).forEach(function (it, k) {
+    const s = el("div", "gx-sug " + it.kind);
+    s.appendChild(el("div", "gx-kind", it.kind === "change" ? "CHANGE" : it.kind === "keep" ? "KEEP" : "THINK ABOUT"));
+    s.appendChild(el("b", null, it.title));
+    s.appendChild(el("div", "small", it.body));
+    if (C.decided[k]) s.appendChild(el("div", "gx-done", C.decided[k]));
+    else if (it.kind === "change" && gxClaudeFix(it.fix)) {
+      const r = el("div", "gx-btnrow");
+      const sk = el("button", null, "Skip");
+      sk.onclick = function () { C.decided[k] = "Skipped"; gxRenderSheet(); };
+      const ac = el("button", "primary", "Accept");
+      ac.onclick = function () { gxClaudeAccept(k); };
+      r.appendChild(sk); r.appendChild(ac);
+      s.appendChild(r);
+    } else if (it.kind === "change") s.appendChild(el("div", "tiny", it.fix ? "That move has changed since Claude looked, so this can't be applied as it is." : "This one needs your hands: pick that stretch and change it."));
+    box.appendChild(s);
+  });
+  ask("Ask Claude about this show");
+}
+
+/* ---- 6 · publish to phones --------------------------------------------------- */
+function gxRenderPublish(box) {
+  gxSheetHead(box, "Publish to phones", "One last look before it goes out");
+  const n = gxProblemCounts(), nb = (ED.balloons || []).length, mine = ED.cues.filter(function (c) { return c.mine; });
+  const card = el("div", "gx-card");
+  const row = function (k, v, sub, cls) {
+    const r = el("div", "gx-prow");
+    r.appendChild(el("div", "k", k));
+    const d = el("div", "v" + (cls ? " " + cls : ""), v);
+    if (sub) d.appendChild(el("span", null, sub));
+    r.appendChild(d);
+    card.appendChild(r);
+  };
+  const same = APP.show && ED.code && showCodeNow() === ED.code;
+  row("Show", (ED.title || "Show") + " · code " + gxCode(), same || ED.code ? "Same code as before: pilots who open the show get this version" : "A new code: give it to the pilots");
+  row("Phones", nb ? nb + " cue packs, one per balloon" : ED.groups.length + " cue packs, one per group", "Each pilot gets only their own burns" + (ED.field ? ", plus the field map" : ""));
+  row("Your edits", mine.length ? mine.length + " move" + (mine.length > 1 ? "s" : "") : "None", mine.slice(0, 3).map(function (c) { return c.label + ", " + gxT(c.t) + " – " + gxT(c.t + c.dur); }).join(" · "));
+  row("Instant check", n.red ? n.red + " red" : n.amber ? n.amber + " amber" : "0 problems", "Rest · burn budget · clear air before long burns · longest burn", n.red ? "bad" : "ok");
+  const C = GX.claude;
+  row("Claude", C && C.state === "done" ? (C.forHash === gxShowHash() || C.stale ? "Looked at this show" : "Looked at an earlier version") : "Not asked", C && C.state === "done" ? Object.keys(C.decided).length + " of " + ((C.result && C.result.items) || []).length + " suggestions decided" : "Optional: Check with Claude first");
+  row("Song", ED.fileName || ED.audioTitle || "Same song, " + fmtMMSS(ED.durationMs), "The song stays on this phone. It is never uploaded.");
+  box.appendChild(card);
+  if (conductorPin().length < 6) {
+    const w = el("label", "edfld");
+    w.appendChild(el("span", null, "Conductor PIN (6 or more characters; it claims the show code)"));
+    const inp = el("input");
+    inp.type = "password"; inp.autocomplete = "off"; inp.id = "gx-pin";
+    inp.oninput = function () { store(LS.pin, inp.value); };
+    w.appendChild(inp);
+    box.appendChild(w);
+  }
+  if (GX.pub) box.appendChild(el("div", "badge " + (GX.pub.ok ? "green" : "red"), GX.pub.msg));
+  if (n.red) box.appendChild(el("div", "tiny", "Publish stays off while anything is red. Rules check › shows each one with its fixes."));
+  gxBtnRow(box, [{ label: "Back", on: gxClose }, { label: "Publish to phones", primary: true, disabled: n.red > 0, on: gxPublish }]);
+}
+async function gxPublish() {
+  const show = edExportShow();
+  if (!show) return;
+  const v0 = validateShow(show);
+  if (!v0.ok) return;
+  if (!ED.code) ED.code = showCode(v0.show);
+  show.code = ED.code;
+  const v = validateShow(show);
+  if (v.ok) ED.pubShow = v.show;
+  if (!applyShow(v, "")) { GX.pub = { ok: false, msg: "The show didn't load." }; gxRenderSheet(); return; }
+  GX.pub = { ok: true, msg: "Publishing…" };
+  gxRenderSheet();
+  await publishPacks();
+  GX.pub = APP.pubState ? { ok: APP.pubState.ok, msg: APP.pubState.msg } : { ok: false, msg: "Not published." };
+  edSave();
+  gxRenderSheet();
+  gxRenderHead();
+}
+/* the conductor's way in: edit the show that is loaded right now */
+function gxEditFromConductor() {
+  if (!APP.show) { showFatal("NO SHOW LOADED", "", ["Load a show first, then edit it."]); return; }
+  const code = showCodeNow();
+  const sameShow = ED.ready && ED.code === code;
+  if (!sameShow) {
+    edImportText(JSON.stringify(APP.show));
+    ED.code = code;
+    ED.undo = [];
+  }
+  ED.fromConductor = true;
+  edSave();
+  APP.role = "editor";
+  go("editor-work");
+  edSetTab("timeline", true);
+}
+
 function edSave() {
   if (!ED.ready && !ED.summary) return;
   store(LS.editor, {
@@ -11307,7 +12547,8 @@ function edSave() {
     durationMs: ED.durationMs, options: ED.options, groups: ED.groups,
     cues: ED.cues, advisories: ED.advisories, summary: ED.summary, ready: ED.ready,
     balloons: ED.balloons, bpm: ED.bpm, beatOffsetMs: ED.beatOffsetMs, tab: ED.tab,
-    field: ED.field, sets: ED.sets, minSpacingM: ED.minSpacingM, envM: ED.envM, walkM: ED.walkM
+    field: ED.field, sets: ED.sets, minSpacingM: ED.minSpacingM, envM: ED.envM, walkM: ED.walkM,
+    code: ED.code || null, fromConductor: !!ED.fromConductor, pubShow: ED.pubShow || null
   });
 }
 function edRestore() {
@@ -11325,6 +12566,9 @@ function edRestore() {
     ED.cues = Array.isArray(p.cues) ? p.cues : [];
     ED.advisories = Array.isArray(p.advisories) ? p.advisories : [];
     ED.summary = p.summary || null;
+    ED.code = typeof p.code === "string" ? p.code : null;
+    ED.fromConductor = !!p.fromConductor;
+    ED.pubShow = p.pubShow && typeof p.pubShow === "object" ? p.pubShow : null;
     ED.bpm = typeof p.bpm === "number" ? p.bpm : 0;
     ED.beatOffsetMs = typeof p.beatOffsetMs === "number" ? p.beatOffsetMs : 0;
     ED.balloons = normalizeBalloons(p.balloons, ED.groups.map(function (g) { return g.id; }));
@@ -11619,6 +12863,21 @@ document.addEventListener("click", function (ev) {
       break;
     }
     case "test-worker": testWorker(); break;
+    case "save-claude": {
+      const v = $("s-claude").value.trim().replace(/\/+$/, "");
+      if (v) store(LS.claudeUrl, v); else drop(LS.claudeUrl);
+      renderSettings();
+      break;
+    }
+    case "cond-edit": gxEditFromConductor(); break;
+    case "gx-tocond": ED.play.on = false; edStopAudio(); APP.role = "conductor"; go("cond-setup"); break;
+    case "gx-undo": gxUndo(); break;
+    case "gx-pick": gxOpen("pick"); break;
+    case "gx-rebuild": gxOpen("rebuild"); break;
+    case "gx-claude": gxOpen("claude"); break;
+    case "gx-publish": GX.pub = null; gxOpen("publish"); break;
+    case "gx-problems": gxOpen("problems"); break;
+    case "gx-close": gxClose(); break;
     case "forget-show": drop(LS.show); drop(LS.showSrc); APP.show = null; APP.tl = null; renderAll(); break;
     case "forget-all":
       Object.keys(LS).forEach(function (k) { drop(LS[k]); });
@@ -11717,10 +12976,19 @@ function setRole(role) {
   const finish = function () {
     restoreArmed();
     if (qT0 && /^\d+$/.test(qT0)) armT0(parseInt(qT0, 10), "url");
+    const qClaude = q.get("claude");
+    if (qClaude && /^https:\/\/[a-z0-9.-]+(:\d+)?\/?$/i.test(qClaude)) store(LS.claudeUrl, qClaude.replace(/\/+$/, ""));
     const qRole = q.get("role");
     if (qRole === "pilot" || qRole === "conductor") store(LS.role, qRole);
     const role = load(LS.role);
     edRestore();
+    // the conductor opened on a show file it has since edited and published under the
+    // same code: run (and re-publish) the edited one, never quietly the original
+    if (APP.show && ED.pubShow && ED.code && ED.pubShow.code === ED.code && showCodeNow() === ED.code &&
+        JSON.stringify(APP.show) !== JSON.stringify(ED.pubShow)) {
+      const vp = validateShow(ED.pubShow);
+      if (vp.ok) applyShow(vp, "");
+    }
     if (q.get("edit") !== "1" && (role === "pilot" || role === "conductor")) { APP.role = role; if (role === "pilot") startT0Poll(); go(role === "pilot" ? "pilot-setup" : "cond-setup"); }
     else if (role === "editor" || q.get("edit") === "1") {
       APP.role = "editor"; store(LS.role, "editor"); go("editor");
